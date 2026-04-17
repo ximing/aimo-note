@@ -66,6 +66,30 @@ class VaultService extends Service<VaultState> {
   get vaultPath(): string | null {
     return this.state.path;
   }
+
+  async createNote(parentPath: string, name: string): Promise<void> {
+    const fullPath = `${parentPath}/${name}`;
+    await vault.writeNote(fullPath, `# ${name}\n\n`);
+    await this.refreshTree();
+  }
+
+  async createFolder(parentPath: string, name: string): Promise<void> {
+    const fullPath = `${parentPath}/${name}`;
+    await vault.createFolder(fullPath);
+    await this.refreshTree();
+  }
+
+  async renameNode(node: TreeNode, newName: string): Promise<void> {
+    const parentPath = node.path.substring(0, node.path.lastIndexOf('/'));
+    const newPath = `${parentPath}/${newName}`;
+    await vault.rename(node.path, newPath);
+    await this.refreshTree();
+  }
+
+  async deleteNode(node: TreeNode): Promise<void> {
+    await vault.deleteNote(node.path);
+    await this.refreshTree();
+  }
 }
 
 export const vaultService = new VaultService();
