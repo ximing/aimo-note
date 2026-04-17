@@ -60,11 +60,10 @@ export class UIService extends Service {
     this._updateResolvedTheme();
   }
 
-  override dispose() {
+  dispose() {
     if (this._mediaQuery) {
       this._mediaQuery.removeEventListener('change', this._handleSystemThemeChange);
     }
-    super.dispose();
   }
 }
 

@@ -33,11 +33,13 @@ export function MilkdownEditorInner({
   }, [onChange, defaultValue]);
 
   return (
-    <div className={`milkdown-wrapper ${className}`}>
+    <div className={`milkdown-wrapper h-full ${className}`}>
       {loading && (
         <div className="milkdown-loading p-4 text-gray-500">Loading editor...</div>
       )}
-      <Milkdown />
+      <div className="h-full">
+        <Milkdown />
+      </div>
     </div>
   );
 }

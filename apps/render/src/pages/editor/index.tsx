@@ -24,9 +24,9 @@ const EditorPageContent = observer(() => {
     }
   }, [path, service]);
 
-  const handleChange = (markdown: string) => {
+  const handleChange = useCallback((markdown: string) => {
     service.updateContent(markdown);
-  };
+  }, [service]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
