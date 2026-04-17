@@ -7,7 +7,7 @@ export interface VaultState {
   activeFile: string | null;
 }
 
-class VaultStore extends Service<VaultState> {
+class VaultService extends Service<VaultState> {
   protected state: VaultState = {
     path: null,
     files: new Map(),
@@ -21,11 +21,11 @@ class VaultStore extends Service<VaultState> {
   }
 
   async refreshVault(): Promise<void> {
-    // TODO: implement via vault service
+    // TODO: implement via IPC vault
   }
 }
 
-export const vaultStore = new VaultStore();
-export function useVaultStore() {
-  return vaultStore.use();
+export const vaultService = new VaultService();
+export function useVaultService() {
+  return vaultService.use();
 }

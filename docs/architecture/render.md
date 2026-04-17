@@ -21,13 +21,13 @@ apps/render/src/
 │   ├── graph/
 │   ├── search/
 │   └── settings/
-├── stores/                  # @rabjs/react State Management
-│   ├── vault.store.ts       # Vault state (files, folders, vault path)
-│   ├── editor.store.ts      # Editor state (current note, cursor, selection)
-│   ├── graph.store.ts       # Graph data and view state
-│   ├── search.store.ts      # Search query and results
-│   ├── ui.store.ts          # UI state (sidebar, theme, modals)
-│   └── plugin.store.ts      # Plugin registry state
+├── services/               # @rabjs/react State Management (Services)
+│   ├── vault.service.ts     # Vault state (files, folders, vault path)
+│   ├── editor.service.ts    # Editor state (current note, cursor, selection)
+│   ├── graph.service.ts     # Graph data and view state
+│   ├── search.service.ts    # Search query and results
+│   ├── ui.service.ts       # UI state (sidebar, theme, modals)
+│   └── plugin.service.ts    # Plugin registry state
 ├── ipc/                     # IPC Communication Layer (Typed IPC wrappers)
 │   ├── vault.ts           # IPC: read/write/list notes
 │   ├── graph.ts           # IPC: get graph data
@@ -36,14 +36,14 @@ apps/render/src/
 │   ├── fs.ts              # IPC: file system operations (select vault)
 │   └── window.ts          # IPC: window controls
 ├── hooks/                   # Custom React Hooks
-│   ├── useVault.ts          # Vault operations
-│   ├── useNote.ts           # Note CRUD
-│   ├── useGraph.ts          # Graph data
-│   ├── useSearch.ts         # Search functionality
-│   ├── useEditor.ts         # Editor operations
-│   ├── usePlugins.ts        # Plugin management
-│   ├── useFileSystem.ts     # FS access
-│   └── useKeyboardShortcuts.ts
+│   ├── use-vault.ts          # Vault operations
+│   ├── use-note.ts           # Note CRUD
+│   ├── use-graph.ts          # Graph data
+│   ├── use-search.ts         # Search functionality
+│   ├── use-editor.ts         # Editor operations
+│   ├── use-plugins.ts        # Plugin management
+│   ├── use-file-system.ts     # FS access
+│   └── use-keyboard-shortcuts.ts
 ├── types/                   # TypeScript Types
 │   ├── note.ts              # Note, NoteMetadata types
 │   ├── vault.ts             # Vault types
@@ -227,13 +227,13 @@ Route-level page components that compose components and connect to stores.
 **Public API:**
 Each page exports a default React component. Pages receive route parameters via React Router.
 
-### stores/
+### services/
 
-@rabjs/react stores for reactive state management.
+@rabjs/react services for reactive state management.
 
 **Responsibilities:**
 
-**vault.store.ts**
+**vault.service.ts**
 ```typescript
 interface VaultState {
   path: string | null;
@@ -242,13 +242,13 @@ interface VaultState {
   activeFile: string | null;
 }
 // Public API
-export const vaultStore;
-export function useVaultStore();
+export const vaultService;
+export function useVaultService();
 export function openVault(path: string): Promise<void>;
 export function refreshVault(): Promise<void>;
 ```
 
-**editor.store.ts**
+**editor.service.ts**
 ```typescript
 interface EditorState {
   currentNote: Note | null;
@@ -258,13 +258,13 @@ interface EditorState {
   isDirty: boolean;
 }
 // Public API
-export const editorStore;
-export function useEditorStore();
+export const editorService;
+export function useEditorService();
 export function openNote(path: string): Promise<void>;
 export function saveNote(): Promise<void>;
 ```
 
-**graph.store.ts**
+**graph.service.ts**
 ```typescript
 interface GraphState {
   nodes: GraphNode[];
@@ -273,11 +273,11 @@ interface GraphState {
   selectedNode: string | null;
 }
 // Public API
-export const graphStore;
-export function useGraphStore();
+export const graphService;
+export function useGraphService();
 ```
 
-**search.store.ts**
+**search.service.ts**
 ```typescript
 interface SearchState {
   query: string;
@@ -286,12 +286,12 @@ interface SearchState {
   isSearching: boolean;
 }
 // Public API
-export const searchStore;
-export function useSearchStore();
+export const searchService;
+export function useSearchService();
 export function search(query: string): Promise<void>;
 ```
 
-**ui.store.ts**
+**ui.service.ts**
 ```typescript
 interface UIState {
   sidebarOpen: boolean;
@@ -300,19 +300,19 @@ interface UIState {
   commandPaletteOpen: boolean;
 }
 // Public API
-export const uiStore;
-export function useUIStore();
+export const uiService;
+export function useUIService();
 ```
 
-**plugin.store.ts**
+**plugin.service.ts**
 ```typescript
 interface PluginState {
   plugins: Map<string, Plugin>;
   enabledPlugins: Set<string>;
 }
 // Public API
-export const pluginStore;
-export function usePluginStore();
+export const pluginService;
+export function usePluginService();
 export function loadPlugin(id: string): Promise<void>;
 export function unloadPlugin(id: string): Promise<void>;
 ```
@@ -396,9 +396,9 @@ export const window: Window;
 
 ### hooks/
 
-Custom React hooks that encapsulate business logic and connect components to stores/ipc.
+Custom React hooks that encapsulate business logic and connect components to services/ipc.
 
-**useVault.ts**
+**use-vault.ts**
 ```typescript
 export function useVault(): {
   path: string | null;
@@ -408,7 +408,7 @@ export function useVault(): {
 };
 ```
 
-**useNote.ts**
+**use-note.ts**
 ```typescript
 export function useNote(path: string): {
   note: Note | null;
@@ -419,7 +419,7 @@ export function useNote(path: string): {
 };
 ```
 
-**useEditor.ts**
+**use-editor.ts**
 ```typescript
 export function useEditor(): {
   openNote: (path: string) => void;
@@ -430,7 +430,7 @@ export function useEditor(): {
 };
 ```
 
-**useGraph.ts**
+**use-graph.ts**
 ```typescript
 export function useGraph(): {
   nodes: GraphNode[];
@@ -441,7 +441,7 @@ export function useGraph(): {
 };
 ```
 
-**useSearch.ts**
+**use-search.ts**
 ```typescript
 export function useSearch(): {
   query: string;
@@ -452,7 +452,7 @@ export function useSearch(): {
 };
 ```
 
-**usePlugins.ts**
+**use-plugins.ts**
 ```typescript
 export function usePlugins(): {
   plugins: Plugin[];
@@ -463,7 +463,7 @@ export function usePlugins(): {
 };
 ```
 
-**useFileSystem.ts**
+**use-file-system.ts**
 ```typescript
 export function useFileSystem(): {
   selectVault: () => Promise<string | null>;
@@ -472,7 +472,7 @@ export function useFileSystem(): {
 };
 ```
 
-**useKeyboardShortcuts.ts**
+**use-keyboard-shortcuts.ts**
 ```typescript
 export function useKeyboardShortcuts(shortcuts: ShortcutConfig[]): void;
 // Registers global keyboard shortcuts
@@ -649,7 +649,7 @@ Using @rabjs/react stores for global state provides:
 
 ### 3. Hooks as Business Logic Bridge
 
-Custom hooks (`useNote`, `useEditor`, etc.) bridge stores/services to components. This keeps components as thin as possible while making business logic testable and reusable.
+Custom hooks (`useNote`, `useEditor`, etc.) bridge services/ipc to components. This keeps components as thin as possible while making business logic testable and reusable.
 
 ### 4. Component Hierarchy
 
@@ -681,18 +681,18 @@ This makes it easy to find all operations in a domain and avoids naming collisio
 
 ## Extension Points
 
-### Adding a New Service
+### Adding a New IPC Module
 
-1. Create `services/new-service.ts`
-2. Define the service interface and implementation
-3. Export from `services/index.ts`
+1. Create `ipc/new-module.ts`
+2. Define the interface and implementation
+3. Export from `ipc/index.ts`
 4. Use from hooks or stores
 
 ### Adding a New Store
 
-1. Create `stores/new-store.ts` using @rabjs/react
+1. Create `services/new-service.ts` using @rabjs/react
 2. Define state interface and actions
-3. Export from `stores/index.ts`
+3. Export from `services/index.ts`
 4. Consume via `useNewStore()` hook
 
 ### Adding a New Page
@@ -704,7 +704,7 @@ This makes it easy to find all operations in a domain and avoids naming collisio
 
 ### Plugin System
 
-The `plugin.store.ts` and `plugin.service.ts` provide a foundation for extensibility:
+The `plugin.service.ts` and `ipc/plugin.ts` provide a foundation for extensibility:
 
 1. Plugins are loaded from `vault/.aimo-note/plugins/`
 2. Each plugin has a `manifest.json` defining its API requirements
@@ -766,9 +766,9 @@ test('calls onClick when clicked', () => {
 Custom hooks are tested via `@testing-library/react`:
 
 ```typescript
-// hooks/__tests__/useNote.test.ts
+// hooks/__tests__/use-note.test.ts
 import { renderHook, waitFor } from '@testing-library/react';
-import { useNote } from '../useNote';
+import { useNote } from '../use-note';
 
 test('loads note content', async () => {
   const { result } = renderHook(() => useNote('/test/note.md'));
@@ -781,7 +781,7 @@ test('loads note content', async () => {
 @rabjs/react stores can be tested directly:
 
 ```typescript
-// stores/__tests__/editor.store.test.ts
+// services/__tests__/editor.service.test.ts
 import { getStore } from '../editor.store';
 
 test('sets current note', async () => {
@@ -791,19 +791,19 @@ test('sets current note', async () => {
 });
 ```
 
-### Testing Services
+### Testing IPC
 
-Services use mock IPC, making them testable without Electron:
+IPC modules use mock, making them testable without Electron:
 
 ```typescript
-// services/__tests__/vault.service.test.ts
-import { vaultService } from '../vault.service';
+// ipc/__tests__/vault.test.ts
+import { vault } from '../vault';
 import { mockIPC } from '@electron/test-utils';
 
 test('opens vault', async () => {
   mockIPC('vault:open', () => ({ path: '/test', files: 10 }));
-  const vault = await vaultService.open('/test');
-  expect(vault.path).toBe('/test');
+  const result = await vault.open('/test');
+  expect(result.path).toBe('/test');
 });
 ```
 
@@ -827,5 +827,5 @@ test('edits and saves a note', async ({ page }) => {
 
 - Component tests: Next to source files `__tests__/` subdirectory
 - Hook/Store tests: `__tests__/` in respective directories
-- Service tests: `services/__tests__/`
+- IPC tests: `ipc/__tests__/`
 - E2E tests: `e2e/` in project root

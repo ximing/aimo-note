@@ -12,7 +12,7 @@ export interface SearchState {
   isSearching: boolean;
 }
 
-class SearchStore extends Service<SearchState> {
+class SearchService extends Service<SearchState> {
   protected state: SearchState = {
     query: '',
     results: [],
@@ -24,7 +24,7 @@ class SearchStore extends Service<SearchState> {
   }
 }
 
-export const searchStore = new SearchStore();
-export function useSearchStore() {
-  return searchStore.use();
+export const searchService = new SearchService();
+export function useSearchService() {
+  return searchService.use();
 }

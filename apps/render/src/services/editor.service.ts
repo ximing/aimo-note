@@ -9,7 +9,7 @@ export interface EditorState {
   isDirty: boolean;
 }
 
-class EditorStore extends Service<EditorState> {
+class EditorService extends Service<EditorState> {
   protected state: EditorState = {
     currentNote: null,
     content: '',
@@ -27,7 +27,7 @@ class EditorStore extends Service<EditorState> {
   }
 }
 
-export const editorStore = new EditorStore();
-export function useEditorStore() {
-  return editorStore.use();
+export const editorService = new EditorService();
+export function useEditorService() {
+  return editorService.use();
 }

@@ -6,14 +6,14 @@ export interface PluginState {
   enabledPlugins: Set<string>;
 }
 
-class PluginStore extends Service<PluginState> {
+class PluginService extends Service<PluginState> {
   protected state: PluginState = {
     plugins: new Map(),
     enabledPlugins: new Set(),
   };
 }
 
-export const pluginStore = new PluginStore();
-export function usePluginStore() {
-  return pluginStore.use();
+export const pluginService = new PluginService();
+export function usePluginService() {
+  return pluginService.use();
 }

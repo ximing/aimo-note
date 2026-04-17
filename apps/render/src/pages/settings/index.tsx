@@ -1,7 +1,7 @@
-import { useUIStore } from '../../stores/ui.store';
+import { useUIService } from '../../services/ui.service';
 
 export function SettingsPage() {
-  const { theme, setTheme } = useUIStore();
+  const { theme } = useUIService();
 
   return (
     <div className="settings-page p-4 max-w-2xl">
@@ -14,7 +14,7 @@ export function SettingsPage() {
             <button
               key={t}
               className={`px-4 py-2 rounded ${theme === t ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}
-              onClick={() => setTheme(t)}
+              onClick={() => uiService.setTheme(t)}
             >
               {t.charAt(0).toUpperCase() + t.slice(1)}
             </button>

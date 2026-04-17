@@ -7,7 +7,7 @@ export interface GraphState {
   viewState: { zoom: number; pan: { x: number; y: number } };
 }
 
-class GraphStore extends Service<GraphState> {
+class GraphService extends Service<GraphState> {
   protected state: GraphState = {
     data: { nodes: [], edges: [] },
     selectedNode: null,
@@ -15,7 +15,7 @@ class GraphStore extends Service<GraphState> {
   };
 }
 
-export const graphStore = new GraphStore();
-export function useGraphStore() {
-  return graphStore.use();
+export const graphService = new GraphService();
+export function useGraphService() {
+  return graphService.use();
 }

@@ -1,4 +1,4 @@
-import { useVault } from '../../hooks/useVault';
+import { useVault } from '../../hooks/use-vault';
 
 export function HomePage() {
   const { path } = useVault();

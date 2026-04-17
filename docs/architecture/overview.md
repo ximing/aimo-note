@@ -9,8 +9,8 @@ aimo-note/
 │   │   └── src/
 │   │       ├── components/   # UI layer (ui/, editor/, graph/, layout/, explorer/, common/)
 │   │       ├── pages/        # Route pages (home, editor, graph, search, settings)
-│   │       ├── stores/       # @rabjs/react state management
-│   │       ├── services/     # IPC communication layer
+│   │       ├── services/       # @rabjs/react state management
+│   │       ├── ipc/     # IPC communication layer
 │   │       ├── hooks/        # Custom React hooks
 │   │       ├── types/        # TypeScript types
 │   │       └── utils/        # Utilities
@@ -46,8 +46,8 @@ React 19 SPA running in Electron renderer. Responsible for UI rendering and user
 - **Components**: Pure UI components, organized by domain (editor, graph, layout)
 - **Pages**: Route-level components composing business features
 - **Stores**: Reactive state via @rabjs/react
-- **Services**: Typed wrappers around IPC calls
-- **Hooks**: Business logic connecting components to stores/services
+- **IPC**: Typed wrappers around IPC calls
+- **Hooks**: Business logic connecting components to services/ipc
 
 ### 2. Native Integration Layer (apps/client)
 Electron main process handling OS integration.
@@ -78,7 +78,7 @@ User Interaction
       ↓
 React Components (apps/render)
       ↓
-Services (IPC invoke)
+IPC (invoke)
       ↓
 IPC Handlers (apps/client)
       ↓

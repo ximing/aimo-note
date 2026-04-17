@@ -43,9 +43,19 @@ pnpm typecheck
 
 ## Architecture
 
-- **Render**: React components, stores, services, hooks
+- **Render**: React components, services, ipc, hooks
 - **Client**: Window/menu/tray management, IPC handlers
 - **Core**: Vault I/O, graph building, search indexing, plugins
+
+## Naming Conventions
+
+### File Names
+- **Kebab-case**: 使用小写字母 + 连字符（kebab-case）
+  - ✅ `use-file-system.ts`, `vault-service.ts`, `milkdown-editor.tsx`
+  - ❌ `useFileSystem.ts`, `vaultService.ts`, `MilkdownEditor.tsx`
+- **组件文件**: 使用 kebab-case，如 `editor-toolbar.tsx`
+- **Hook 文件**: 使用 `use-` 前缀 + kebab-case，如 `use-vault.ts`
+- **Service 文件**: 使用 `.service.ts` 后缀，如 `vault.service.ts`
 
 ## Tech Stack
 

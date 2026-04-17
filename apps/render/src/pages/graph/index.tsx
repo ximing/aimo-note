@@ -1,4 +1,4 @@
-import { useGraph } from '../../hooks/useGraph';
+import { useGraph } from '../../hooks/use-graph';
 
 export function GraphPage() {
   const { data, selectedNode } = useGraph();

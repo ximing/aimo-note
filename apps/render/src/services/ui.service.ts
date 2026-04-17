@@ -7,16 +7,21 @@ export interface UIState {
   commandPaletteOpen: boolean;
 }
 
-class UIStore extends Service<UIState> {
+class UIService extends Service<UIState> {
   protected state: UIState = {
     sidebarOpen: true,
     theme: 'system',
     activeModal: null,
     commandPaletteOpen: false,
   };
+
+  setTheme(theme: 'light' | 'dark' | 'system') {
+    this.state.theme = theme;
+    this.notify();
+  }
 }
 
-export const uiStore = new UIStore();
-export function useUIStore() {
-  return uiStore.use();
+export const uiService = new UIService();
+export function useUIService() {
+  return uiService.use();
 }
