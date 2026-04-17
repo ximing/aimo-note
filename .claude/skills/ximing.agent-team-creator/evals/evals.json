@@ -1,0 +1,23 @@
+{
+  "skill_name": "agent-team-creator",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我在做一个开源的命令行工具，用来帮开发者管理 TODO 注释。现在我需要做技术调研，能不能创建一个 agent 团队，让一个 teammate 研究 UX，一个研究技术架构，一个专门唱反调找缺陷？",
+      "expected_output": "输出应包含：(1) 明确的团队设计方案，包含 3 个 teammate 的角色、职责和范围；(2) 每个 teammate 的 spawn prompt 草稿，要足够详细（角色、目标、产出格式、边界）；(3) 结果如何汇总的建议；(4) 提醒用户清理团队资源",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "帮我把这个任务并行化：我需要给一个 Android 应用做全面的安全审计。包括检查网络请求中的敏感数据、检查本地存储的加密情况、分析第三方 SDK 的权限，还需要检查代码中有没有硬编码的密钥。这四个方向能同时做吗？用 agent 团队来跑？",
+      "expected_output": "输出应包含：(1) 判断这 4 个方向确实可以并行；(2) 为每个方向设计一个 teammate，明确各自的范围不重叠；(3) 对网络请求、本地存储这类可能有副作用的操作，建议开启 plan approval；(4) 合适的 spawn prompt 模板",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "我要重构一个电商系统的结账流程，分三个阶段：先抽取业务逻辑到 service 层，然后改造 API 接口，最后更新前端组件。这三步能用 agent 团队并行做吗？",
+      "expected_output": "输出应识别出这三个任务存在顺序依赖关系（service 层先完成，API 接口才能改，前端要等 API），不适合完全并行；建议使用任务依赖机制（task dependencies），或者建议改用 subagent-driven-development 的顺序执行方式，而不是强行并行",
+      "files": []
+    }
+  ]
+}

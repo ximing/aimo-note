@@ -1,0 +1,12 @@
+pnpm-lock.yaml
+node_modules
+dist
+build
+temp
+apps/server/migrations
+# Data directories
+lancedb_data/
+attachments/
+.worktrees/
+worktrees/
+.turbo
