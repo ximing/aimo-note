@@ -30,6 +30,12 @@ export interface TreeNode {
   children?: TreeNode[];
 }
 
+export interface RecentVault {
+  path: string;
+  name: string;
+  lastOpened: number;
+}
+
 export interface VaultResult {
   success: boolean;
   canceled?: boolean;
@@ -146,6 +152,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
       updateStatusCallbackMap.delete(callback);
     }
   },
+
+  // Config operations for recent vaults
+  config: {
+    getRecentVaults: () => ipcRenderer.invoke('config:getRecentVaults'),
+    addRecentVault: (vaultPath: string) =>
+      ipcRenderer.invoke('config:addRecentVault', vaultPath),
+    removeRecentVault: (vaultPath: string) =>
+      ipcRenderer.invoke('config:removeRecentVault', vaultPath),
+  },
 });
 
 // --------- Type definitions for Renderer process ---------
@@ -185,6 +200,12 @@ declare global {
         rename: (vaultPath: string, oldPath: string, newPath: string) => Promise<VaultResult>;
         createFolder: (vaultPath: string, folderPath: string) => Promise<VaultResult>;
         list: (vaultPath: string) => Promise<VaultResult>;
+      };
+      // Config operations
+      config: {
+        getRecentVaults: () => Promise<RecentVault[]>;
+        addRecentVault: (vaultPath: string) => Promise<{ success: boolean; recentVaults: RecentVault[] }>;
+        removeRecentVault: (vaultPath: string) => Promise<{ success: boolean; recentVaults: RecentVault[] }>;
       };
     };
   }

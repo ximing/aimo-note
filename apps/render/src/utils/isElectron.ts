@@ -145,8 +145,20 @@ declare global {
         key: string
       ) => Promise<{ success: boolean; value: string | null; error?: string }>;
       secureStoreDelete: (key: string) => Promise<{ success: boolean; error?: string }>;
+      // Config APIs
+      config: {
+        getRecentVaults: () => Promise<RecentVault[]>;
+        addRecentVault: (vaultPath: string) => Promise<{ success: boolean; recentVaults: RecentVault[] }>;
+        removeRecentVault: (vaultPath: string) => Promise<{ success: boolean; recentVaults: RecentVault[] }>;
+      };
     };
   }
+}
+
+interface RecentVault {
+  path: string;
+  name: string;
+  lastOpened: number;
 }
 
 interface TreeNode {

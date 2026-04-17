@@ -43,10 +43,27 @@ interface AuthStore {
   encryptedToken: string | null;
 }
 
+// Recent vaults store
+interface RecentVault {
+  path: string;
+  name: string;
+  lastOpened: number;
+}
+
+interface ConfigStore {
+  recentVaults: RecentVault[];
+}
+
 // Persistent store for encrypted token (survives app restarts)
 const authStore = new Store<AuthStore>({
   name: 'auth',
   defaults: { encryptedToken: null },
+});
+
+// Config store for app settings (recent vaults, etc.)
+const configStore = new Store<ConfigStore>({
+  name: 'config',
+  defaults: { recentVaults: [] },
 });
 
 export function registerIpcHandlers(): void {
@@ -106,6 +123,50 @@ export function registerIpcHandlers(): void {
       return { success: false, error: 'Unknown key' };
     } catch (error) {
       console.error('Failed to delete secure value:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Config handlers for recent vaults
+  ipcMain.handle('config:getRecentVaults', () => {
+    return configStore.get('recentVaults', []);
+  });
+
+  ipcMain.handle('config:addRecentVault', (_event, vaultPath: string) => {
+    try {
+      const recentVaults = configStore.get('recentVaults', []);
+      const vaultName = path.basename(vaultPath);
+
+      // Remove if already exists
+      const filtered = recentVaults.filter((v: RecentVault) => v.path !== vaultPath);
+
+      // Add to front with new timestamp
+      const newVault: RecentVault = {
+        path: vaultPath,
+        name: vaultName,
+        lastOpened: Date.now(),
+      };
+      filtered.unshift(newVault);
+
+      // Keep only last 10
+      const trimmed = filtered.slice(0, 10);
+      configStore.set('recentVaults', trimmed);
+
+      return { success: true, recentVaults: trimmed };
+    } catch (error) {
+      console.error('Failed to add recent vault:', error);
+      return { success: false, error: String(error), recentVaults: [] };
+    }
+  });
+
+  ipcMain.handle('config:removeRecentVault', (_event, vaultPath: string) => {
+    try {
+      const recentVaults = configStore.get('recentVaults', []);
+      const filtered = recentVaults.filter((v: RecentVault) => v.path !== vaultPath);
+      configStore.set('recentVaults', filtered);
+      return { success: true, recentVaults: filtered };
+    } catch (error) {
+      console.error('Failed to remove recent vault:', error);
       return { success: false, error: String(error) };
     }
   });

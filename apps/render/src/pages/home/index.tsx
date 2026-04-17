@@ -1,3 +1,4 @@
+import { useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { useVaultService } from '../../services';
 import { VaultTree } from '@/components/explorer/VaultTree';
@@ -5,7 +6,11 @@ import { VaultTree } from '@/components/explorer/VaultTree';
 export function HomePage() {
   const vaultService = useVaultService();
   const navigate = useNavigate();
-  const { path, isLoading } = vaultService;
+  const { path, isLoading, recentVaults } = vaultService;
+
+  useEffect(() => {
+    vaultService.loadRecentVaults();
+  }, []);
 
   const handleOpenVault = async () => {
     const success = await vaultService.selectAndOpenVault();
@@ -20,6 +25,28 @@ export function HomePage() {
       navigate('/editor');
     }
   };
+
+  const handleOpenRecentVault = useCallback(async (vaultPath: string) => {
+    const success = await vaultService.openRecentVault(vaultPath);
+    if (success) {
+      navigate('/editor');
+    }
+  }, [vaultService, navigate]);
+
+  const handleRemoveRecent = useCallback(async (e: React.MouseEvent, vaultPath: string) => {
+    e.stopPropagation();
+    await vaultService.removeRecentVault(vaultPath);
+  }, [vaultService]);
+
+  useEffect(() => {
+    // Auto-open most recent vault if no vault is open
+    if (!path && recentVaults.length > 0) {
+      const mostRecent = recentVaults[0];
+      if (confirm(`Open last vault?\n\n"${mostRecent.name}"\n${mostRecent.path}`)) {
+        handleOpenRecentVault(mostRecent.path);
+      }
+    }
+  }, [path, recentVaults, handleOpenRecentVault]);
 
   if (isLoading) {
     return (
@@ -57,6 +84,35 @@ export function HomePage() {
             >
               Create New Vault
             </button>
+
+            {recentVaults.length > 0 && (
+              <div className="mt-8">
+                <p className="text-sm font-medium text-muted-foreground mb-3">Recent Vaults</p>
+                <div className="flex flex-col gap-2 text-left">
+                  {recentVaults.map((vault) => (
+                    <button
+                      key={vault.path}
+                      type="button"
+                      onClick={() => handleOpenRecentVault(vault.path)}
+                      className="group flex items-center justify-between px-4 py-2 rounded-lg hover:bg-muted transition-colors text-left"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{vault.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{vault.path}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => handleRemoveRecent(e, vault.path)}
+                        className="opacity-0 group-hover:opacity-100 p-1 hover:text-destructive transition-opacity"
+                        title="Remove from recent"
+                      >
+                        ×
+                      </button>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="w-full mt-4">

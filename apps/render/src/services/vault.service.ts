@@ -1,12 +1,19 @@
 import { Service, resolve } from '@rabjs/react';
 import { vault } from '@/ipc/vault';
+import { config } from '@/ipc/config';
 import type { TreeNode } from '@/ipc/vault';
+import type { RecentVault } from '@/ipc/config';
 
 export class VaultService extends Service {
   path: string | null = null;
   tree: TreeNode[] = [];
   activeFile: string | null = null;
   isLoading = false;
+  recentVaults: RecentVault[] = [];
+
+  async loadRecentVaults(): Promise<void> {
+    this.recentVaults = await config.getRecentVaults();
+  }
 
   async openVault(path: string): Promise<void> {
     this.isLoading = true;
@@ -15,6 +22,8 @@ export class VaultService extends Service {
       if (result) {
         this.path = result.path;
         await this.refreshTree();
+        // Add to recent vaults
+        this.recentVaults = await config.addRecentVault(path);
       }
     } finally {
       this.isLoading = false;
@@ -35,6 +44,27 @@ export class VaultService extends Service {
     return false;
   }
 
+  async openRecentVault(vaultPath: string): Promise<boolean> {
+    this.isLoading = true;
+    try {
+      const result = await vault.open(vaultPath);
+      if (result) {
+        this.path = vaultPath;
+        await this.refreshTree();
+        // Update recent vaults
+        this.recentVaults = await config.addRecentVault(vaultPath);
+        return true;
+      }
+      return false;
+    } catch {
+      // Remove from recent if cannot open
+      this.recentVaults = await config.removeRecentVault(vaultPath);
+      return false;
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
   async createAndOpenVault(): Promise<boolean> {
     const path = await vault.selectFolder();
     if (path) {
@@ -43,6 +73,10 @@ export class VaultService extends Service {
       return true;
     }
     return false;
+  }
+
+  async removeRecentVault(vaultPath: string): Promise<void> {
+    this.recentVaults = await config.removeRecentVault(vaultPath);
   }
 
   setActiveFile(path: string | null): void {
