@@ -42,9 +42,7 @@ const HomePageContent = observer(() => {
     // Auto-open most recent vault if no vault is open
     if (!vaultService.path && vaultService.recentVaults.length > 0) {
       const mostRecent = vaultService.recentVaults[0];
-      if (confirm(`Open last vault?\n\n"${mostRecent.name}"\n${mostRecent.path}`)) {
-        handleOpenRecentVault(mostRecent.path);
-      }
+      handleOpenRecentVault(mostRecent.path);
     }
   }, [vaultService.path, vaultService.recentVaults, handleOpenRecentVault]);
 
