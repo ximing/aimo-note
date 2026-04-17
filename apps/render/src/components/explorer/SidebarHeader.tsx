@@ -52,7 +52,7 @@ export function SidebarHeader({
   }, [showSortMenu]);
 
   const currentSortOption = `${sortBy}-${sortOrder}` as SortOption;
-  const currentOption = sortOptions.find((opt) => opt.value === currentSortOption);
+  const currentOption = sortOptions.find((opt) => opt.value === currentSortOption) ?? sortOptions[0];
 
   const handleSortSelect = (value: SortOption, disabled?: boolean) => {
     if (disabled) return;
