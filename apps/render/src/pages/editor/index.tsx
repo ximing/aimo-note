@@ -5,8 +5,8 @@ import { MilkdownEditor } from '../../components/editor/MilkdownEditor';
 import { EditorStatus } from '../../components/editor/EditorStatus';
 import { EditorService } from '../../services/editor.service';
 import { useVaultService } from '@/services/vault.service';
-import { ContextMenu, type MenuItem } from '@/components/common/ContextMenu';
-import { vault } from '@/ipc/vault';
+import { ContextMenu } from '@/components/common/ContextMenu';
+import type { TreeNode } from '@/ipc/vault';
 
 const EditorPageContent = observer(() => {
   const { path = '' } = useParams<{ path: string }>();
@@ -36,16 +36,36 @@ const EditorPageContent = observer(() => {
       const vaultPath = vaultService.vaultPath;
       if (vaultPath) {
         const fileName = name.endsWith('.md') ? name : `${name}.md`;
-        await vault.writeNote(vaultPath, fileName, `# ${name.replace('.md', '')}\n\n`);
-        await vaultService.refreshTree();
+        await vaultService.createNote('', fileName);
         navigate(`/editor/${encodeURIComponent(fileName)}`);
       }
     }
   }, [vaultService, navigate]);
 
-  const contextMenuItems: MenuItem[] = [
-    { label: 'New File', icon: '📄', onClick: handleNewFile },
-  ];
+  const handleNewFolder = useCallback(async () => {
+    const name = prompt('Enter folder name:', 'new-folder');
+    if (name) {
+      await vaultService.createFolder('', name);
+    }
+  }, [vaultService]);
+
+  const handleRename = useCallback(async (node: TreeNode) => {
+    const newName = prompt('Enter new name:', node.name);
+    if (newName && newName !== node.name) {
+      await vaultService.renameNode(node, newName);
+    }
+  }, [vaultService]);
+
+  const handleDelete = useCallback(async (node: TreeNode) => {
+    const confirmed = confirm(`Delete "${node.name}"? This cannot be undone.`);
+    if (confirmed) {
+      await vaultService.deleteNode(node);
+    }
+  }, [vaultService]);
+
+  const handleCloseContextMenu = useCallback(() => {
+    setContextMenu(null);
+  }, []);
 
   const displayPath = service.currentNote?.path || path || 'New Note';
   const saveStatus = service.isSaving
@@ -75,8 +95,12 @@ const EditorPageContent = observer(() => {
         <ContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
-          items={contextMenuItems}
-          onClose={() => setContextMenu(null)}
+          node={null}
+          onNewFile={handleNewFile}
+          onNewFolder={handleNewFolder}
+          onRename={handleRename}
+          onDelete={handleDelete}
+          onClose={handleCloseContextMenu}
         />
       )}
     </div>
