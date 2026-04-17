@@ -5,7 +5,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Vue green palette
+        // Accent color palette
         accent: {
           DEFAULT: 'var(--accent)',
           light: 'var(--accent-light)',
@@ -34,19 +34,6 @@ export default {
         border: {
           DEFAULT: 'var(--border)',
           light: 'var(--border-light)',
-        },
-        dark: {
-          50: '#fafafa',
-          100: '#f5f5f5',
-          200: '#eeeeee',
-          300: '#e0e0e0',
-          400: '#a0a0a0',
-          500: '#757575',
-          600: '#5a5a5a',
-          700: '#424242',
-          800: '#2a2a2a',
-          900: '#1a1a1a',
-          950: '#121212',
         },
       },
       animation: {

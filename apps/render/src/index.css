@@ -85,20 +85,8 @@ body {
   background: var(--text-muted);
 }
 
-html.dark ::-webkit-scrollbar-thumb {
-  background: var(--border);
-}
-
-html.dark ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
-}
-
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
-}
-
-html.dark {
   scrollbar-color: var(--border) transparent;
 }
 
