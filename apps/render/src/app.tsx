@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router';
+import { Layout } from './components/Layout';
 import { HomePage } from './pages/home';
 import { EditorPage } from './pages/editor';
 import { SettingsPage } from './pages/settings';
@@ -10,9 +11,11 @@ export function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/editor/:path*" element={<EditorPage />} />
-        <Route path="/graph" element={<GraphPage />} />
-        <Route path="/search" element={<SearchPage />} />
+        <Route element={<Layout />}>
+          <Route path="/editor/:path*" element={<EditorPage />} />
+          <Route path="/graph" element={<GraphPage />} />
+          <Route path="/search" element={<SearchPage />} />
+        </Route>
         <Route path="/settings" element={<SettingsPage />} />
       </Routes>
     </BrowserRouter>
