@@ -10,7 +10,6 @@ interface TreeNodeProps {
   node: TreeNodeType;
   depth?: number;
   isExpanded?: boolean;
-  isSelected?: boolean;
   onToggleExpand?: () => void;
   expandedPaths?: Set<string>;
   onToggleExpandDeep?: (path: string) => void;
@@ -30,7 +29,6 @@ export function TreeNode({
   node,
   depth = 0,
   isExpanded = false,
-  isSelected = false,
   onToggleExpand,
   expandedPaths,
   onToggleExpandDeep,
@@ -43,6 +41,7 @@ export function TreeNode({
   const vaultService = useService(VaultService);
   const navigate = useNavigate();
   const isFolder = node.type === 'folder';
+  const nodeIsSelected = vaultService.activeFile === node.path;
 
   // Check if this node or any children are expanded
   const hasExpandedDescendant = expandedPaths?.has(node.path) || false;
@@ -87,7 +86,7 @@ export function TreeNode({
         type="button"
         onClick={handleClick}
         onContextMenu={handleContextMenu}
-        className={`flex items-center gap-1 w-full px-2 py-1 hover:bg-accent rounded text-left ${isSelected ? 'bg-accent text-white' : ''}`}
+        className={`flex items-center gap-1 w-full px-2 py-1 hover:bg-accent rounded text-left ${nodeIsSelected ? 'bg-accent text-white' : ''}`}
         style={{ paddingLeft: depth * 16 + 8 }}
       >
         {isFolder && (

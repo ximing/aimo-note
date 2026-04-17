@@ -14,7 +14,7 @@ interface DialogState {
 
 export const VaultTree = observer(() => {
   const vaultService = useService(VaultService);
-  const { tree, path, activeFile } = vaultService;
+  const { tree, path } = vaultService;
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [dialog, setDialog] = useState<DialogState>({ type: null });
@@ -134,7 +134,6 @@ export const VaultTree = observer(() => {
               node={node}
               depth={0}
               isExpanded={expandedPaths.has(node.path)}
-              isSelected={activeFile === node.path}
               onToggleExpand={() => toggleExpanded(node.path)}
               expandedPaths={expandedPaths}
               onToggleExpandDeep={toggleExpanded}
