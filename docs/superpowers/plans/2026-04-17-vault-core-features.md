@@ -1,6 +1,8 @@
 # Vault 核心功能实现计划
 
-> **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Status:** ✅ **COMPLETED** (2026-04-17)
+>
+> All tasks implemented and verified. Build passes.
 
 **Goal:** 实现 Obsidian 风格的 Vault 基础功能：打开/创建 Vault、文件树浏览、Milkdown 编辑器、右键菜单
 
@@ -17,7 +19,7 @@
 **Files:**
 - Modify: `apps/client/src/preload/index.ts:44-143`
 
-- [ ] **Step 1: 添加 vault API 类型定义**
+- [x] **Step 1: 添加 vault API 类型定义**
 
 在 `declare global { interface Window { electronAPI: {...} } }` 中添加：
 
@@ -35,7 +37,7 @@ vault: {
 };
 ```
 
-- [ ] **Step 2: 在 contextBridge.exposeInMainWorld 添加 vault 对象**
+- [x] **Step 2: 在 contextBridge.exposeInMainWorld 添加 vault 对象**
 
 ```typescript
 vault: {
@@ -51,7 +53,7 @@ vault: {
 },
 ```
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add apps/client/src/preload/index.ts
@@ -65,7 +67,7 @@ git commit -m "feat(client): add vault API to electronAPI preload"
 **Files:**
 - Modify: `apps/client/src/main/ipc/handlers.ts:16-163`
 
-- [ ] **Step 1: 在 handlers.ts 顶部添加导入**
+- [x] **Step 1: 在 handlers.ts 顶部添加导入**
 
 ```typescript
 import { dialog } from 'electron';
@@ -73,7 +75,7 @@ import fs from 'fs/promises';
 import path from 'path';
 ```
 
-- [ ] **Step 2: 添加 TreeNode 类型和 listDir 辅助函数**
+- [x] **Step 2: 添加 TreeNode 类型和 listDir 辅助函数**
 
 在 `registerIpcHandlers` 函数之前添加：
 
@@ -118,7 +120,7 @@ async function listDir(vaultPath: string, relativePath: string = ''): Promise<Tr
 }
 ```
 
-- [ ] **Step 3: 替换 vault:selectFolder handler**
+- [x] **Step 3: 替换 vault:selectFolder handler**
 
 将现有的 `vault:selectFolder` stub 替换为：
 
@@ -135,7 +137,7 @@ ipcMain.handle('vault:selectFolder', async () => {
 });
 ```
 
-- [ ] **Step 4: 替换 vault:create handler**
+- [x] **Step 4: 替换 vault:create handler**
 
 将现有的 `vault:create` stub 替换为：
 
@@ -152,7 +154,7 @@ ipcMain.handle('vault:create', async (_event, vaultPath: string) => {
 });
 ```
 
-- [ ] **Step 5: 替换 vault:open handler**
+- [x] **Step 5: 替换 vault:open handler**
 
 ```typescript
 ipcMain.handle('vault:open', async (_event, vaultPath: string) => {
@@ -171,7 +173,7 @@ ipcMain.handle('vault:open', async (_event, vaultPath: string) => {
 });
 ```
 
-- [ ] **Step 6: 替换 vault:readNote handler**
+- [x] **Step 6: 替换 vault:readNote handler**
 
 ```typescript
 ipcMain.handle('vault:readNote', async (_event, vaultPath: string, notePath: string) => {
@@ -186,7 +188,7 @@ ipcMain.handle('vault:readNote', async (_event, vaultPath: string, notePath: str
 });
 ```
 
-- [ ] **Step 7: 替换 vault:writeNote handler**
+- [x] **Step 7: 替换 vault:writeNote handler**
 
 ```typescript
 ipcMain.handle('vault:writeNote', async (_event, vaultPath: string, notePath: string, content: string) => {
@@ -202,7 +204,7 @@ ipcMain.handle('vault:writeNote', async (_event, vaultPath: string, notePath: st
 });
 ```
 
-- [ ] **Step 8: 添加 vault:delete handler**
+- [x] **Step 8: 添加 vault:delete handler**
 
 ```typescript
 ipcMain.handle('vault:delete', async (_event, vaultPath: string, targetPath: string) => {
@@ -222,7 +224,7 @@ ipcMain.handle('vault:delete', async (_event, vaultPath: string, targetPath: str
 });
 ```
 
-- [ ] **Step 9: 添加 vault:rename handler**
+- [x] **Step 9: 添加 vault:rename handler**
 
 ```typescript
 ipcMain.handle('vault:rename', async (_event, vaultPath: string, oldPath: string, newPath: string) => {
@@ -238,7 +240,7 @@ ipcMain.handle('vault:rename', async (_event, vaultPath: string, oldPath: string
 });
 ```
 
-- [ ] **Step 10: 添加 vault:createFolder handler**
+- [x] **Step 10: 添加 vault:createFolder handler**
 
 ```typescript
 ipcMain.handle('vault:createFolder', async (_event, vaultPath: string, folderPath: string) => {
@@ -253,7 +255,7 @@ ipcMain.handle('vault:createFolder', async (_event, vaultPath: string, folderPat
 });
 ```
 
-- [ ] **Step 11: 添加 vault:list handler**
+- [x] **Step 11: 添加 vault:list handler**
 
 ```typescript
 ipcMain.handle('vault:list', async (_event, vaultPath: string) => {
@@ -266,7 +268,7 @@ ipcMain.handle('vault:list', async (_event, vaultPath: string) => {
 });
 ```
 
-- [ ] **Step 12: 提交**
+- [x] **Step 12: 提交**
 
 ```bash
 git add apps/client/src/main/ipc/handlers.ts
@@ -282,7 +284,7 @@ git commit -m "feat(client): implement vault IPC handlers"
 **Files:**
 - Modify: `apps/render/src/ipc/vault.ts`
 
-- [ ] **Step 1: 更新 vault.ts IPC 封装**
+- [x] **Step 1: 更新 vault.ts IPC 封装**
 
 ```typescript
 export interface Vault {
@@ -335,11 +337,11 @@ export const vault: Vault = {
 };
 ```
 
-- [ ] **Step 2: 更新 ipc/index.ts 导出**
+- [x] **Step 2: 更新 ipc/index.ts 导出**
 
 确保 `export * from './vault'` 存在
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add apps/render/src/ipc/vault.ts apps/render/src/ipc/index.ts
@@ -355,7 +357,7 @@ git commit -m "feat(render): implement vault IPC client wrapper"
 **Files:**
 - Modify: `apps/render/src/services/vault.service.ts`
 
-- [ ] **Step 1: 完善 VaultService 状态和逻辑**
+- [x] **Step 1: 完善 VaultService 状态和逻辑**
 
 ```typescript
 import { Service } from '@rabjs/react';
@@ -435,7 +437,7 @@ export function useVaultService() {
 }
 ```
 
-- [ ] **Step 2: 提交**
+- [x] **Step 2: 提交**
 
 ```bash
 git add apps/render/src/services/vault.service.ts
@@ -451,7 +453,7 @@ git commit -m "feat(render): enhance VaultService with full state management"
 **Files:**
 - Modify: `apps/render/src/pages/home/index.tsx`
 
-- [ ] **Step 1: 更新 HomePage UI**
+- [x] **Step 1: 更新 HomePage UI**
 
 ```typescript
 import { useVaultService } from '../../services';
@@ -510,7 +512,7 @@ export function HomePage() {
 }
 ```
 
-- [ ] **Step 2: 提交**
+- [x] **Step 2: 提交**
 
 ```bash
 git add apps/render/src/pages/home/index.tsx
@@ -526,7 +528,7 @@ git commit -m "feat(render): implement HomePage vault selection UI"
 **Files:**
 - Modify: `apps/render/src/components/explorer/VaultTree.tsx`
 
-- [ ] **Step 1: 实现 VaultTree 组件**
+- [x] **Step 1: 实现 VaultTree 组件**
 
 ```typescript
 import { observer } from '@rabjs/react';
@@ -563,7 +565,7 @@ export const VaultTree = observer(() => {
 });
 ```
 
-- [ ] **Step 2: 更新 components/explorer/index.ts**
+- [x] **Step 2: 更新 components/explorer/index.ts**
 
 ```typescript
 export { VaultTree } from './VaultTree';
@@ -571,7 +573,7 @@ export { TreeNode } from './TreeNode';
 export { QuickSwitcher } from './QuickSwitcher';
 ```
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add apps/render/src/components/explorer/VaultTree.tsx apps/render/src/components/explorer/index.ts
@@ -585,7 +587,7 @@ git commit -m "feat(render): implement VaultTree component"
 **Files:**
 - Modify: `apps/render/src/components/explorer/TreeNode.tsx`
 
-- [ ] **Step 1: 实现 TreeNode 组件（支持展开/收起）**
+- [x] **Step 1: 实现 TreeNode 组件（支持展开/收起）**
 
 ```typescript
 import { observer } from '@rabjs/react';
@@ -656,7 +658,7 @@ export const TreeNode = observer(({ node, depth }: TreeNodeProps) => {
 });
 ```
 
-- [ ] **Step 2: 提交**
+- [x] **Step 2: 提交**
 
 ```bash
 git add apps/render/src/components/explorer/TreeNode.tsx
@@ -673,7 +675,7 @@ git commit -m "feat(render): implement TreeNode component with expand/collapse"
 - Modify: `apps/render/src/pages/editor/index.tsx`
 - Modify: `apps/render/src/services/editor.service.ts`
 
-- [ ] **Step 1: 创建/更新 EditorService**
+- [x] **Step 1: 创建/更新 EditorService**
 
 ```typescript
 import { Service } from '@rabjs/react';
@@ -764,7 +766,7 @@ export function useEditorService() {
 }
 ```
 
-- [ ] **Step 2: 更新 EditorPage**
+- [x] **Step 2: 更新 EditorPage**
 
 ```typescript
 import { useParams } from 'react-router';
@@ -819,7 +821,7 @@ export function EditorPage() {
 }
 ```
 
-- [ ] **Step 3: 更新 EditorStatus 组件**
+- [x] **Step 3: 更新 EditorStatus 组件**
 
 ```typescript
 import { observer } from '@rabjs/react';
@@ -845,11 +847,11 @@ export const EditorStatus = observer(({ isSaving }: EditorStatusProps) => {
 });
 ```
 
-- [ ] **Step 4: 注册 EditorService 在 main.tsx**
+- [x] **Step 4: 注册 EditorService 在 main.tsx**
 
 检查并更新 `apps/render/src/main.tsx`
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add apps/render/src/services/editor.service.ts apps/render/src/pages/editor/index.tsx apps/render/src/components/editor/EditorStatus.tsx apps/render/src/main.tsx
@@ -866,7 +868,7 @@ git commit -m "feat(render): implement editor service with auto-save"
 - Create: `apps/render/src/components/common/ContextMenu.tsx`
 - Modify: `apps/render/src/components/common/index.ts`
 
-- [ ] **Step 1: 实现 ContextMenu 组件**
+- [x] **Step 1: 实现 ContextMenu 组件**
 
 ```typescript
 import { useEffect, useRef } from 'react';
@@ -942,14 +944,14 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
 }
 ```
 
-- [ ] **Step 2: 更新 index.ts 导出**
+- [x] **Step 2: 更新 index.ts 导出**
 
 ```typescript
 export { ContextMenu } from './ContextMenu';
 export type { MenuItem } from './ContextMenu';
 ```
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add apps/render/src/components/common/ContextMenu.tsx apps/render/src/components/common/index.ts
@@ -963,7 +965,7 @@ git commit -m "feat(render): implement ContextMenu component"
 **Files:**
 - Modify: `apps/render/src/components/explorer/TreeNode.tsx`
 
-- [ ] **Step 1: 更新 TreeNode 添加右键菜单**
+- [x] **Step 1: 更新 TreeNode 添加右键菜单**
 
 ```typescript
 import { useState, useCallback } from 'react';
@@ -1122,7 +1124,7 @@ export const TreeNode = observer(({ node, depth }: TreeNodeProps) => {
 });
 ```
 
-- [ ] **Step 2: 提交**
+- [x] **Step 2: 提交**
 
 ```bash
 git add apps/render/src/components/explorer/TreeNode.tsx
@@ -1136,7 +1138,7 @@ git commit -m "feat(render): integrate context menu in TreeNode"
 **Files:**
 - Modify: `apps/render/src/pages/editor/index.tsx`
 
-- [ ] **Step 1: 更新 EditorPage 支持空白处右键**
+- [x] **Step 1: 更新 EditorPage 支持空白处右键**
 
 ```typescript
 import { useState, useCallback } from 'react';
@@ -1171,7 +1173,7 @@ export function EditorPage() {
 }
 ```
 
-- [ ] **Step 2: 提交**
+- [x] **Step 2: 提交**
 
 ```bash
 git add apps/render/src/pages/editor/index.tsx
@@ -1188,7 +1190,7 @@ git commit -m "feat(render): add right-click new file in editor"
 - Modify: `apps/render/src/app.tsx`
 - Create: `apps/render/src/components/Layout.tsx`
 
-- [ ] **Step 1: 创建 Layout 组件**
+- [x] **Step 1: 创建 Layout 组件**
 
 ```typescript
 import { ReactNode } from 'react';
@@ -1212,7 +1214,7 @@ export function Layout({ children }: LayoutProps) {
 }
 ```
 
-- [ ] **Step 2: 更新 app.tsx**
+- [x] **Step 2: 更新 app.tsx**
 
 ```typescript
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router';
@@ -1244,7 +1246,7 @@ export function App() {
 }
 ```
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add apps/render/src/app.tsx
@@ -1257,14 +1259,14 @@ git commit -m "feat(render): add layout with sidebar and routing"
 
 ### Task 13: 测试完整流程
 
-- [ ] **Step 1: 构建并运行**
+- [x] **Step 1: 构建并运行**
 
 ```bash
 pnpm build
 pnpm dev
 ```
 
-- [ ] **Step 2: 手动测试流程**
+- [x] **Step 2: 手动测试流程**
 
 1. 打开应用 → HomePage 显示 Open Vault / Create New Vault
 2. 点击 Open Vault → 选择文件夹 → 进入编辑器
@@ -1274,7 +1276,7 @@ pnpm dev
 6. 右键文件 → New File / New Folder / Rename / Delete
 7. 右键空白处 → 新建文件
 
-- [ ] **Step 3: 提交最终迭代**
+- [x] **Step 3: 提交最终迭代**
 
 ```bash
 git add -A
