@@ -1,12 +1,17 @@
 import { useState } from 'react';
 import type { TreeNode as TreeNodeType } from '@/ipc/vault';
-import { useVaultService } from '@/services';
+import { useService } from '@rabjs/react';
 import { useNavigate } from 'react-router';
 import { ContextMenu } from '../common/ContextMenu';
+import { VaultService } from '@/services/vault.service';
 
 interface TreeNodeProps {
   node: TreeNodeType;
   depth?: number;
+  isExpanded?: boolean;
+  onToggleExpand?: () => void;
+  expandedPaths?: Set<string>;
+  onToggleExpandDeep?: (path: string) => void;
 }
 
 interface ContextMenuState {
@@ -15,16 +20,26 @@ interface ContextMenuState {
   y: number;
 }
 
-export function TreeNode({ node, depth = 0 }: TreeNodeProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+export function TreeNode({
+  node,
+  depth = 0,
+  isExpanded = false,
+  onToggleExpand,
+  expandedPaths,
+  onToggleExpandDeep,
+}: TreeNodeProps) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({ show: false, x: 0, y: 0 });
-  const vaultService = useVaultService();
+  const vaultService = useService(VaultService);
   const navigate = useNavigate();
   const isFolder = node.type === 'folder';
 
+  // Check if this node or any children are expanded
+  const hasExpandedDescendant = expandedPaths?.has(node.path) || false;
+
   const handleClick = () => {
     if (isFolder) {
-      setIsExpanded(!isExpanded);
+      onToggleExpand?.();
+      onToggleExpandDeep?.(node.path);
     } else {
       vaultService.setActiveFile(node.path);
       navigate('/editor');
@@ -74,22 +89,28 @@ export function TreeNode({ node, depth = 0 }: TreeNodeProps) {
         onClick={handleClick}
         onContextMenu={handleContextMenu}
         className="flex items-center gap-1 w-full px-2 py-1 hover:bg-accent rounded text-left"
-        style={{ paddingLeft: depth * 16 }}
+        style={{ paddingLeft: depth * 16 + 8 }}
       >
         {isFolder && (
-          <span className="w-4 text-center text-muted-foreground">
-            {isExpanded ? '▼' : '▶'}
+          <span className="w-4 text-center text-muted-foreground text-xs">
+            {isExpanded || hasExpandedDescendant ? '▼' : '▶'}
           </span>
         )}
-        <span className={isFolder ? 'folder-icon' : 'file-icon'}>
-          {isFolder ? '📁' : '📄'}
-        </span>
-        <span className="truncate">{node.name}</span>
+        <span className="text-sm">{isFolder ? '📁' : '📄'}</span>
+        <span className="truncate text-sm">{node.name}</span>
       </button>
-      {isFolder && isExpanded && node.children && (
+      {isFolder && (isExpanded || hasExpandedDescendant) && node.children && (
         <div className="children">
           {node.children.map((child) => (
-            <TreeNode key={child.path} node={child} depth={depth + 1} />
+            <TreeNode
+              key={child.path}
+              node={child}
+              depth={depth + 1}
+              isExpanded={expandedPaths?.has(child.path) || false}
+              onToggleExpand={() => onToggleExpandDeep?.(child.path)}
+              expandedPaths={expandedPaths}
+              onToggleExpandDeep={onToggleExpandDeep}
+            />
           ))}
         </div>
       )}
