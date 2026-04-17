@@ -1,10 +1,18 @@
+export interface TreeNode {
+  path: string;
+  name: string;
+  isDirectory: boolean;
+  children?: TreeNode[];
+}
+
 export interface Vault {
   open(path: string): Promise<{ path: string; files: number }>;
   readNote(path: string): Promise<{ path: string; content: string; frontmatter: Record<string, unknown> }>;
   writeNote(path: string, content: string): Promise<void>;
   deleteNote(path: string): Promise<void>;
-  listFiles(): Promise<string[]>;
-  createFolder(path: string): Promise<void>;
+  list(path: string): Promise<TreeNode[]>;
+  selectFolder(): Promise<string | null>;
+  create(path: string): Promise<void>;
 }
 
 export const vault: Vault = {
@@ -27,12 +35,17 @@ export const vault: Vault = {
   _path: string) {
     // TODO: IPC call - window.electronAPI.vault.delete(path)
   },
-  async listFiles() {
-    // TODO: IPC call - window.electronAPI.vault.list()
+  async list(// eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _path: string) {
+    // TODO: IPC call - window.electronAPI.vault.list(path)
     return [];
   },
-  async createFolder(// eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async selectFolder() {
+    // TODO: IPC call - window.electronAPI.vault.selectFolder()
+    return null;
+  },
+  async create(// eslint-disable-next-line @typescript-eslint/no-unused-vars
   _path: string) {
-    // TODO: IPC call - window.electronAPI.vault.createFolder(path)
+    // TODO: IPC call - window.electronAPI.vault.create(path)
   },
 };
