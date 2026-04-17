@@ -1,21 +1,12 @@
-import { Service } from '@rabjs/react';
+import { Service, resolve } from '@rabjs/react';
 import type { GraphData } from '../types/graph';
 
-export interface GraphState {
-  data: GraphData;
-  selectedNode: string | null;
-  viewState: { zoom: number; pan: { x: number; y: number } };
+export class GraphService extends Service {
+  data: GraphData = { nodes: [], edges: [] };
+  selectedNode: string | null = null;
+  viewState: { zoom: number; pan: { x: number; y: number } } = { zoom: 1, pan: { x: 0, y: 0 } };
 }
 
-class GraphService extends Service<GraphState> {
-  protected state: GraphState = {
-    data: { nodes: [], edges: [] },
-    selectedNode: null,
-    viewState: { zoom: 1, pan: { x: 0, y: 0 } },
-  };
-}
-
-export const graphService = new GraphService();
-export function useGraphService() {
-  return graphService.use();
+export function useGraphService(): GraphService {
+  return resolve(GraphService);
 }

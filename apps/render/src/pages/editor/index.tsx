@@ -3,11 +3,11 @@ import { useEffect } from 'react';
 import { bindServices, observer, useService } from '@rabjs/react';
 import { MilkdownEditor } from '../../components/editor/MilkdownEditor';
 import { EditorStatus } from '../../components/editor/EditorStatus';
-import { editorService } from '../../services/editor.service';
+import { EditorService } from '../../services/editor.service';
 
 const EditorPageContent = observer(() => {
   const { path = '' } = useParams<{ path: string }>();
-  const service = useService(editorService);
+  const service = useService(EditorService);
 
   useEffect(() => {
     if (path) {
@@ -44,4 +44,4 @@ const EditorPageContent = observer(() => {
   );
 });
 
-export const EditorPage = bindServices(EditorPageContent, [editorService]);
+export const EditorPage = bindServices(EditorPageContent, [EditorService]);

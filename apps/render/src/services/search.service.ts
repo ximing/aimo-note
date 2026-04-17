@@ -1,4 +1,4 @@
-import { Service } from '@rabjs/react';
+import { Service, resolve } from '@rabjs/react';
 
 export interface SearchResult {
   path: string;
@@ -6,26 +6,17 @@ export interface SearchResult {
   matches: unknown[];
 }
 
-export interface SearchState {
-  query: string;
-  results: SearchResult[];
-  isSearching: boolean;
-}
+export class SearchService extends Service {
+  query = '';
+  results: SearchResult[] = [];
+  isSearching = false;
 
-class SearchService extends Service<SearchState> {
-  protected state: SearchState = {
-    query: '',
-    results: [],
-    isSearching: false,
-  };
-
-  async search(// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _query: string): Promise<void> {
+  async search(query: string): Promise<void> {
     // TODO: implement
+    console.log('search', query);
   }
 }
 
-export const searchService = new SearchService();
-export function useSearchService() {
-  return searchService.use();
+export function useSearchService(): SearchService {
+  return resolve(SearchService);
 }

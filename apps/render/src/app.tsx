@@ -12,7 +12,8 @@ export function App() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route element={<Layout />}>
-          <Route path="/editor/:path*" element={<EditorPage />} />
+          <Route path="/editor" element={<EditorPage />} />
+          <Route path="/editor/:path/*" element={<EditorPage />} />
           <Route path="/graph" element={<GraphPage />} />
           <Route path="/search" element={<SearchPage />} />
         </Route>

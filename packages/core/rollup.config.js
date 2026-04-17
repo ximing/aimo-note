@@ -1,4 +1,5 @@
 import { nodeResolve } from '@rollup/plugin-node-resolve';
+import typescript from '@rollup/plugin-typescript';
 
 export default {
   input: 'src/index.ts',
@@ -7,5 +8,12 @@ export default {
     format: 'esm',
     preserveModules: true,
   },
-  plugins: [nodeResolve()],
+  plugins: [
+    typescript({
+      tsconfig: './tsconfig.json',
+    }),
+    nodeResolve({
+      extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
+    }),
+  ],
 };

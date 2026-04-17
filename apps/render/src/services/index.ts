@@ -1,6 +1,6 @@
-export { vaultService, useVaultService } from './vault.service';
-export { editorService, useEditorService } from './editor.service';
-export { graphService, useGraphService } from './graph.service';
-export { searchService, useSearchService } from './search.service';
-export { uiService, useUIService } from './ui.service';
-export { pluginService, usePluginService } from './plugin.service';
+export { VaultService, useVaultService } from './vault.service';
+export { EditorService, useEditorService } from './editor.service';
+export { GraphService, useGraphService } from './graph.service';
+export { SearchService, useSearchService } from './search.service';
+export { UIService, useUIService } from './ui.service';
+export { PluginService, usePluginService } from './plugin.service';

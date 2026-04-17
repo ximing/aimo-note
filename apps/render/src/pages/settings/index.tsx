@@ -1,7 +1,8 @@
 import { useUIService } from '../../services/ui.service';
 
 export function SettingsPage() {
-  const { theme } = useUIService();
+  const uiService = useUIService();
+  const { theme } = uiService;
 
   return (
     <div className="settings-page p-4 max-w-2xl">

@@ -1,42 +1,29 @@
-import { Service } from '@rabjs/react';
+import { Service, resolve } from '@rabjs/react';
 import { vault } from '@/ipc/vault';
 import type { TreeNode } from '@/ipc/vault';
 
-export interface VaultState {
-  path: string | null;
-  tree: TreeNode[];
-  activeFile: string | null;
-  isLoading: boolean;
-}
-
-class VaultService extends Service<VaultState> {
-  protected state: VaultState = {
-    path: null,
-    tree: [],
-    activeFile: null,
-    isLoading: false,
-  };
+export class VaultService extends Service {
+  path: string | null = null;
+  tree: TreeNode[] = [];
+  activeFile: string | null = null;
+  isLoading = false;
 
   async openVault(path: string): Promise<void> {
-    this.state.isLoading = true;
-    this.notify();
+    this.isLoading = true;
     try {
       const result = await vault.open(path);
       if (result) {
-        this.state.path = result.path;
+        this.path = result.path;
         await this.refreshTree();
       }
     } finally {
-      this.state.isLoading = false;
-      this.notify();
+      this.isLoading = false;
     }
   }
 
   async refreshTree(): Promise<void> {
-    if (!this.state.path) return;
-    const tree = await vault.list(this.state.path);
-    this.state.tree = tree;
-    this.notify();
+    if (!this.path) return;
+    this.tree = await vault.list(this.path);
   }
 
   async selectAndOpenVault(): Promise<boolean> {
@@ -59,12 +46,11 @@ class VaultService extends Service<VaultState> {
   }
 
   setActiveFile(path: string | null): void {
-    this.state.activeFile = path;
-    this.notify();
+    this.activeFile = path;
   }
 
   get vaultPath(): string | null {
-    return this.state.path;
+    return this.path;
   }
 
   async createNote(parentPath: string, name: string): Promise<void> {
@@ -92,7 +78,6 @@ class VaultService extends Service<VaultState> {
   }
 }
 
-export const vaultService = new VaultService();
-export function useVaultService() {
-  return vaultService.use();
+export function useVaultService(): VaultService {
+  return resolve(VaultService);
 }

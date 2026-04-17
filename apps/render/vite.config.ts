@@ -18,6 +18,11 @@ export default defineConfig(({ mode }) => {
     },
     base: isElectron ? './' : '/',
     plugins: [react()],
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, 'src'),
+      },
+    },
     server: {
       port: 5173,
       proxy: {

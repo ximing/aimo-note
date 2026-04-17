@@ -93,6 +93,42 @@ declare global {
       getVersion: () => string;
       onFileDrop?: (callback: (filePaths: string[]) => void) => void;
       removeFileDropListener?: (callback: (filePaths: string[]) => void) => void;
+      // Vault APIs
+      vault: {
+        open: (path: string) => Promise<{ success: boolean; path?: string; tree?: TreeNode[]; error?: string }>;
+        readNote: (vaultPath: string, notePath: string) => Promise<{ success: boolean; content?: string; error?: string }>;
+        writeNote: (vaultPath: string, notePath: string, content: string) => Promise<{ success: boolean; error?: string }>;
+        delete: (vaultPath: string, notePath: string) => Promise<{ success: boolean; error?: string }>;
+        list: (path: string) => Promise<{ success: boolean; tree?: TreeNode[]; error?: string }>;
+        selectFolder: () => Promise<{ success: boolean; path?: string; error?: string }>;
+        create: (path: string) => Promise<{ success: boolean; error?: string }>;
+        createFolder: (vaultPath: string, folderPath: string) => Promise<{ success: boolean; error?: string }>;
+        rename: (vaultPath: string, oldPath: string, newPath: string) => Promise<{ success: boolean; error?: string }>;
+      };
+      // Plugin APIs
+      plugin: {
+        load: (pluginPath: string) => Promise<{ success: boolean; error?: string }>;
+        unload: (pluginId: string) => Promise<{ success: boolean; error?: string }>;
+        getSettings: (pluginId: string) => Promise<{ success: boolean; settings?: Record<string, unknown>; error?: string }>;
+        setSettings: (pluginId: string, settings: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
+      };
+      // Search APIs
+      search: {
+        query: (query: string, limit?: number) => Promise<{ success: boolean; results?: unknown[]; error?: string }>;
+        queryContent: (query: string) => Promise<{ success: boolean; results?: unknown[]; error?: string }>;
+      };
+      // Graph APIs
+      graph: {
+        build: () => Promise<{ success: boolean; error?: string }>;
+        getBacklinks: (path: string) => Promise<{ success: boolean; links?: unknown[]; error?: string }>;
+      };
+      // FS APIs
+      fs: {
+        selectVault: () => Promise<{ success: boolean; path?: string; error?: string }>;
+        readFile: (path: string) => Promise<{ success: boolean; content?: string; error?: string }>;
+        writeFile: (path: string, content: string) => Promise<{ success: boolean; error?: string }>;
+        exists: (path: string) => Promise<{ success: boolean; exists?: boolean; error?: string }>;
+      };
       // Auto-update APIs
       checkForUpdates: () => Promise<UpdateInfo | null>;
       downloadUpdate: () => Promise<{ success: boolean }>;
@@ -111,4 +147,11 @@ declare global {
       secureStoreDelete: (key: string) => Promise<{ success: boolean; error?: string }>;
     };
   }
+}
+
+interface TreeNode {
+  path: string;
+  name: string;
+  type: 'file' | 'folder';
+  children?: TreeNode[];
 }

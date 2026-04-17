@@ -1,27 +1,16 @@
-import { Service } from '@rabjs/react';
+import { Service, resolve } from '@rabjs/react';
 
-export interface UIState {
-  sidebarOpen: boolean;
-  theme: 'light' | 'dark' | 'system';
-  activeModal: string | null;
-  commandPaletteOpen: boolean;
-}
-
-class UIService extends Service<UIState> {
-  protected state: UIState = {
-    sidebarOpen: true,
-    theme: 'system',
-    activeModal: null,
-    commandPaletteOpen: false,
-  };
+export class UIService extends Service {
+  sidebarOpen = true;
+  theme: 'light' | 'dark' | 'system' = 'system';
+  activeModal: string | null = null;
+  commandPaletteOpen = false;
 
   setTheme(theme: 'light' | 'dark' | 'system') {
-    this.state.theme = theme;
-    this.notify();
+    this.theme = theme;
   }
 }
 
-export const uiService = new UIService();
-export function useUIService() {
-  return uiService.use();
+export function useUIService(): UIService {
+  return resolve(UIService);
 }
