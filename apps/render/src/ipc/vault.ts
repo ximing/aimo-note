@@ -1,51 +1,84 @@
 export interface TreeNode {
   path: string;
   name: string;
-  isDirectory: boolean;
+  type: 'file' | 'folder';
   children?: TreeNode[];
 }
 
 export interface Vault {
-  open(path: string): Promise<{ path: string; files: number }>;
-  readNote(path: string): Promise<{ path: string; content: string; frontmatter: Record<string, unknown> }>;
+  open(path: string): Promise<{ path: string; tree: TreeNode[] }>;
+  readNote(path: string): Promise<{ path: string; content: string }>;
   writeNote(path: string, content: string): Promise<void>;
   deleteNote(path: string): Promise<void>;
   list(path: string): Promise<TreeNode[]>;
   selectFolder(): Promise<string | null>;
   create(path: string): Promise<void>;
+  createFolder(path: string): Promise<void>;
+  rename(oldPath: string, newPath: string): Promise<void>;
 }
 
 export const vault: Vault = {
-  async open(// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _path: string) {
-    // TODO: IPC call - window.electronAPI.vault.open(path)
-    return { path: '', files: 0 };
+  async open(path: string) {
+    const result = await window.electronAPI.vault.open(path);
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+    return { path, tree: result.tree || [] };
   },
-  async readNote(// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _path: string) {
-    // TODO: IPC call - window.electronAPI.vault.read(path)
-    return { path: '', content: '', frontmatter: {} };
+  async readNote(filePath: string) {
+    const vaultPath = ''; // TODO: get from VaultService context
+    const result = await window.electronAPI.vault.readNote(vaultPath, filePath);
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+    return { path: filePath, content: result.content || '' };
   },
-  async writeNote(// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _path: string, // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _content: string) {
-    // TODO: IPC call - window.electronAPI.vault.write(path, content)
+  async writeNote(filePath: string, content: string) {
+    const vaultPath = ''; // TODO: get from VaultService context
+    const result = await window.electronAPI.vault.writeNote(vaultPath, filePath, content);
+    if (!result.success) {
+      throw new Error(result.error);
+    }
   },
-  async deleteNote(// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _path: string) {
-    // TODO: IPC call - window.electronAPI.vault.delete(path)
+  async deleteNote(filePath: string) {
+    const vaultPath = ''; // TODO: get from VaultService context
+    const result = await window.electronAPI.vault.delete(vaultPath, filePath);
+    if (!result.success) {
+      throw new Error(result.error);
+    }
   },
-  async list(// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _path: string) {
-    // TODO: IPC call - window.electronAPI.vault.list(path)
-    return [];
+  async list(path: string) {
+    const result = await window.electronAPI.vault.list(path);
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+    return result.tree || [];
   },
   async selectFolder() {
-    // TODO: IPC call - window.electronAPI.vault.selectFolder()
-    return null;
+    const result = await window.electronAPI.vault.selectFolder();
+    if (!result.success) {
+      return null;
+    }
+    return result.path || null;
   },
-  async create(// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _path: string) {
-    // TODO: IPC call - window.electronAPI.vault.create(path)
+  async create(path: string) {
+    const result = await window.electronAPI.vault.create(path);
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+  },
+  async createFolder(folderPath: string) {
+    const vaultPath = ''; // TODO: get from VaultService context
+    const result = await window.electronAPI.vault.createFolder(vaultPath, folderPath);
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+  },
+  async rename(oldPath: string, newPath: string) {
+    const vaultPath = ''; // TODO: get from VaultService context
+    const result = await window.electronAPI.vault.rename(vaultPath, oldPath, newPath);
+    if (!result.success) {
+      throw new Error(result.error);
+    }
   },
 };
