@@ -1,30 +1,30 @@
 import { useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router';
-import { useVaultService } from '../../services';
+import { observer, useService } from '@rabjs/react';
 import { VaultTree } from '@/components/explorer/VaultTree';
+import { VaultService } from '../../services/vault.service';
 
-export function HomePage() {
-  const vaultService = useVaultService();
+const HomePageContent = observer(() => {
+  const vaultService = useService(VaultService);
   const navigate = useNavigate();
-  const { path, isLoading, recentVaults } = vaultService;
 
   useEffect(() => {
     vaultService.loadRecentVaults();
-  }, []);
+  }, [vaultService]);
 
-  const handleOpenVault = async () => {
+  const handleOpenVault = useCallback(async () => {
     const success = await vaultService.selectAndOpenVault();
     if (success) {
       navigate('/editor');
     }
-  };
+  }, [vaultService, navigate]);
 
-  const handleCreateVault = async () => {
+  const handleCreateVault = useCallback(async () => {
     const success = await vaultService.createAndOpenVault();
     if (success) {
       navigate('/editor');
     }
-  };
+  }, [vaultService, navigate]);
 
   const handleOpenRecentVault = useCallback(async (vaultPath: string) => {
     const success = await vaultService.openRecentVault(vaultPath);
@@ -40,15 +40,15 @@ export function HomePage() {
 
   useEffect(() => {
     // Auto-open most recent vault if no vault is open
-    if (!path && recentVaults.length > 0) {
-      const mostRecent = recentVaults[0];
+    if (!vaultService.path && vaultService.recentVaults.length > 0) {
+      const mostRecent = vaultService.recentVaults[0];
       if (confirm(`Open last vault?\n\n"${mostRecent.name}"\n${mostRecent.path}`)) {
         handleOpenRecentVault(mostRecent.path);
       }
     }
-  }, [path, recentVaults, handleOpenRecentVault]);
+  }, [vaultService.path, vaultService.recentVaults, handleOpenRecentVault]);
 
-  if (isLoading) {
+  if (vaultService.isLoading) {
     return (
       <div className="home-page flex items-center justify-center h-full">
         <div className="text-center">
@@ -67,7 +67,7 @@ export function HomePage() {
           A local-first note-taking app with knowledge graph
         </p>
 
-        {!path ? (
+        {!vaultService.path ? (
           <div className="flex flex-col gap-4">
             <button
               type="button"
@@ -85,11 +85,11 @@ export function HomePage() {
               Create New Vault
             </button>
 
-            {recentVaults.length > 0 && (
+            {vaultService.recentVaults.length > 0 && (
               <div className="mt-8">
                 <p className="text-sm font-medium text-muted-foreground mb-3">Recent Vaults</p>
                 <div className="flex flex-col gap-2 text-left">
-                  {recentVaults.map((vault) => (
+                  {vaultService.recentVaults.map((vault) => (
                     <button
                       key={vault.path}
                       type="button"
@@ -117,11 +117,13 @@ export function HomePage() {
         ) : (
           <div className="w-full mt-4">
             <p className="text-sm text-muted-foreground mb-2">Current vault:</p>
-            <p className="font-mono text-sm bg-muted px-3 py-2 rounded mb-4">{path}</p>
+            <p className="font-mono text-sm bg-muted px-3 py-2 rounded mb-4">{vaultService.path}</p>
             <VaultTree />
           </div>
         )}
       </div>
     </div>
   );
-}
+});
+
+export const HomePage = HomePageContent;
