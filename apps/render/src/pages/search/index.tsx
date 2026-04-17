@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { useSearch } from '../../hooks/use-search';
+import { useSearchService } from '../../services';
 
 export function SearchPage() {
   const [query, setQuery] = useState('');
-  const { results, isSearching } = useSearch();
+  const { results, isSearching } = useSearchService();
 
   return (
     <div className="search-page p-4">

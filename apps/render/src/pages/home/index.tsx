@@ -1,7 +1,7 @@
-import { useVault } from '../../hooks/use-vault';
+import { useVaultService } from '../../services';
 
 export function HomePage() {
-  const { path } = useVault();
+  const { path } = useVaultService();
 
   return (
     <div className="home-page p-4">

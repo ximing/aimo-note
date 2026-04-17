@@ -1,7 +1,7 @@
 import { app, ipcMain, safeStorage } from 'electron';
 import Store from 'electron-store';
 
-import { checkForUpdates, downloadUpdate, installUpdate } from './updater';
+import { checkForUpdates, downloadUpdate, installUpdate } from '../updater';
 
 interface AuthStore {
   encryptedToken: string | null;

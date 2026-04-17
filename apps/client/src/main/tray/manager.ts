@@ -4,14 +4,14 @@ import { fileURLToPath } from 'node:url';
 
 import { app, Menu, nativeImage, Tray } from 'electron';
 
-import { mainWindow, setIsQuiting, setTray } from './shared-state';
-import { showMainWindow } from './window-manager';
+import { mainWindow, setIsQuiting, setTray } from '../shared-state';
+import { showMainWindow } from '../window/manager';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export function createTray(): void {
-  const iconPath = path.join(__dirname, '../../build/icon_16.png');
+  const iconPath = path.join(__dirname, '../../../build/icon_16.png');
 
   let trayInstance: Tray;
 

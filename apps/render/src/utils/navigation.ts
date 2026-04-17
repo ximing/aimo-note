@@ -3,7 +3,7 @@
  * 提供在非组件环境中使用 React Router 导航的能力
  *
  * 使用方式：
- * 1. 在 App.tsx 中调用 setNavigate() 设置 navigate 函数
+ * 1. 在 app.tsx 中调用 setNavigate() 设置 navigate 函数
  * 2. 在其他地方调用 navigate() 进行路由跳转
  */
 

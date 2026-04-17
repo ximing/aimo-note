@@ -35,15 +35,6 @@ apps/render/src/
 │   ├── plugin.ts          # IPC: load/unload plugins
 │   ├── fs.ts              # IPC: file system operations (select vault)
 │   └── window.ts          # IPC: window controls
-├── hooks/                   # Custom React Hooks
-│   ├── use-vault.ts          # Vault operations
-│   ├── use-note.ts           # Note CRUD
-│   ├── use-graph.ts          # Graph data
-│   ├── use-search.ts         # Search functionality
-│   ├── use-editor.ts         # Editor operations
-│   ├── use-plugins.ts        # Plugin management
-│   ├── use-file-system.ts     # FS access
-│   └── use-keyboard-shortcuts.ts
 ├── types/                   # TypeScript Types
 │   ├── note.ts              # Note, NoteMetadata types
 │   ├── vault.ts             # Vault types

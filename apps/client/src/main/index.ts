@@ -1,12 +1,12 @@
 import { app, globalShortcut } from 'electron';
 
-import { registerIpcHandlers } from './ipc-handlers';
-import { createApplicationMenu } from './menu-manager';
+import { registerIpcHandlers } from './ipc/handlers';
+import { createApplicationMenu } from './menu/manager';
 import { setIsQuiting, setMainWindow } from './shared-state';
-import { registerGlobalShortcuts } from './shortcut-manager';
-import { createTray } from './tray-manager';
+import { registerGlobalShortcuts } from './menu/shortcuts';
+import { createTray } from './tray/manager';
 import { registerUpdaterEvents, setupAutoUpdater } from './updater';
-import { createWindow, showMainWindow } from './window-manager';
+import { createWindow, showMainWindow } from './window/manager';
 
 registerUpdaterEvents();
 registerIpcHandlers();

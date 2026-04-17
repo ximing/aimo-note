@@ -1,7 +1,7 @@
-import { useGraph } from '../../hooks/use-graph';
+import { useGraphService } from '../../services';
 
 export function GraphPage() {
-  const { data, selectedNode } = useGraph();
+  const { data, selectedNode } = useGraphService();
 
   return (
     <div className="graph-page h-full flex flex-col">

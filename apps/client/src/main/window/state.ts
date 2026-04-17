@@ -1,6 +1,6 @@
 import Store from 'electron-store';
 
-import { mainWindow } from './shared-state';
+import { mainWindow } from '../shared-state';
 
 export interface WindowState {
   x: number;

@@ -1,8 +1,8 @@
 import { app, dialog, Menu, shell, type MenuItemConstructorOptions } from 'electron';
 
-import { setIsQuiting } from './shared-state';
-import { checkForUpdates } from './updater';
-import { showMainWindow } from './window-manager';
+import { setIsQuiting } from '../shared-state';
+import { checkForUpdates } from '../updater';
+import { showMainWindow } from '../window/manager';
 
 export function createApplicationMenu(): void {
   const isMac = process.platform === 'darwin';

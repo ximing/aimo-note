@@ -11,18 +11,22 @@ apps/client/src/
 ├── main/
 │   ├── index.ts              # Entry point, app lifecycle
 │   ├── constants.ts          # Build-time paths (VITE_DEV_SERVER_URL, PRELOAD_PATH, etc.)
-│   ├── window-manager.ts     # BrowserWindow creation, show/hide, drag-drop
-│   ├── menu-manager.ts       # Application menu (macOS/Linux/Windows adaptive)
-│   ├── tray-manager.ts       # System tray icon and context menu
-│   ├── shortcut-manager.ts   # Global shortcut registration
-│   ├── ipc-handlers.ts       # All ipcMain.handle() registrations
-│   ├── ipc-channels.ts       # IPC channel name constants and typed schemas
-│   ├── updater.ts            # electron-updater setup and event forwarding
-│   ├── window-state.ts       # electron-store for window bounds persistence
-│   └── shared-state.ts       # Module-level singletons (mainWindow, tray, isQuitting)
+│   ├── shared-state.ts       # Module-level singletons (mainWindow, tray, isQuitting)
+│   ├── window/
+│   │   ├── manager.ts        # BrowserWindow creation, show/hide, drag-drop
+│   │   └── state.ts          # electron-store for window bounds persistence
+│   ├── menu/
+│   │   ├── manager.ts        # Application menu (macOS/Linux/Windows adaptive)
+│   │   └── shortcuts.ts      # Global shortcut registration
+│   ├── tray/
+│   │   └── manager.ts        # System tray icon and context menu
+│   ├── updater/
+│   │   └── index.ts          # electron-updater setup and event forwarding
+│   └── ipc/
+│       └── handlers.ts       # All ipcMain.handle() registrations
 ├── preload/
 │   ├── index.ts              # contextBridge API surface exposed to renderer
-│   └── electron.d.ts          # Global Window['electronAPI'] type declaration
+│   └── electron.d.ts         # Global Window['electronAPI'] type declaration
 ```
 
 ## Module Responsibilities
@@ -61,7 +65,7 @@ Build-time constants derived from `import.meta.url`. Centralizes paths so they a
 - `PRELOAD_PATH` -- absolute path to preload script
 - `getIconPath()` -- path to app icon
 
-### `main/window-manager.ts`
+### `main/window/manager.ts`
 Owns `createWindow()` and `showMainWindow()`. Responsibilities:
 
 - Creates `BrowserWindow` with appropriate `webPreferences` (`contextIsolation: true`, `nodeIntegration: false`, `sandbox: false`)
@@ -71,36 +75,36 @@ Owns `createWindow()` and `showMainWindow()`. Responsibilities:
 - Manages `ready-to-show` → `show()` flow to avoid visual flash
 - `close` event → save window state, hide to tray (unless `isQuitting`)
 
-### `main/menu-manager.ts`
+### `main/menu/manager.ts`
 Builds the native application menu. Platform-adaptive:
 - macOS: full app menu with `about`, `hide`, `quit`; window menu with standard roles
 - Windows/Linux: `File` menu with `Quit`; `Help` menu with update check and GitHub link
 - All platforms: `Edit`, `View`, `Window` menus with standard accelerator roles
 
-### `main/tray-manager.ts`
+### `main/tray/manager.ts`
 System tray icon lifecycle:
 - Creates `Tray` with 16px icon
 - Sets context menu: "Show Main Window", separator, "Quit"
 - Single-click: toggle window visibility
 - Tooltip: "AIMO"
 
-### `main/shortcut-manager.ts`
+### `main/menu/shortcuts.ts`
 Global shortcut registration. Currently minimal (stub). Should register:
 - `CmdOrCtrl+Shift+A` -- toggle window visibility
 - Any user-configurable shortcuts via future settings
 
-### `main/ipc-handlers.ts`
+### `main/ipc/handlers.ts`
 All `ipcMain.handle()` registrations. Delegates to service modules for domain logic.
 
-The current file mixes auth storage, vault stubs, graph stubs, and search stubs. After the refactor, each domain gets its own handler file under a `handlers/` subdirectory (see Extension Points).
+The current file mixes auth storage, vault stubs, graph stubs, and search stubs. Each domain should eventually get its own handler file under the `ipc/` subdirectory (see Extension Points).
 
-### `main/updater.ts`
+### `main/updater/index.ts`
 `electron-updater` integration:
 - `setupAutoUpdater()` -- configure and trigger initial update check
 - `checkForUpdates()` / `downloadUpdate()` / `installUpdate()` -- user-initiated update actions
 - `registerUpdaterEvents()` -- forwards updater events to renderer as `update-status` IPC messages
 
-### `main/window-state.ts`
+### `main/window/state.ts`
 `electron-store` wrapper for persisting window bounds and maximized state across app restarts.
 
 ---
@@ -282,22 +286,23 @@ Closing the window (without `isQuitting = true`) calls `win.hide()` instead of d
 
 ## Extension Points
 
-### Handlers Subdirectory
+### IPC Handlers Subdirectory
 
-As IPC handlers grow, `ipc-handlers.ts` should be split into a `handlers/` directory:
+As IPC handlers grow, `ipc/handlers.ts` can be split into multiple files under `ipc/`:
 
 ```
-handlers/
+ipc/
+├── handlers.ts           # Registers all IPC handlers
 ├── vault-handlers.ts     # vault:* channels
 ├── graph-handlers.ts     # graph:* channels
 ├── search-handlers.ts    # search:* channels
 ├── plugin-handlers.ts    # plugin:* channels
 ├── window-handlers.ts    # window:* channels
 ├── fs-handlers.ts        # fs:* channels
-├── app-handlers.ts       # app:*, secure-store:* channels
+└── app-handlers.ts       # app:*, secure-store:* channels
 ```
 
-`ipc-handlers.ts` then imports and registers all of them in one place.
+`ipc/handlers.ts` then imports and registers all of them in one place.
 
 ### Plugin API via IPC
 

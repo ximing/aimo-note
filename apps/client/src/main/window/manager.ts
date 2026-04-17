@@ -3,9 +3,9 @@ import path from 'node:path';
 
 import { app, BrowserWindow, screen, shell } from 'electron';
 
-import { getIconPath, PRELOAD_PATH, RENDERER_DIST, VITE_DEV_SERVER_URL } from './constants';
-import { isQuiting, mainWindow, setMainWindow } from './shared-state';
-import { saveWindowState, windowStore } from './window-state';
+import { getIconPath, PRELOAD_PATH, RENDERER_DIST, VITE_DEV_SERVER_URL } from '../constants';
+import { isQuiting, mainWindow, setMainWindow } from '../shared-state';
+import { saveWindowState, windowStore } from './state';
 
 export function createWindow(): void {
   // Load saved window state

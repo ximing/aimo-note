@@ -1,7 +1,7 @@
 import { dialog, Notification } from 'electron';
 import { autoUpdater, type UpdateInfo } from 'electron-updater';
 
-import { mainWindow } from './shared-state';
+import { mainWindow } from '../shared-state';
 
 // Enable auto-updater logging
 autoUpdater.logger = console;
