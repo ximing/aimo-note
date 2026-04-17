@@ -1,14 +1,23 @@
 import { useState, useCallback } from 'react';
 import { observer, useService } from '@rabjs/react';
+import type { TreeNode as TreeNodeType } from '@/ipc/vault';
 import { TreeNode } from './TreeNode';
 import { SidebarHeader } from './SidebarHeader';
+import { PromptDialog, ConfirmDialog } from '@/components/common';
 import { VaultService } from '@/services/vault.service';
+
+interface DialogState {
+  type: 'newFile' | 'newFolder' | 'rename' | 'delete' | null;
+  parentPath?: string;
+  node?: TreeNodeType;
+}
 
 export const VaultTree = observer(() => {
   const vaultService = useService(VaultService);
-  const { tree, path } = vaultService;
+  const { tree, path, activeFile } = vaultService;
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [dialog, setDialog] = useState<DialogState>({ type: null });
 
   const toggleExpanded = useCallback((nodePath: string) => {
     setExpandedPaths((prev) => {
@@ -46,19 +55,45 @@ export const VaultTree = observer(() => {
     setSortOrder(order);
   }, []);
 
-  const handleNewFile = useCallback(() => {
-    const name = window.prompt('Enter file name:', 'untitled.md');
-    if (name) {
-      vaultService.createNote('', name);
-    }
-  }, [vaultService]);
+  const handleNewFile = useCallback((parentPath = '') => {
+    setDialog({ type: 'newFile', parentPath });
+  }, []);
 
-  const handleNewFolder = useCallback(() => {
-    const name = window.prompt('Enter folder name:', 'new-folder');
-    if (name) {
-      vaultService.createFolder('', name);
+  const handleNewFolder = useCallback((parentPath = '') => {
+    setDialog({ type: 'newFolder', parentPath });
+  }, []);
+
+  const handleRename = useCallback((node: TreeNodeType) => {
+    setDialog({ type: 'rename', node });
+  }, []);
+
+  const handleDelete = useCallback((node: TreeNodeType) => {
+    setDialog({ type: 'delete', node });
+  }, []);
+
+  const handleDialogConfirm = useCallback(
+    (value: string) => {
+      const cleanName = value.replace(/\.md$/, '').trim();
+      if (!cleanName) return;
+
+      if (dialog.type === 'newFile') {
+        vaultService.createNote(dialog.parentPath || '', cleanName);
+      } else if (dialog.type === 'newFolder') {
+        vaultService.createFolder(dialog.parentPath || '', cleanName);
+      } else if (dialog.type === 'rename' && dialog.node) {
+        vaultService.renameNode(dialog.node, cleanName);
+      }
+      setDialog({ type: null });
+    },
+    [dialog, vaultService]
+  );
+
+  const handleDeleteConfirm = useCallback(() => {
+    if (dialog.type === 'delete' && dialog.node) {
+      vaultService.deleteNode(dialog.node);
     }
-  }, [vaultService]);
+    setDialog({ type: null });
+  }, [dialog, vaultService]);
 
   if (!path) {
     return (
@@ -80,8 +115,8 @@ export const VaultTree = observer(() => {
   return (
     <div className="vault-tree flex flex-col h-full">
       <SidebarHeader
-        onNewFile={handleNewFile}
-        onNewFolder={handleNewFolder}
+        onNewFile={() => handleNewFile('')}
+        onNewFolder={() => handleNewFolder('')}
         sortOrder={sortOrder}
         onSortChange={handleSortChange}
         onExpandAll={handleExpandAll}
@@ -99,13 +134,56 @@ export const VaultTree = observer(() => {
               node={node}
               depth={0}
               isExpanded={expandedPaths.has(node.path)}
+              isSelected={activeFile === node.path}
               onToggleExpand={() => toggleExpanded(node.path)}
               expandedPaths={expandedPaths}
               onToggleExpandDeep={toggleExpanded}
+              onNewFile={handleNewFile}
+              onNewFolder={handleNewFolder}
+              onRename={handleRename}
+              onDelete={handleDelete}
             />
           ))
         )}
       </div>
+
+      {dialog.type === 'newFile' && (
+        <PromptDialog
+          title="新建文件"
+          defaultValue="untitled"
+          placeholder="输入文件名"
+          onConfirm={handleDialogConfirm}
+          onCancel={() => setDialog({ type: null })}
+        />
+      )}
+      {dialog.type === 'newFolder' && (
+        <PromptDialog
+          title="新建文件夹"
+          defaultValue="new-folder"
+          placeholder="输入文件夹名"
+          onConfirm={handleDialogConfirm}
+          onCancel={() => setDialog({ type: null })}
+        />
+      )}
+      {dialog.type === 'rename' && dialog.node && (
+        <PromptDialog
+          title="重命名"
+          defaultValue={dialog.node.name.replace(/\.md$/, '')}
+          placeholder="输入新名称"
+          onConfirm={handleDialogConfirm}
+          onCancel={() => setDialog({ type: null })}
+        />
+      )}
+      {dialog.type === 'delete' && dialog.node && (
+        <ConfirmDialog
+          title="Delete"
+          message={`Are you sure you want to delete "${dialog.node.name}"?`}
+          confirmText="Delete"
+          danger
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setDialog({ type: null })}
+        />
+      )}
     </div>
   );
 });

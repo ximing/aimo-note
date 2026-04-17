@@ -10,9 +10,14 @@ interface TreeNodeProps {
   node: TreeNodeType;
   depth?: number;
   isExpanded?: boolean;
+  isSelected?: boolean;
   onToggleExpand?: () => void;
   expandedPaths?: Set<string>;
   onToggleExpandDeep?: (path: string) => void;
+  onNewFile?: (parentPath: string) => void;
+  onNewFolder?: (parentPath: string) => void;
+  onRename?: (node: TreeNodeType) => void;
+  onDelete?: (node: TreeNodeType) => void;
 }
 
 interface ContextMenuState {
@@ -25,9 +30,14 @@ export function TreeNode({
   node,
   depth = 0,
   isExpanded = false,
+  isSelected = false,
   onToggleExpand,
   expandedPaths,
   onToggleExpandDeep,
+  onNewFile,
+  onNewFolder,
+  onRename,
+  onDelete,
 }: TreeNodeProps) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({ show: false, x: 0, y: 0 });
   const vaultService = useService(VaultService);
@@ -40,10 +50,9 @@ export function TreeNode({
   const handleClick = () => {
     if (isFolder) {
       onToggleExpand?.();
-      onToggleExpandDeep?.(node.path);
     } else {
       vaultService.setActiveFile(node.path);
-      navigate('/editor');
+      navigate(`/editor/${encodeURIComponent(node.path)}`);
     }
   };
 
@@ -52,31 +61,20 @@ export function TreeNode({
     setContextMenu({ show: true, x: e.clientX, y: e.clientY });
   };
 
-  const handleNewFile = async (parentPath: string) => {
-    const name = window.prompt('Enter file name:');
-    if (name) {
-      await vaultService.createNote(parentPath, name);
-    }
+  const handleNewFile = (parentPath: string) => {
+    onNewFile?.(parentPath);
   };
 
-  const handleNewFolder = async (parentPath: string) => {
-    const name = window.prompt('Enter folder name:');
-    if (name) {
-      await vaultService.createFolder(parentPath, name);
-    }
+  const handleNewFolder = (parentPath: string) => {
+    onNewFolder?.(parentPath);
   };
 
-  const handleRename = async (n: TreeNodeType) => {
-    const newName = window.prompt('Enter new name:', n.name);
-    if (newName && newName !== n.name) {
-      await vaultService.renameNode(n, newName);
-    }
+  const handleRename = (n: TreeNodeType) => {
+    onRename?.(n);
   };
 
-  const handleDelete = async (n: TreeNodeType) => {
-    if (window.confirm(`Delete "${n.name}"?`)) {
-      await vaultService.deleteNode(n);
-    }
+  const handleDelete = (n: TreeNodeType) => {
+    onDelete?.(n);
   };
 
   const closeContextMenu = () => {
@@ -89,7 +87,7 @@ export function TreeNode({
         type="button"
         onClick={handleClick}
         onContextMenu={handleContextMenu}
-        className="flex items-center gap-1 w-full px-2 py-1 hover:bg-accent rounded text-left"
+        className={`flex items-center gap-1 w-full px-2 py-1 hover:bg-accent rounded text-left ${isSelected ? 'bg-accent text-white' : ''}`}
         style={{ paddingLeft: depth * 16 + 8 }}
       >
         {isFolder && (
@@ -102,7 +100,7 @@ export function TreeNode({
           </span>
         )}
         {isFolder ? <Folder size={14} className="text-muted-foreground" /> : <File size={14} className="text-muted-foreground" />}
-        <span className="truncate text-sm">{node.name}</span>
+        <span className="truncate text-sm">{node.name.replace(/\.md$/, '')}</span>
       </button>
       {isFolder && (isExpanded || hasExpandedDescendant) && node.children && (
         <div className="children">
@@ -115,6 +113,10 @@ export function TreeNode({
               onToggleExpand={() => onToggleExpandDeep?.(child.path)}
               expandedPaths={expandedPaths}
               onToggleExpandDeep={onToggleExpandDeep}
+              onNewFile={onNewFile}
+              onNewFolder={onNewFolder}
+              onRename={onRename}
+              onDelete={onDelete}
             />
           ))}
         </div>
