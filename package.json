@@ -15,6 +15,7 @@
     "build:extension": "pnpm --filter @aimo-note/extension build",
     "lint": "turbo lint",
     "lint:fix": "turbo lint:fix",
+    "typecheck": "turbo typecheck",
     "format": "prettier --write .",
     "rm": "find . -name \"node_modules\" -type d -prune -exec rm -rf '{}' +",
     "dev:env": "docker compose -f dev-docker-compose.yml up -d"
