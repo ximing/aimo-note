@@ -385,90 +385,6 @@ export interface Window {
 export const window: Window;
 ```
 
-### hooks/
-
-Custom React hooks that encapsulate business logic and connect components to services/ipc.
-
-**use-vault.ts**
-```typescript
-export function useVault(): {
-  path: string | null;
-  files: NoteMetadata[];
-  openVault: (path: string) => Promise<void>;
-  refresh: () => Promise<void>;
-};
-```
-
-**use-note.ts**
-```typescript
-export function useNote(path: string): {
-  note: Note | null;
-  content: string;
-  updateContent: (content: string) => void;
-  save: () => Promise<void>;
-  isDirty: boolean;
-};
-```
-
-**use-editor.ts**
-```typescript
-export function useEditor(): {
-  openNote: (path: string) => void;
-  saveCurrentNote: () => Promise<void>;
-  cursor: Position;
-  selection: Selection | null;
-  insertText: (text: string) => void;
-};
-```
-
-**use-graph.ts**
-```typescript
-export function useGraph(): {
-  nodes: GraphNode[];
-  edges: GraphEdge[];
-  selectedNode: string | null;
-  setSelectedNode: (id: string | null) => void;
-  refresh: () => Promise<void>;
-};
-```
-
-**use-search.ts**
-```typescript
-export function useSearch(): {
-  query: string;
-  results: SearchResult[];
-  isSearching: boolean;
-  search: (q: string) => Promise<void>;
-  clearSearch: () => void;
-};
-```
-
-**use-plugins.ts**
-```typescript
-export function usePlugins(): {
-  plugins: Plugin[];
-  enabledPlugins: string[];
-  loadPlugin: (id: string) => Promise<void>;
-  unloadPlugin: (id: string) => Promise<void>;
-  togglePlugin: (id: string) => void;
-};
-```
-
-**use-file-system.ts**
-```typescript
-export function useFileSystem(): {
-  selectVault: () => Promise<string | null>;
-  readFile: (path: string) => Promise<string>;
-  writeFile: (path: string, content: string) => Promise<void>;
-};
-```
-
-**use-keyboard-shortcuts.ts**
-```typescript
-export function useKeyboardShortcuts(shortcuts: ShortcutConfig[]): void;
-// Registers global keyboard shortcuts
-```
-
 ### types/
 
 TypeScript type definitions shared across the app.
@@ -749,21 +665,6 @@ test('calls onClick when clicked', () => {
   render(<Button label="Click me" onClick={onClick} />);
   fireEvent.click(screen.getByText('Click me'));
   expect(onClick).toHaveBeenCalled();
-});
-```
-
-### Testing Hooks
-
-Custom hooks are tested via `@testing-library/react`:
-
-```typescript
-// hooks/__tests__/use-note.test.ts
-import { renderHook, waitFor } from '@testing-library/react';
-import { useNote } from '../use-note';
-
-test('loads note content', async () => {
-  const { result } = renderHook(() => useNote('/test/note.md'));
-  await waitFor(() => expect(result.current.note).not.toBeNull());
 });
 ```
 
