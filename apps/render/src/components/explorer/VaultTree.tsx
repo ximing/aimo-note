@@ -16,6 +16,7 @@ export const VaultTree = observer(() => {
   const vaultService = useService(VaultService);
   const { tree, path } = vaultService;
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
+  const [sortBy, setSortBy] = useState<'name' | 'created' | 'modified'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [dialog, setDialog] = useState<DialogState>({ type: null });
 
@@ -51,8 +52,9 @@ export const VaultTree = observer(() => {
     setExpandedPaths(new Set());
   }, []);
 
-  const handleSortChange = useCallback((order: 'asc' | 'desc') => {
-    setSortOrder(order);
+  const handleSortChange = useCallback((newSortBy: 'name' | 'created' | 'modified', newSortOrder: 'asc' | 'desc') => {
+    setSortBy(newSortBy);
+    setSortOrder(newSortOrder);
   }, []);
 
   const handleNewFile = useCallback((parentPath = '') => {
@@ -107,9 +109,16 @@ export const VaultTree = observer(() => {
   const sortedTree = [...tree].sort((a, b) => {
     // Folders always first
     if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
-    return sortOrder === 'asc'
-      ? a.name.localeCompare(b.name)
-      : b.name.localeCompare(a.name);
+
+    let comparison = 0;
+    if (sortBy === 'name') {
+      const nameA = a.name.replace(/\.md$/i, '');
+      const nameB = b.name.replace(/\.md$/i, '');
+      comparison = nameA.localeCompare(nameB);
+    }
+    // created/modified would need timestamps - not implemented yet
+
+    return sortOrder === 'asc' ? comparison : -comparison;
   });
 
   return (
@@ -117,6 +126,7 @@ export const VaultTree = observer(() => {
       <SidebarHeader
         onNewFile={() => handleNewFile('')}
         onNewFolder={() => handleNewFolder('')}
+        sortBy={sortBy}
         sortOrder={sortOrder}
         onSortChange={handleSortChange}
         onExpandAll={handleExpandAll}
