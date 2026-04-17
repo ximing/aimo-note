@@ -22,6 +22,23 @@ export interface UpdateInfo {
   releaseNotes?: string;
 }
 
+// Vault types
+export interface TreeNode {
+  name: string;
+  path: string;
+  type: 'file' | 'folder';
+  children?: TreeNode[];
+}
+
+export interface VaultResult {
+  success: boolean;
+  canceled?: boolean;
+  path?: string;
+  tree?: TreeNode[];
+  content?: string;
+  error?: string;
+}
+
 // Store wrapped callbacks to allow proper removal
 const messageCallbackMap = new Map<
   MessageCallback,
@@ -95,6 +112,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
   secureStoreGet: (key: string) => ipcRenderer.invoke('secure-store-get', { key }),
   secureStoreDelete: (key: string) => ipcRenderer.invoke('secure-store-delete', { key }),
 
+  // Vault operations
+  vault: {
+    selectFolder: () => ipcRenderer.invoke('vault:selectFolder') as Promise<VaultResult>,
+    create: (vaultPath: string) => ipcRenderer.invoke('vault:create', vaultPath) as Promise<VaultResult>,
+    open: (vaultPath: string) => ipcRenderer.invoke('vault:open', vaultPath) as Promise<VaultResult>,
+    readNote: (vaultPath: string, filePath: string) =>
+      ipcRenderer.invoke('vault:readNote', vaultPath, filePath) as Promise<VaultResult>,
+    writeNote: (vaultPath: string, filePath: string, content: string) =>
+      ipcRenderer.invoke('vault:writeNote', vaultPath, filePath, content) as Promise<VaultResult>,
+    delete: (vaultPath: string, filePath: string) =>
+      ipcRenderer.invoke('vault:delete', vaultPath, filePath) as Promise<VaultResult>,
+    rename: (vaultPath: string, oldPath: string, newPath: string) =>
+      ipcRenderer.invoke('vault:rename', vaultPath, oldPath, newPath) as Promise<VaultResult>,
+    createFolder: (vaultPath: string, folderPath: string) =>
+      ipcRenderer.invoke('vault:createFolder', vaultPath, folderPath) as Promise<VaultResult>,
+    list: (vaultPath: string) => ipcRenderer.invoke('vault:list', vaultPath) as Promise<VaultResult>,
+  },
+
   // Update status listener
   onUpdateStatus: (callback: UpdateStatusCallback) => {
     const wrappedCallback = (_event: IpcRendererEvent, status: UpdateStatus) => {
@@ -139,6 +174,18 @@ declare global {
       secureStoreDelete: (key: string) => Promise<{ success: boolean; error?: string }>;
       onUpdateStatus: (callback: (status: UpdateStatus) => void) => void;
       removeUpdateStatusListener: (callback: (status: UpdateStatus) => void) => void;
+      // Vault operations
+      vault: {
+        selectFolder: () => Promise<VaultResult>;
+        create: (vaultPath: string) => Promise<VaultResult>;
+        open: (vaultPath: string) => Promise<VaultResult>;
+        readNote: (vaultPath: string, filePath: string) => Promise<VaultResult>;
+        writeNote: (vaultPath: string, filePath: string, content: string) => Promise<VaultResult>;
+        delete: (vaultPath: string, filePath: string) => Promise<VaultResult>;
+        rename: (vaultPath: string, oldPath: string, newPath: string) => Promise<VaultResult>;
+        createFolder: (vaultPath: string, folderPath: string) => Promise<VaultResult>;
+        list: (vaultPath: string) => Promise<VaultResult>;
+      };
     };
   }
 }
