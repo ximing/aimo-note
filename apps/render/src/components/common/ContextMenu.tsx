@@ -54,8 +54,27 @@ export function ContextMenu({
   }, [onClose]);
 
   // Adjust position to keep menu in viewport
-  const adjustedX = Math.min(x, window.innerWidth - 200);
-  const adjustedY = Math.min(y, window.innerHeight - 200);
+  const MENU_MIN_WIDTH = 180;
+  const MENU_ESTIMATED_HEIGHT = 200;
+  const PADDING = 8;
+
+  // Calculate right edge overflow
+  let adjustedX = x;
+  if (x + MENU_MIN_WIDTH > window.innerWidth - PADDING) {
+    adjustedX = window.innerWidth - MENU_MIN_WIDTH - PADDING;
+  }
+
+  // Calculate bottom edge overflow, prefer showing below click point
+  let adjustedY = y;
+  const spaceBelow = window.innerHeight - y;
+  const spaceAbove = y;
+
+  if (spaceBelow < MENU_ESTIMATED_HEIGHT && spaceAbove > spaceBelow) {
+    // Not enough space below, more space above - flip to above
+    adjustedY = y - MENU_ESTIMATED_HEIGHT;
+  }
+  // Ensure doesn't clip at top
+  adjustedY = Math.max(PADDING, adjustedY);
 
   const targetPath = node?.path || '';
 
