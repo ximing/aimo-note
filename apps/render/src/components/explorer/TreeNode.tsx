@@ -100,7 +100,7 @@ export function TreeNode({
           </span>
         )}
         {isFolder ? <Folder size={14} className="text-muted-foreground" /> : <File size={14} className="text-muted-foreground" />}
-        <span className="truncate text-sm">{node.name.replace(/\.md$/, '')}</span>
+        <span className="truncate text-sm">{node.name.replace(/\.md$/i, '')}</span>
       </button>
       {isFolder && (isExpanded || hasExpandedDescendant) && node.children && (
         <div className="children">

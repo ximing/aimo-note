@@ -73,7 +73,7 @@ export const VaultTree = observer(() => {
 
   const handleDialogConfirm = useCallback(
     (value: string) => {
-      const cleanName = value.replace(/\.md$/, '').trim();
+      const cleanName = value.replace(/\.md$/i, '').trim();
       if (!cleanName) return;
 
       if (dialog.type === 'newFile') {
@@ -176,9 +176,9 @@ export const VaultTree = observer(() => {
       )}
       {dialog.type === 'delete' && dialog.node && (
         <ConfirmDialog
-          title="Delete"
-          message={`Are you sure you want to delete "${dialog.node.name}"?`}
-          confirmText="Delete"
+          title="删除"
+          message={`确定要删除 "${dialog.node.name.replace(/\.md$/i, '')}" 吗？`}
+          confirmText="删除"
           danger
           onConfirm={handleDeleteConfirm}
           onCancel={() => setDialog({ type: null })}
