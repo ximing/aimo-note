@@ -19,6 +19,10 @@ export interface ContextMenuProps {
   onDelete: (node: TreeNode) => void;
 }
 
+const MENU_MIN_WIDTH = 180;
+const MENU_ESTIMATED_HEIGHT = 200;
+const PADDING = 8;
+
 export function ContextMenu({
   x,
   y,
@@ -54,10 +58,6 @@ export function ContextMenu({
   }, [onClose]);
 
   // Adjust position to keep menu in viewport
-  const MENU_MIN_WIDTH = 180;
-  const MENU_ESTIMATED_HEIGHT = 200;
-  const PADDING = 8;
-
   // Calculate right edge overflow
   let adjustedX = x;
   if (x + MENU_MIN_WIDTH > window.innerWidth - PADDING) {
