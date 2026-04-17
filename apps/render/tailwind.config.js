@@ -5,18 +5,35 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: {
+        // Vue green palette
+        accent: {
+          DEFAULT: 'var(--accent)',
+          light: 'var(--accent-light)',
+          hover: 'var(--accent-hover)',
           50: '#f0fdf4',
           100: '#dcfce7',
           200: '#bbf7d0',
           300: '#86efac',
           400: '#4ade80',
-          500: '#22c55e',
-          600: '#16a34a',
-          700: '#15803d',
-          800: '#166534',
-          900: '#145231',
-          950: '#0d3422',
+          500: '#42b883',
+          600: '#3a9a6e',
+          700: '#2f7a5a',
+          800: '#245a46',
+          900: '#164332',
+        },
+        bg: {
+          primary: 'var(--bg-primary)',
+          secondary: 'var(--bg-secondary)',
+          tertiary: 'var(--bg-tertiary)',
+        },
+        text: {
+          primary: 'var(--text-primary)',
+          secondary: 'var(--text-secondary)',
+          muted: 'var(--text-muted)',
+        },
+        border: {
+          DEFAULT: 'var(--border)',
+          light: 'var(--border-light)',
         },
         dark: {
           50: '#fafafa',
