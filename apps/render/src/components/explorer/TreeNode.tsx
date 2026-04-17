@@ -4,6 +4,7 @@ import { useService } from '@rabjs/react';
 import { useNavigate } from 'react-router';
 import { ContextMenu } from '../common/ContextMenu';
 import { VaultService } from '@/services/vault.service';
+import { File, Folder, ChevronRight, ChevronDown } from 'lucide-react';
 
 interface TreeNodeProps {
   node: TreeNodeType;
@@ -92,11 +93,15 @@ export function TreeNode({
         style={{ paddingLeft: depth * 16 + 8 }}
       >
         {isFolder && (
-          <span className="w-4 text-center text-muted-foreground text-xs">
-            {isExpanded || hasExpandedDescendant ? '▼' : '▶'}
+          <span className="w-4 text-center text-muted-foreground">
+            {isExpanded || hasExpandedDescendant ? (
+              <ChevronDown size={14} />
+            ) : (
+              <ChevronRight size={14} />
+            )}
           </span>
         )}
-        <span className="text-sm">{isFolder ? '📁' : '📄'}</span>
+        {isFolder ? <Folder size={14} className="text-muted-foreground" /> : <File size={14} className="text-muted-foreground" />}
         <span className="truncate text-sm">{node.name}</span>
       </button>
       {isFolder && (isExpanded || hasExpandedDescendant) && node.children && (

@@ -1,3 +1,5 @@
+import { FilePlus, FolderPlus, ArrowUpDown, ChevronsUpDown } from 'lucide-react';
+
 interface SidebarHeaderProps {
   onNewFile: () => void;
   onNewFolder: () => void;
@@ -23,7 +25,7 @@ export function SidebarHeader({
         className="p-1.5 hover:bg-accent rounded text-sm"
         title="New File"
       >
-        📄
+        <FilePlus size={16} />
       </button>
       <button
         type="button"
@@ -31,7 +33,7 @@ export function SidebarHeader({
         className="p-1.5 hover:bg-accent rounded text-sm"
         title="New Folder"
       >
-        📁
+        <FolderPlus size={16} />
       </button>
       <div className="flex-1" />
       <button
@@ -40,7 +42,7 @@ export function SidebarHeader({
         className="p-1.5 hover:bg-accent rounded text-sm"
         title={`Sort: ${sortOrder === 'asc' ? 'A-Z' : 'Z-A'}`}
       >
-        {sortOrder === 'asc' ? 'A↓' : 'A↑'}
+        <ArrowUpDown size={16} />
       </button>
       <button
         type="button"
@@ -48,7 +50,7 @@ export function SidebarHeader({
         className="p-1.5 hover:bg-accent rounded text-sm"
         title="Expand All"
       >
-        expand
+        <ChevronsUpDown size={16} />
       </button>
       <button
         type="button"
@@ -56,7 +58,7 @@ export function SidebarHeader({
         className="p-1.5 hover:bg-accent rounded text-sm"
         title="Collapse All"
       >
-        collapse
+        <ChevronsUpDown size={16} className="rotate-180" />
       </button>
     </div>
   );
