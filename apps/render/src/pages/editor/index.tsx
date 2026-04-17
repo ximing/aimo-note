@@ -6,6 +6,7 @@ import { EditorStatus } from '../../components/editor/EditorStatus';
 import { EditorService } from '../../services/editor.service';
 import { useVaultService } from '@/services/vault.service';
 import { ContextMenu } from '@/components/common/ContextMenu';
+import { PromptDialog } from '@/components/common/PromptDialog';
 import type { TreeNode } from '@/ipc/vault';
 
 const EditorPageContent = observer(() => {
@@ -14,6 +15,8 @@ const EditorPageContent = observer(() => {
   const service = useService(EditorService);
   const vaultService = useVaultService();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [newFileDialog, setNewFileDialog] = useState(false);
+  const [newFolderDialog, setNewFolderDialog] = useState(false);
 
   useEffect(() => {
     if (path) {
@@ -30,8 +33,12 @@ const EditorPageContent = observer(() => {
     setContextMenu({ x: e.clientX, y: e.clientY });
   }, []);
 
-  const handleNewFile = useCallback(async () => {
-    const name = prompt('Enter file name:', 'untitled.md');
+  const handleNewFile = useCallback(() => {
+    setNewFileDialog(true);
+  }, []);
+
+  const handleConfirmNewFile = useCallback(async (name: string) => {
+    setNewFileDialog(false);
     if (name) {
       const vaultPath = vaultService.vaultPath;
       if (vaultPath) {
@@ -42,8 +49,12 @@ const EditorPageContent = observer(() => {
     }
   }, [vaultService, navigate]);
 
-  const handleNewFolder = useCallback(async () => {
-    const name = prompt('Enter folder name:', 'new-folder');
+  const handleNewFolder = useCallback(() => {
+    setNewFolderDialog(true);
+  }, []);
+
+  const handleConfirmNewFolder = useCallback(async (name: string) => {
+    setNewFolderDialog(false);
     if (name) {
       await vaultService.createFolder('', name);
     }
@@ -101,6 +112,24 @@ const EditorPageContent = observer(() => {
           onRename={handleRename}
           onDelete={handleDelete}
           onClose={handleCloseContextMenu}
+        />
+      )}
+      {newFileDialog && (
+        <PromptDialog
+          title="New File"
+          defaultValue="untitled.md"
+          placeholder="Enter file name"
+          onConfirm={handleConfirmNewFile}
+          onCancel={() => setNewFileDialog(false)}
+        />
+      )}
+      {newFolderDialog && (
+        <PromptDialog
+          title="New Folder"
+          defaultValue="new-folder"
+          placeholder="Enter folder name"
+          onConfirm={handleConfirmNewFolder}
+          onCancel={() => setNewFolderDialog(false)}
         />
       )}
     </div>
