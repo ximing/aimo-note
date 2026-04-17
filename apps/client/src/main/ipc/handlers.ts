@@ -1,7 +1,43 @@
-import { app, ipcMain, safeStorage } from 'electron';
+import { app, ipcMain, safeStorage, dialog } from 'electron';
 import Store from 'electron-store';
+import fs from 'fs/promises';
+import path from 'path';
 
 import { checkForUpdates, downloadUpdate, installUpdate } from '../updater';
+
+interface TreeNode {
+  name: string;
+  path: string;
+  type: 'file' | 'folder';
+  children?: TreeNode[];
+}
+
+async function listDir(vaultPath: string, relativePath: string = ''): Promise<TreeNode[]> {
+  const fullPath = path.join(vaultPath, relativePath);
+  const entries = await fs.readdir(fullPath, { withFileTypes: true });
+  const nodes: TreeNode[] = [];
+
+  for (const entry of entries) {
+    if (entry.name.startsWith('.')) continue;
+    const entryRelativePath = path.join(relativePath, entry.name);
+    const node: TreeNode = {
+      name: entry.name,
+      path: entryRelativePath,
+      type: entry.isDirectory() ? 'folder' : 'file',
+    };
+    if (entry.isDirectory()) {
+      node.children = await listDir(vaultPath, entryRelativePath);
+    }
+    nodes.push(node);
+  }
+
+  nodes.sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  return nodes;
+}
 
 interface AuthStore {
   encryptedToken: string | null;
@@ -92,40 +128,90 @@ export function registerIpcHandlers(): void {
   });
 
   // Vault handlers (core vault operations)
-  // TODO: Replace stubs with actual VaultService calls when @aimo-note/core is integrated
-  ipcMain.handle('vault:open', async (_event, options) => {
-    console.log('[IPC] vault:open', options);
+  ipcMain.handle('vault:selectFolder', async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ['openDirectory'],
+    });
+    if (result.canceled || result.filePaths.length === 0) {
+      return { success: false, canceled: true };
+    }
+    return { success: true, path: result.filePaths[0] };
+  });
+
+  ipcMain.handle('vault:create', async (_event, vaultPath: string) => {
+    await fs.mkdir(vaultPath, { recursive: true });
     return { success: true };
   });
 
-  ipcMain.handle('vault:close', async () => {
-    console.log('[IPC] vault:close');
-    return { success: true };
+  ipcMain.handle('vault:open', async (_event, vaultPath: string) => {
+    try {
+      await fs.access(vaultPath);
+      const tree = await listDir(vaultPath);
+      return { success: true, tree };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
   });
 
-  ipcMain.handle('vault:getNote', async (_event, id: string) => {
-    console.log('[IPC] vault:getNote', id);
-    return null;
+  ipcMain.handle('vault:readNote', async (_event, vaultPath: string, filePath: string) => {
+    try {
+      const fullPath = path.join(vaultPath, filePath);
+      const content = await fs.readFile(fullPath, 'utf-8');
+      return { success: true, content };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
   });
 
-  ipcMain.handle('vault:getAllNotes', async () => {
-    console.log('[IPC] vault:getAllNotes');
-    return [];
+  ipcMain.handle('vault:writeNote', async (_event, vaultPath: string, filePath: string, content: string) => {
+    try {
+      const fullPath = path.join(vaultPath, filePath);
+      await fs.mkdir(path.dirname(fullPath), { recursive: true });
+      await fs.writeFile(fullPath, content, 'utf-8');
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
   });
 
-  ipcMain.handle('vault:createNote', async (_event, metadata, content) => {
-    console.log('[IPC] vault:createNote', metadata);
-    throw new Error('Not implemented');
+  ipcMain.handle('vault:delete', async (_event, vaultPath: string, filePath: string) => {
+    try {
+      const fullPath = path.join(vaultPath, filePath);
+      await fs.rm(fullPath, { recursive: true });
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
   });
 
-  ipcMain.handle('vault:updateNote', async (_event, id, metadata, content) => {
-    console.log('[IPC] vault:updateNote', id);
-    throw new Error('Not implemented');
+  ipcMain.handle('vault:rename', async (_event, vaultPath: string, oldPath: string, newPath: string) => {
+    try {
+      const fullOldPath = path.join(vaultPath, oldPath);
+      const fullNewPath = path.join(vaultPath, newPath);
+      await fs.rename(fullOldPath, fullNewPath);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
   });
 
-  ipcMain.handle('vault:deleteNote', async (_event, id: string) => {
-    console.log('[IPC] vault:deleteNote', id);
-    throw new Error('Not implemented');
+  ipcMain.handle('vault:createFolder', async (_event, vaultPath: string, folderPath: string) => {
+    try {
+      const fullPath = path.join(vaultPath, folderPath);
+      await fs.mkdir(fullPath, { recursive: true });
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  ipcMain.handle('vault:list', async (_event, vaultPath: string) => {
+    try {
+      const tree = await listDir(vaultPath);
+      return { success: true, tree };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
   });
 
   // Graph handlers (core graph operations)
@@ -150,7 +236,7 @@ export function registerIpcHandlers(): void {
     return [];
   });
 
-  ipcMain.handle('search:searchTitle', async (_event, query, limit) => {
+  ipcMain.handle('search:searchTitle', async (_event, query, _limit) => {
     console.log('[IPC] search:searchTitle', query);
     return [];
   });
