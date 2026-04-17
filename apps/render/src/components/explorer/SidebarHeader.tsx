@@ -1,15 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
-import { FilePlus, FolderPlus, ChevronsUpDown, Check } from 'lucide-react';
+import { FilePlus, FolderPlus, ChevronsUpDown, Check, SortAsc, SortDesc, Calendar, Clock } from 'lucide-react';
 
 export type SortOption = 'name-asc' | 'name-desc' | 'created-desc' | 'created-asc' | 'modified-desc' | 'modified-asc';
 
-const sortOptions: { value: SortOption; label: string; icon: string }[] = [
-  { value: 'name-asc', label: '按文件名 A-Z', icon: '📄' },
-  { value: 'name-desc', label: '按文件名 Z-A', icon: '📄' },
-  { value: 'created-desc', label: '按创建时间 ↓', icon: '📅' },
-  { value: 'created-asc', label: '按创建时间 ↑', icon: '📅' },
-  { value: 'modified-desc', label: '按编辑时间 ↓', icon: '✏️' },
-  { value: 'modified-asc', label: '按编辑时间 ↑', icon: '✏️' },
+const sortOptions: { value: SortOption; label: string; icon: typeof SortAsc; disabled?: boolean }[] = [
+  { value: 'name-asc', label: '按文件名 A-Z', icon: SortAsc },
+  { value: 'name-desc', label: '按文件名 Z-A', icon: SortDesc },
+  { value: 'created-desc', label: '按创建时间 ↓', icon: Calendar, disabled: true },
+  { value: 'created-asc', label: '按创建时间 ↑', icon: Calendar, disabled: true },
+  { value: 'modified-desc', label: '按编辑时间 ↓', icon: Clock, disabled: true },
+  { value: 'modified-asc', label: '按编辑时间 ↑', icon: Clock, disabled: true },
 ];
 
 interface SidebarHeaderProps {
@@ -54,8 +54,9 @@ export function SidebarHeader({
   const currentSortOption = `${sortBy}-${sortOrder}` as SortOption;
   const currentOption = sortOptions.find((opt) => opt.value === currentSortOption);
 
-  const handleSortSelect = (option: SortOption) => {
-    const [newSortBy, newSortOrder] = option.split('-') as [typeof sortBy, typeof sortOrder];
+  const handleSortSelect = (value: SortOption, disabled?: boolean) => {
+    if (disabled) return;
+    const [newSortBy, newSortOrder] = value.split('-') as ['name' | 'created' | 'modified', 'asc' | 'desc'];
     onSortChange(newSortBy, newSortOrder);
     setShowSortMenu(false);
   };
@@ -88,7 +89,7 @@ export function SidebarHeader({
           className="p-1.5 hover:bg-accent rounded text-sm flex items-center gap-1"
           title="Sort"
         >
-          <span className="text-xs">{currentOption?.icon}</span>
+          <currentOption.icon size={14} className="mr-1" />
           <ChevronsUpDown size={16} />
         </button>
 
@@ -98,11 +99,13 @@ export function SidebarHeader({
               <button
                 key={option.value}
                 type="button"
-                onClick={() => handleSortSelect(option.value)}
-                className="w-full px-3 py-1.5 text-left text-sm hover:bg-accent flex items-center justify-between"
+                onClick={() => handleSortSelect(option.value, option.disabled)}
+                disabled={option.disabled}
+                className={`w-full px-3 py-1.5 text-left text-sm hover:bg-accent flex items-center justify-between ${option.disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                title={option.disabled ? '即将支持' : option.label}
               >
                 <span>
-                  <span className="mr-2">{option.icon}</span>
+                  <option.icon size={14} className="mr-2 inline" />
                   {option.label}
                 </span>
                 {currentSortOption === option.value && <Check size={14} />}
