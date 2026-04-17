@@ -20,7 +20,8 @@ export const window: Window = {
     // TODO: IPC call - window.electronAPI.window.isMaximized()
     return false;
   },
-  setAlwaysOnTop(flag: boolean) {
+  setAlwaysOnTop(// eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _flag: boolean) {
     // TODO: IPC call - window.electronAPI.window.setAlwaysOnTop(flag)
   },
 };

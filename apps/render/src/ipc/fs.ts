@@ -10,14 +10,18 @@ export const fs: FS = {
     // TODO: IPC call - window.electronAPI.fs.selectVault()
     return null;
   },
-  async readFile(path: string) {
+  async readFile(// eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _path: string) {
     // TODO: IPC call - window.electronAPI.fs.readFile(path)
     return '';
   },
-  async writeFile(path: string, content: string) {
+  async writeFile(// eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _path: string, // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _content: string) {
     // TODO: IPC call - window.electronAPI.fs.writeFile(path, content)
   },
-  async exists(path: string) {
+  async exists(// eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _path: string) {
     // TODO: IPC call - window.electronAPI.fs.exists(path)
     return false;
   },

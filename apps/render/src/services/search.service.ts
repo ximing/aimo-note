@@ -19,7 +19,8 @@ class SearchService extends Service<SearchState> {
     isSearching: false,
   };
 
-  async search(query: string): Promise<void> {
+  async search(// eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _query: string): Promise<void> {
     // TODO: implement
   }
 }

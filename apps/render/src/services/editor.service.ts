@@ -18,7 +18,8 @@ class EditorService extends Service<EditorState> {
     isDirty: false,
   };
 
-  async openNote(path: string): Promise<void> {
+  async openNote(// eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _path: string): Promise<void> {
     // TODO: implement
   }
 

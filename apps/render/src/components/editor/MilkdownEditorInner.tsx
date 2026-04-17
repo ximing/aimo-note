@@ -1,4 +1,4 @@
-import { useEditor, useInstance } from '@milkdown/react';
+import { useEditor } from '@milkdown/react';
 import { Editor, rootCtx, defaultValueCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { history } from '@milkdown/kit/plugin/history';

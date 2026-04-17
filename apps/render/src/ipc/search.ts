@@ -10,12 +10,14 @@ export interface Search {
 }
 
 export const search: Search = {
-  async search(query: string, limit = 50) {
+  /* eslint-disable @typescript-eslint/no-unused-vars */
+  async search(_query: string, _limit = 50) {
     // TODO: IPC call - window.electronAPI.search.query(query, limit)
     return [];
   },
-  async searchInContent(query: string) {
+  async searchInContent(_query: string) {
     // TODO: IPC call - window.electronAPI.search.queryContent(query)
     return [];
   },
+  /* eslint-enable @typescript-eslint/no-unused-vars */
 };

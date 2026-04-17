@@ -8,25 +8,31 @@ export interface Vault {
 }
 
 export const vault: Vault = {
-  async open(path: string) {
+  async open(// eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _path: string) {
     // TODO: IPC call - window.electronAPI.vault.open(path)
-    return { path, files: 0 };
+    return { path: '', files: 0 };
   },
-  async readNote(path: string) {
+  async readNote(// eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _path: string) {
     // TODO: IPC call - window.electronAPI.vault.read(path)
-    return { path, content: '', frontmatter: {} };
+    return { path: '', content: '', frontmatter: {} };
   },
-  async writeNote(path: string, content: string) {
+  async writeNote(// eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _path: string, // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _content: string) {
     // TODO: IPC call - window.electronAPI.vault.write(path, content)
   },
-  async deleteNote(path: string) {
+  async deleteNote(// eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _path: string) {
     // TODO: IPC call - window.electronAPI.vault.delete(path)
   },
   async listFiles() {
     // TODO: IPC call - window.electronAPI.vault.list()
     return [];
   },
-  async createFolder(path: string) {
+  async createFolder(// eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _path: string) {
     // TODO: IPC call - window.electronAPI.vault.createFolder(path)
   },
 };

@@ -16,7 +16,7 @@ export function EditorStatus({ className = '' }: EditorStatusProps) {
       if (editor) {
         const markdown = editor.action(getMarkdown());
         if (typeof markdown === 'string') {
-          const text = markdown.replace(/[#*`\[\]]/g, '').trim();
+          const text = markdown.replace(/[#*`[\]]/g, '').trim();
           const words = text.split(/\s+/).filter((w) => w.length > 0).length;
           setStats({
             words,
