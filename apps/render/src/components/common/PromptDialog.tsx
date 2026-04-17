@@ -4,6 +4,8 @@ export interface PromptDialogProps {
   title: string;
   defaultValue?: string;
   placeholder?: string;
+  cancelText?: string;
+  confirmText?: string;
   onConfirm: (value: string) => void;
   onCancel: () => void;
 }
@@ -12,6 +14,8 @@ export function PromptDialog({
   title,
   defaultValue = '',
   placeholder = '',
+  cancelText,
+  confirmText,
   onConfirm,
   onCancel,
 }: PromptDialogProps) {
@@ -54,7 +58,7 @@ export function PromptDialog({
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="w-full px-4 py-3 border-2 border-[--border] dark:border-[--border] rounded-lg bg-[--bg-primary] text-[--text-primary] focus:outline-none focus:border-[--accent] transition-colors"
+          className="w-full px-4 py-3 border-2 border-[--border] rounded-lg bg-[--bg-primary] text-[--text-primary] focus:outline-none focus:border-[--accent] transition-colors"
           autoFocus
         />
         <div className="flex justify-end gap-3 mt-6">
@@ -63,14 +67,14 @@ export function PromptDialog({
             onClick={onCancel}
             className="px-5 py-2.5 text-sm font-medium rounded-lg bg-[--bg-tertiary] text-[--text-primary] hover:bg-[--border] transition-colors"
           >
-            取消
+            {cancelText}
           </button>
           <button
             type="submit"
             disabled={!value.trim()}
             className="px-5 py-2.5 text-sm font-medium rounded-lg bg-[--accent] text-white hover:bg-[--accent-hover] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            创建
+            {confirmText || 'Confirm'}
           </button>
         </div>
       </form>
