@@ -73,6 +73,11 @@ export function ContextMenu({
     // Not enough space below, more space above - flip to above
     adjustedY = y - MENU_ESTIMATED_HEIGHT;
   }
+  // Ensure bottom edge doesn't clip
+  const menuHeight = MENU_ESTIMATED_HEIGHT;
+  if (adjustedY + menuHeight > window.innerHeight - PADDING) {
+    adjustedY = window.innerHeight - menuHeight - PADDING;
+  }
   // Ensure doesn't clip at top
   adjustedY = Math.max(PADDING, adjustedY);
 
@@ -109,7 +114,7 @@ export function ContextMenu({
   return (
     <div
       ref={menuRef}
-      className="context-menu absolute z-50 min-w-[160px] bg-background border border-border rounded-lg shadow-lg py-1"
+      className="context-menu absolute z-50 min-w-[180px] bg-background border border-border rounded-lg shadow-lg py-1"
       style={{ left: adjustedX, top: adjustedY }}
     >
       {items.map((item, index) => (
