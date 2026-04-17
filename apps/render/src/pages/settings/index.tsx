@@ -1,3 +1,4 @@
+import { observer } from '@rabjs/react';
 import { Sun, Moon, Monitor } from 'lucide-react';
 import { useUIService } from '../../services/ui.service';
 import type { Theme } from '../../services/ui.service';
@@ -8,7 +9,7 @@ const themeOptions: { value: Theme; label: string; icon: typeof Sun }[] = [
   { value: 'system', label: 'System', icon: Monitor },
 ];
 
-export function SettingsPage() {
+export const SettingsPage = observer(() => {
   const uiService = useUIService();
   const currentTheme = uiService.theme;
 
@@ -23,6 +24,7 @@ export function SettingsPage() {
             <button
               key={value}
               onClick={() => uiService.setTheme(value)}
+              aria-pressed={currentTheme === value}
               className={`
                 flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all
                 ${currentTheme === value
@@ -37,16 +39,6 @@ export function SettingsPage() {
           ))}
         </div>
       </section>
-
-      <section className="settings-section mb-8">
-        <h2 className="text-lg font-semibold mb-4 text-text-primary">Vault</h2>
-        <p className="text-text-secondary">Configure vault settings...</p>
-      </section>
-
-      <section className="settings-section">
-        <h2 className="text-lg font-semibold mb-4 text-text-primary">Plugins</h2>
-        <p className="text-text-secondary">Manage plugins...</p>
-      </section>
     </div>
   );
-}
+});
