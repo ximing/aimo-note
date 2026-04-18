@@ -124,11 +124,15 @@ setSidePanelWidth(width: number): void {
 }
 ```
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 3: Handle migration from old sidebarOpen**
+
+The existing UIService has `sidebarOpen = true`. Remove this property and replace with the new `leftRailOpen` and `explorerOpen` properties. The old sidebar is being decomposed into these two separate regions.
+
+- [ ] **Step 4: Commit**
 
 ```bash
 git add apps/render/src/services/ui.service.ts
-git commit -m "feat(ui): add state for 5-region layout
+git commit -m "feat(ui): add state for 5-region layout"
 ```
 
 ---
@@ -194,20 +198,12 @@ export const LeftRail = observer(() => {
 export { LeftRail } from './LeftRail';
 ```
 
-- [ ] **Step 3: Add CSS to index.css**
-
-```css
-.left-rail {
-  /* Already styled via Tailwind classes, but can add custom styles here */
-}
-```
-
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit (no CSS changes needed - Tailwind classes are sufficient)**
 
 ```bash
 git add apps/render/src/components/left-rail/
 git add apps/render/src/index.css
-git commit -m "feat(ui): add LeftRail component
+git commit -m "feat(ui): add LeftRail component"
 ```
 
 ---
@@ -269,7 +265,7 @@ export { TitleBarActions } from './TitleBarActions';
 
 ```bash
 git add apps/render/src/components/titlebar-actions/
-git commit -m "feat(ui): add TitleBarActions component
+git commit -m "feat(ui): add TitleBarActions component"
 ```
 
 ---
@@ -337,7 +333,7 @@ export { EditorTabs } from './EditorTabs';
 
 ```bash
 git add apps/render/src/components/editor-tabs/
-git commit -m "feat(ui): add EditorTabs component
+git commit -m "feat(ui): add EditorTabs component"
 ```
 
 ---
@@ -431,7 +427,7 @@ export { SidePanel } from './SidePanel';
 
 ```bash
 git add apps/render/src/components/side-panel/
-git commit -m "feat(ui): add SidePanel component
+git commit -m "feat(ui): add SidePanel component"
 ```
 
 ---
@@ -449,29 +445,25 @@ Replace the current Layout with the new structure:
 
 ```tsx
 import { Outlet } from 'react-router';
-import { observer, useService } from '@rabjs/react';
+import { observer } from '@rabjs/react';
+import { useUIService } from '@/services/ui.service';
 import { LeftRail } from './left-rail';
 import { TitleBarActions } from './titlebar-actions';
 import { EditorTabs } from './editor-tabs';
 import { SidePanel } from './side-panel';
 import { VaultTree } from './explorer/VaultTree';
-import { UIService } from '@/services/ui.service';
 
 export const Layout = observer(() => {
-  const uiService = useService(UIService);
+  const uiService = useUIService();
 
   return (
     <div className="app-layout h-screen flex flex-col">
-      {/* Title Bar Row */}
+      {/* Title Bar Row - Electron handles native traffic lights */}
       <div className="title-bar flex items-center justify-between px-3 py-1 border-b bg-bg-secondary">
-        {/* macOS traffic lights placeholder - handled by Electron */}
-        <div className="traffic-lights flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-red-500" />
-          <div className="w-3 h-3 rounded-full bg-yellow-500" />
-          <div className="w-3 h-3 rounded-full bg-green-500" />
-        </div>
+        {/* Spacer to balance Title Bar Actions on the right */}
+        <div className="flex-1" />
 
-        {/* Title Bar Actions - right side of traffic lights */}
+        {/* Title Bar Actions - icons next to traffic lights area */}
         <TitleBarActions />
       </div>
 
@@ -511,6 +503,8 @@ export const Layout = observer(() => {
 });
 ```
 
+**Note:** macOS traffic lights are rendered natively by Electron and cannot be customized via HTML. The traffic lights appear in the native window chrome, not in the renderer HTML.
+
 - [ ] **Step 2: Update CSS classes in explorer components**
 
 Modify `SidebarHeader.tsx` to use `.explorer-header` class name:
@@ -531,7 +525,7 @@ Modify `VaultTree.tsx` to wrap content in `.explorer-content`:
 git add apps/render/src/components/Layout.tsx
 git add apps/render/src/components/explorer/SidebarHeader.tsx
 git add apps/render/src/components/explorer/VaultTree.tsx
-git commit -m "feat(layout): restructure to 5-region layout
+git commit -m "feat(layout): restructure to 5-region layout"
 ```
 
 ---
@@ -573,16 +567,18 @@ useEffect(() => {
 }, [path, service, uiService]);
 ```
 
-Also inject `UIService` into the page:
+Also inject `UIService` into the page using the existing `useUIService()` hook pattern:
 ```tsx
-import { UIService } from '@/services/ui.service';
+import { useUIService } from '@/services/ui.service';
 
 const EditorPageContent = observer(() => {
   // ... existing code
-  const uiService = useService(UIService);
+  const uiService = useUIService();
   // ...
 });
 ```
+
+**Note:** The codebase defines `useUIService()` as a dedicated hook in `ui.service.ts`. Use this instead of `useService(UIService)` for consistency.
 
 - [ ] **Step 2: Add double-click on tree nodes to open in new tab**
 
@@ -592,7 +588,7 @@ This would be handled in `TreeNode.tsx` - add a `onDoubleClick` handler that cal
 
 ```bash
 git add apps/render/src/pages/editor/index.tsx
-git commit -m "feat(editor): integrate with EditorTabs
+git commit -m "feat(editor): integrate with EditorTabs"
 ```
 
 ---
@@ -635,6 +631,7 @@ Run the app and verify:
 
 ## Notes
 
-- The traffic lights implementation (macOS window controls) is handled by Electron - the red/yellow/green circles are placeholders for the native window chrome
+- **Status Bar:** The spec diagram shows a Status Bar at the bottom. This is **out of scope** for this implementation - it will be added in a future phase.
+- **Tab double-click behavior:** The spec mentions "双击开新 tab" (double-click opens new tab). This behavior is **deferred** to a future phase. The current implementation supports single-click tab switching only.
 - Tab persistence (saving open tabs across sessions) is out of scope for this initial implementation
 - The Side Panel content (backlinks, outline, tags) will be implemented in future phases
