@@ -8,17 +8,21 @@ export const EditorTabs = observer(() => {
   if (!uiService.tabs.length) return null;
 
   return (
-    <div className="editor-tabs flex items-center border-b bg-bg-secondary overflow-x-auto">
+    <div
+      className="editor-tabs flex items-center border-b bg-bg-secondary overflow-x-auto"
+      role="tablist"
+      aria-label="Document tabs"
+    >
       {uiService.tabs.map((tab) => (
         <div
           key={tab.id}
+          role="tab"
+          aria-selected={uiService.activeTabId === tab.id}
+          tabIndex={uiService.activeTabId === tab.id ? 0 : -1}
           className={`editor-tab flex items-center gap-2 px-3 py-2 border-r border-border cursor-pointer hover:bg-bg-tertiary ${
             uiService.activeTabId === tab.id ? 'bg-bg-primary border-b-2 border-b-accent' : ''
           }`}
-          tabIndex={0}
-          onClick={() => {
-            uiService.setActiveTab(tab.id);
-          }}
+          onClick={() => uiService.setActiveTab(tab.id)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault();
