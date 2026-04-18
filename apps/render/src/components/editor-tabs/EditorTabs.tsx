@@ -15,16 +15,21 @@ export const EditorTabs = observer(() => {
           className={`editor-tab flex items-center gap-2 px-3 py-2 border-r border-border cursor-pointer hover:bg-bg-tertiary ${
             uiService.activeTabId === tab.id ? 'bg-bg-primary border-b-2 border-b-accent' : ''
           }`}
+          tabIndex={0}
           onClick={() => {
             uiService.setActiveTab(tab.id);
           }}
-          onDoubleClick={() => {
-            // Double click does nothing additional for now
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              uiService.setActiveTab(tab.id);
+            }
           }}
         >
           <span className="text-sm truncate max-w-32">{tab.title || 'Untitled'}</span>
           <button
             type="button"
+            aria-label="Close tab"
             className="p-0.5 hover:bg-accent hover:text-white rounded"
             onClick={(e) => {
               e.stopPropagation();
