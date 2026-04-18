@@ -35,9 +35,11 @@ export const Layout = observer(() => {
           {/* Editor Tabs */}
           <EditorTabs />
 
-          {/* Page Content */}
-          <div className="page-content flex-1 overflow-hidden">
-            <Outlet />
+          {/* Document Editor Container */}
+          <div className="editor-container flex-1 border m-2 rounded-md overflow-hidden">
+            <div className="page-content flex-1 overflow-hidden">
+              <Outlet />
+            </div>
           </div>
         </main>
 
