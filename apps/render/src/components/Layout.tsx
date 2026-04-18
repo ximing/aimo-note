@@ -29,12 +29,7 @@ export const Layout = observer(() => {
         {/* Explorer (File Tree) */}
         {uiService.explorerOpen && (
           <aside className="explorer w-64 border-r flex flex-col bg-bg-primary">
-            <div className="explorer-header p-2 border-b">
-              <h1 className="text-sm font-semibold">AIMO Note</h1>
-            </div>
-            <div className="explorer-content flex-1 overflow-auto">
-              <VaultTree />
-            </div>
+            <VaultTree />
           </aside>
         )}
 
