@@ -1,4 +1,5 @@
 import { observer, useService } from '@rabjs/react';
+import { useNavigate } from 'react-router';
 import { UIService } from '@/services/ui.service';
 import { Search, FileText, GitBranch, Settings } from 'lucide-react';
 
@@ -10,6 +11,7 @@ const navItems = [
 ];
 
 export const LeftRail = observer(() => {
+  const navigate = useNavigate();
   const uiService = useService(UIService);
 
   if (!uiService.leftRailOpen) return null;
@@ -25,11 +27,11 @@ export const LeftRail = observer(() => {
             className="p-2 hover:bg-accent hover:text-white rounded text-gray-400 transition-colors"
             title={item.label}
             onClick={() => {
-              if (item.path.startsWith('/editor')) {
-                // Special handling for editor - open in tab
-                uiService.openTab('', 'New Note');
+              if (item.id === 'files') {
+                uiService.toggleExplorer();
+              } else {
+                navigate(item.path);
               }
-              window.location.href = item.path;
             }}
           >
             <Icon size={20} />
