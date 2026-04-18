@@ -11,18 +11,24 @@ export function EditorStatus({ className = '' }: EditorStatusProps) {
   const [stats, setStats] = useState({ words: 0, characters: 0 });
 
   useEffect(() => {
+    if (typeof getEditor !== 'function') return;
+
     const interval = setInterval(() => {
-      const editor = getEditor();
-      if (editor) {
-        const markdown = editor.action(getMarkdown());
-        if (typeof markdown === 'string') {
-          const text = markdown.replace(/[#*`[\]]/g, '').trim();
-          const words = text.split(/\s+/).filter((w) => w.length > 0).length;
-          setStats({
-            words,
-            characters: text.length,
-          });
+      try {
+        const editor = getEditor();
+        if (editor) {
+          const markdown = editor.action(getMarkdown());
+          if (typeof markdown === 'string') {
+            const text = markdown.replace(/[#*`[\]]/g, '').trim();
+            const words = text.split(/\s+/).filter((w) => w.length > 0).length;
+            setStats({
+              words,
+              characters: text.length,
+            });
+          }
         }
+      } catch {
+        // Editor not ready yet
       }
     }, 1000);
     return () => clearInterval(interval);

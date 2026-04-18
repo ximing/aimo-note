@@ -161,6 +161,8 @@ export const VaultTree = observer(() => {
           title="新建文件"
           defaultValue="untitled"
           placeholder="输入文件名"
+          cancelText="取消"
+          confirmText="创建"
           onConfirm={handleDialogConfirm}
           onCancel={() => setDialog({ type: null })}
         />
@@ -170,6 +172,8 @@ export const VaultTree = observer(() => {
           title="新建文件夹"
           defaultValue="new-folder"
           placeholder="输入文件夹名"
+          cancelText="取消"
+          confirmText="创建"
           onConfirm={handleDialogConfirm}
           onCancel={() => setDialog({ type: null })}
         />
@@ -177,8 +181,10 @@ export const VaultTree = observer(() => {
       {dialog.type === 'rename' && dialog.node && (
         <PromptDialog
           title="重命名"
-          defaultValue={dialog.node.name.replace(/\.md$/, '')}
+          defaultValue={dialog.node.name.replace(/\.md$/i, '')}
           placeholder="输入新名称"
+          cancelText="取消"
+          confirmText="确定"
           onConfirm={handleDialogConfirm}
           onCancel={() => setDialog({ type: null })}
         />

@@ -19,9 +19,40 @@ const EditorPageContent = observer(() => {
   const [newFolderDialog, setNewFolderDialog] = useState(false);
 
   useEffect(() => {
-    if (path) {
-      service.openNote(path);
+    // Initialize editor service - restores current note if path not provided
+    if (!path) {
+      service.initialize();
     }
+  }, [path, service]);
+
+  useEffect(() => {
+    if (!path) return;
+
+    let cancelled = false;
+
+    const openNoteWhenReady = async () => {
+      // If vault is already open, open note immediately
+      if (vaultService.path) {
+        console.log('[EditorPage] Vault ready, opening note:', path);
+        await service.openNote(path);
+        return;
+      }
+      // Otherwise wait for vault to open (max 5 seconds)
+      let attempts = 0;
+      while (!cancelled && !vaultService.path && attempts < 100) {
+        await new Promise((r) => setTimeout(r, 50));
+        attempts++;
+      }
+      if (!cancelled && vaultService.path) {
+        console.log('[EditorPage] Vault became ready, opening note:', path);
+        await service.openNote(path);
+      }
+    };
+
+    openNoteWhenReady();
+    return () => {
+      cancelled = true;
+    };
   }, [path, service]);
 
   const handleChange = useCallback((markdown: string) => {
@@ -100,7 +131,7 @@ const EditorPageContent = observer(() => {
         className="editor-content flex-1 overflow-auto"
         onContextMenu={handleContextMenu}
       >
-        <MilkdownEditor onChange={handleChange} defaultValue={service.content || '# New Note'} />
+        <MilkdownEditor key={service.currentNote?.path || 'empty'} onChange={handleChange} defaultValue={service.content || '# New Note'} />
       </div>
       {contextMenu && (
         <ContextMenu

@@ -1,12 +1,7 @@
 import { useEffect, useRef } from 'react';
+import type { ReactNode } from 'react';
+import { FileText, FolderPlus, Pencil, Trash2 } from 'lucide-react';
 import type { TreeNode } from '@/ipc/vault';
-
-export interface ContextMenuItem {
-  label: string;
-  icon?: string;
-  onClick: () => void;
-  danger?: boolean;
-}
 
 export interface ContextMenuProps {
   x: number;
@@ -18,6 +13,14 @@ export interface ContextMenuProps {
   onRename: (node: TreeNode) => void;
   onDelete: (node: TreeNode) => void;
 }
+
+type MenuItem = {
+  label: string;
+  icon: ReactNode;
+  onClick: () => void;
+  danger?: boolean;
+  section?: string;
+};
 
 const MENU_MIN_WIDTH = 180;
 const MENU_ESTIMATED_HEIGHT = 200;
@@ -83,30 +86,13 @@ export function ContextMenu({
 
   const targetPath = node?.path || '';
 
-  const items: ContextMenuItem[] = [
-    {
-      label: 'New File',
-      icon: '📄',
-      onClick: () => onNewFile(targetPath),
-    },
-    {
-      label: 'New Folder',
-      icon: '📁',
-      onClick: () => onNewFolder(targetPath),
-    },
+  const items: MenuItem[] = [
+    { label: '新建文件', icon: <FileText size={14} />, onClick: () => onNewFile(targetPath) },
+    { label: '新建文件夹', icon: <FolderPlus size={14} />, onClick: () => onNewFolder(targetPath) },
     ...(node
       ? [
-          {
-            label: 'Rename',
-            icon: '✏️',
-            onClick: () => onRename(node),
-          },
-          {
-            label: 'Delete',
-            icon: '🗑️',
-            danger: true,
-            onClick: () => onDelete(node),
-          },
+          { label: '重命名', icon: <Pencil size={14} />, onClick: () => onRename(node), section: '当前文件' },
+          { label: '删除', icon: <Trash2 size={14} />, danger: true, onClick: () => onDelete(node) },
         ]
       : []),
   ];
@@ -114,24 +100,30 @@ export function ContextMenu({
   return (
     <div
       ref={menuRef}
-      className="context-menu absolute z-50 min-w-[180px] bg-background border border-border rounded-lg shadow-lg py-1"
+      className="context-menu absolute z-50 min-w-[180px] bg-bg-primary border border-border rounded-lg shadow-[0_4px_16px_rgba(0,0,0,0.2)] py-1"
       style={{ left: adjustedX, top: adjustedY }}
     >
       {items.map((item, index) => (
-        <button
-          key={index}
-          type="button"
-          onClick={() => {
-            item.onClick();
-            onClose();
-          }}
-          className={`flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-accent ${
-            item.danger ? 'text-destructive hover:text-destructive' : ''
-          }`}
-        >
-          {item.icon && <span className="w-5 text-center">{item.icon}</span>}
-          {item.label}
-        </button>
+        <div key={index}>
+          {item.section && (
+            <div className="px-3 py-1.5 text-xs font-medium text-text-secondary uppercase tracking-wide">
+              {item.section}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              item.onClick();
+              onClose();
+            }}
+            className={`flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-accent hover:text-white ${
+              item.danger ? 'text-destructive' : 'text-text-primary'
+            }`}
+          >
+            <span className="w-4">{item.icon}</span>
+            {item.label}
+          </button>
+        </div>
       ))}
     </div>
   );

@@ -4,6 +4,7 @@ import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { history } from '@milkdown/kit/plugin/history';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { Milkdown } from '@milkdown/react';
+import { useRef, useEffect } from 'react';
 
 export interface MilkdownEditorInnerProps {
   onChange?: (markdown: string) => void;
@@ -16,21 +17,30 @@ export function MilkdownEditorInner({
   defaultValue = '# New Note',
   className = '',
 }: MilkdownEditorInnerProps) {
+  const defaultValueRef = useRef(defaultValue);
+  const onChangeRef = useRef(onChange);
+
+  // Keep refs updated without triggering re-render
+  useEffect(() => {
+    defaultValueRef.current = defaultValue;
+    onChangeRef.current = onChange;
+  });
+
   const { loading } = useEditor((root) => {
     return Editor.make()
       .config((ctx) => {
         ctx.set(rootCtx, root);
-        ctx.set(defaultValueCtx, defaultValue);
-        if (onChange) {
+        ctx.set(defaultValueCtx, defaultValueRef.current);
+        if (onChangeRef.current) {
           ctx.get(listenerCtx).markdownUpdated((_ctx, markdown) => {
-            onChange(markdown);
+            onChangeRef.current?.(markdown);
           });
         }
       })
       .use(commonmark)
       .use(history)
       .use(listener);
-  }, [onChange, defaultValue]);
+  }, []); // Empty deps - editor created once, content managed via onChange
 
   return (
     <div className={`milkdown-wrapper h-full ${className}`}>

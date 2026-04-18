@@ -7,14 +7,14 @@ export interface TreeNode {
 
 export interface Vault {
   open(path: string): Promise<{ path: string; tree: TreeNode[] }>;
-  readNote(path: string): Promise<{ path: string; content: string }>;
-  writeNote(path: string, content: string): Promise<void>;
-  deleteNote(path: string): Promise<void>;
+  readNote(vaultPath: string, path: string): Promise<{ path: string; content: string }>;
+  writeNote(vaultPath: string, path: string, content: string): Promise<void>;
+  deleteNote(vaultPath: string, path: string): Promise<void>;
   list(path: string): Promise<TreeNode[]>;
   selectFolder(): Promise<string | null>;
   create(path: string): Promise<void>;
-  createFolder(path: string): Promise<void>;
-  rename(oldPath: string, newPath: string): Promise<void>;
+  createFolder(vaultPath: string, path: string): Promise<void>;
+  rename(vaultPath: string, oldPath: string, newPath: string): Promise<void>;
 }
 
 export const vault: Vault = {
@@ -25,23 +25,27 @@ export const vault: Vault = {
     }
     return { path, tree: result.tree || [] };
   },
-  async readNote(filePath: string) {
-    const vaultPath = ''; // TODO: get from VaultService context
+  async readNote(vaultPath: string, filePath: string) {
     const result = await window.electronAPI!.vault.readNote(vaultPath, filePath);
     if (!result.success) {
       throw new Error(result.error);
     }
     return { path: filePath, content: result.content || '' };
   },
-  async writeNote(filePath: string, content: string) {
-    const vaultPath = ''; // TODO: get from VaultService context
+  async writeNote(vaultPath: string, filePath: string, content: string) {
+    console.log('[IPC Client] vault.writeNote called', {
+      vaultPath: `'${vaultPath}'`,
+      filePath: `'${filePath}'`,
+      contentLength: content.length,
+      contentPreview: content.substring(0, 50)
+    });
     const result = await window.electronAPI!.vault.writeNote(vaultPath, filePath, content);
+    console.log('[IPC Client] vault.writeNote result:', result);
     if (!result.success) {
       throw new Error(result.error);
     }
   },
-  async deleteNote(filePath: string) {
-    const vaultPath = ''; // TODO: get from VaultService context
+  async deleteNote(vaultPath: string, filePath: string) {
     const result = await window.electronAPI!.vault.delete(vaultPath, filePath);
     if (!result.success) {
       throw new Error(result.error);
@@ -67,15 +71,13 @@ export const vault: Vault = {
       throw new Error(result.error);
     }
   },
-  async createFolder(folderPath: string) {
-    const vaultPath = ''; // TODO: get from VaultService context
+  async createFolder(vaultPath: string, folderPath: string) {
     const result = await window.electronAPI!.vault.createFolder(vaultPath, folderPath);
     if (!result.success) {
       throw new Error(result.error);
     }
   },
-  async rename(oldPath: string, newPath: string) {
-    const vaultPath = ''; // TODO: get from VaultService context
+  async rename(vaultPath: string, oldPath: string, newPath: string) {
     const result = await window.electronAPI!.vault.rename(vaultPath, oldPath, newPath);
     if (!result.success) {
       throw new Error(result.error);

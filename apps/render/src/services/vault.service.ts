@@ -4,6 +4,13 @@ import { config } from '@/ipc/config';
 import type { TreeNode } from '@/ipc/vault';
 import type { RecentVault } from '@/ipc/config';
 
+const STORAGE_KEY_CURRENT_NOTE = 'aimo-note-current-note';
+
+interface SavedState {
+  vaultPath: string | null;
+  currentNotePath: string | null;
+}
+
 export class VaultService extends Service {
   path: string | null = null;
   tree: TreeNode[] = [];
@@ -11,8 +18,58 @@ export class VaultService extends Service {
   isLoading = false;
   recentVaults: RecentVault[] = [];
 
+  private _currentNotePath: string | null = null;
+
+  get currentNotePath(): string | null {
+    return this._currentNotePath;
+  }
+
+  set currentNotePath(value: string | null) {
+    this._currentNotePath = value;
+    this.persistState();
+  }
+
+  private persistState(): void {
+    const state: SavedState = {
+      vaultPath: this.path,
+      currentNotePath: this._currentNotePath,
+    };
+    try {
+      localStorage.setItem(STORAGE_KEY_CURRENT_NOTE, JSON.stringify(state));
+    } catch {
+      // Ignore storage errors
+    }
+  }
+
+  private loadSavedState(): SavedState | null {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_CURRENT_NOTE);
+      if (saved) {
+        return JSON.parse(saved) as SavedState;
+      }
+    } catch {
+      // Ignore parse errors
+    }
+    return null;
+  }
+
   async loadRecentVaults(): Promise<void> {
     this.recentVaults = await config.getRecentVaults();
+  }
+
+  async initialize(): Promise<void> {
+    await this.loadRecentVaults();
+    // Auto-open most recent vault if available
+    if (!this.path && this.recentVaults.length > 0) {
+      await this.openRecentVault(this.recentVaults[0].path);
+    }
+    // Restore saved state
+    const savedState = this.loadSavedState();
+    if (savedState?.currentNotePath) {
+      this._currentNotePath = savedState.currentNotePath;
+      // Also restore activeFile for tree selection highlight
+      this.activeFile = savedState.currentNotePath;
+    }
   }
 
   async openVault(path: string): Promise<void> {
@@ -81,6 +138,8 @@ export class VaultService extends Service {
 
   setActiveFile(path: string | null): void {
     this.activeFile = path;
+    this._currentNotePath = path;
+    this.persistState();
   }
 
   get vaultPath(): string | null {
@@ -89,25 +148,25 @@ export class VaultService extends Service {
 
   async createNote(parentPath: string, name: string): Promise<void> {
     const fullPath = `${parentPath}/${name}`;
-    await vault.writeNote(fullPath, `# ${name}\n\n`);
+    await vault.writeNote(this.path!, fullPath, `# ${name}\n\n`);
     await this.refreshTree();
   }
 
   async createFolder(parentPath: string, name: string): Promise<void> {
     const fullPath = `${parentPath}/${name}`;
-    await vault.createFolder(fullPath);
+    await vault.createFolder(this.path!, fullPath);
     await this.refreshTree();
   }
 
   async renameNode(node: TreeNode, newName: string): Promise<void> {
     const parentPath = node.path.substring(0, node.path.lastIndexOf('/'));
     const newPath = `${parentPath}/${newName}`;
-    await vault.rename(node.path, newPath);
+    await vault.rename(this.path!, node.path, newPath);
     await this.refreshTree();
   }
 
   async deleteNode(node: TreeNode): Promise<void> {
-    await vault.deleteNote(node.path);
+    await vault.deleteNote(this.path!, node.path);
     await this.refreshTree();
   }
 }

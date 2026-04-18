@@ -66,16 +66,16 @@ export function SidebarHeader({
       <button
         type="button"
         onClick={onNewFile}
-        className="p-1.5 hover:bg-accent rounded text-sm"
-        title="New File"
+        className="p-1.5 hover:bg-accent hover:text-white rounded text-sm"
+        title="新建文件"
       >
         <FilePlus size={16} />
       </button>
       <button
         type="button"
         onClick={onNewFolder}
-        className="p-1.5 hover:bg-accent rounded text-sm"
-        title="New Folder"
+        className="p-1.5 hover:bg-accent hover:text-white rounded text-sm"
+        title="新建文件夹"
       >
         <FolderPlus size={16} />
       </button>
@@ -86,8 +86,8 @@ export function SidebarHeader({
         <button
           type="button"
           onClick={() => setShowSortMenu(!showSortMenu)}
-          className="p-1.5 hover:bg-accent rounded text-sm flex items-center gap-1"
-          title="Sort"
+          className="p-1.5 hover:bg-accent hover:text-white rounded text-sm flex items-center gap-1"
+          title="排序"
         >
           <currentOption.icon size={14} className="mr-1" />
           <ChevronsUpDown size={16} />
@@ -118,16 +118,16 @@ export function SidebarHeader({
       <button
         type="button"
         onClick={onExpandAll}
-        className="p-1.5 hover:bg-accent rounded text-sm"
-        title="Expand All"
+        className="p-1.5 hover:bg-accent hover:text-white rounded text-sm"
+        title="展开全部"
       >
         <ChevronsUpDown size={16} />
       </button>
       <button
         type="button"
         onClick={onCollapseAll}
-        className="p-1.5 hover:bg-accent rounded text-sm"
-        title="Collapse All"
+        className="p-1.5 hover:bg-accent hover:text-white rounded text-sm"
+        title="折叠全部"
       >
         <ChevronsUpDown size={16} className="rotate-180" />
       </button>

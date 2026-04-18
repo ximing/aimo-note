@@ -225,12 +225,15 @@ export function registerIpcHandlers(): void {
   });
 
   ipcMain.handle('vault:writeNote', async (_event, vaultPath: string, filePath: string, content: string) => {
+    console.log('[IPC] vault:writeNote called', { vaultPath, filePath, contentLength: content.length });
     try {
       const fullPath = path.join(vaultPath, filePath);
+      console.log('[IPC] Writing to fullPath:', fullPath);
       await fs.mkdir(path.dirname(fullPath), { recursive: true });
       await fs.writeFile(fullPath, content, 'utf-8');
       return { success: true };
     } catch (error) {
+      console.error('[IPC] vault:writeNote error:', error);
       return { success: false, error: String(error) };
     }
   });

@@ -81,9 +81,10 @@ export const SidebarToggle = observer(() => {
 
 - 不要把单页面私有组件放到 `src/components`
 - 不要在共享组件里堆积页面编排逻辑
-- 不要为了“以后可能复用”提前抽离组件
+- 不要为了”以后可能复用”提前抽离组件
 - 共享组件的输入输出优先稳定在 props，而不是隐式依赖外部上下文
 - 只有组件真的被多个页面复用时，才提升到这里
+- **禁止使用 `window.alert()`、`window.prompt()`、`window.confirm()`** —— 使用 `@/components/common` 下的 `PromptDialog` 或 `ConfirmDialog` 组件代替
 
 ## 新增组件时的默认约定
 
