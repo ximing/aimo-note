@@ -5,6 +5,7 @@ import { MilkdownEditor } from '../../components/editor/MilkdownEditor';
 import { EditorStatus } from '../../components/editor/EditorStatus';
 import { EditorService } from '../../services/editor.service';
 import { useVaultService } from '@/services/vault.service';
+import { useUIService } from '@/services/ui.service';
 import { ContextMenu } from '@/components/common/ContextMenu';
 import { PromptDialog } from '@/components/common/PromptDialog';
 import type { TreeNode } from '@/ipc/vault';
@@ -14,6 +15,7 @@ const EditorPageContent = observer(() => {
   const navigate = useNavigate();
   const service = useService(EditorService);
   const vaultService = useVaultService();
+  const uiService = useUIService();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [newFileDialog, setNewFileDialog] = useState(false);
   const [newFolderDialog, setNewFolderDialog] = useState(false);
@@ -35,6 +37,7 @@ const EditorPageContent = observer(() => {
       if (vaultService.path) {
         console.log('[EditorPage] Vault ready, opening note:', path);
         await service.openNote(path);
+        uiService.openTab(path, path.split('/').pop() || 'Untitled');
         return;
       }
       // Otherwise wait for vault to open (max 5 seconds)
@@ -46,6 +49,7 @@ const EditorPageContent = observer(() => {
       if (!cancelled && vaultService.path) {
         console.log('[EditorPage] Vault became ready, opening note:', path);
         await service.openNote(path);
+        uiService.openTab(path, path.split('/').pop() || 'Untitled');
       }
     };
 
@@ -53,6 +57,7 @@ const EditorPageContent = observer(() => {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path, service]);
 
   const handleChange = useCallback((markdown: string) => {

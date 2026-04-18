@@ -4,6 +4,7 @@ import { useService } from '@rabjs/react';
 import { useNavigate } from 'react-router';
 import { ContextMenu } from '../common/ContextMenu';
 import { VaultService } from '@/services/vault.service';
+import { useUIService } from '@/services/ui.service';
 import { File, Folder, ChevronRight, ChevronDown } from 'lucide-react';
 
 interface TreeNodeProps {
@@ -39,6 +40,7 @@ export function TreeNode({
 }: TreeNodeProps) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({ show: false, x: 0, y: 0 });
   const vaultService = useService(VaultService);
+  const uiService = useUIService();
   const navigate = useNavigate();
   const isFolder = node.type === 'folder';
   const nodeIsSelected = vaultService.activeFile === node.path;
@@ -52,6 +54,13 @@ export function TreeNode({
     } else {
       vaultService.setActiveFile(node.path);
       navigate(`/editor/${encodeURIComponent(node.path)}`);
+    }
+  };
+
+  const handleDoubleClick = () => {
+    if (node.type === 'file') {
+      navigate(`/editor/${encodeURIComponent(node.path)}`);
+      uiService.openTab(node.path, node.name);
     }
   };
 
@@ -85,6 +94,7 @@ export function TreeNode({
       <button
         type="button"
         onClick={handleClick}
+        onDoubleClick={handleDoubleClick}
         onContextMenu={handleContextMenu}
         className={`flex items-center gap-1 w-full px-2 py-1 hover:bg-accent rounded text-left ${nodeIsSelected ? 'bg-accent text-white' : ''}`}
         style={{ paddingLeft: depth * 16 + 8 }}
