@@ -59,8 +59,8 @@ export function TreeNode({
 
   const handleDoubleClick = () => {
     if (node.type === 'file') {
-      navigate(`/editor/${encodeURIComponent(node.path)}`);
-      uiService.openTab(node.path, node.name);
+      vaultService.setActiveFile(node.path);
+      uiService.openTab(node.path, node.name.replace(/\.md$/i, ''));
     }
   };
 
