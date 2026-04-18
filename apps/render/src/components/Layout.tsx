@@ -13,11 +13,8 @@ export const Layout = observer(() => {
   return (
     <div className="app-layout h-screen flex flex-col">
       {/* Title Bar Row - Electron handles native traffic lights */}
-      <div className="title-bar flex items-center justify-between px-3 py-1 border-b bg-bg-secondary">
-        {/* Spacer to balance Title Bar Actions on the right */}
-        <div className="flex-1" />
-
-        {/* Title Bar Actions - icons next to traffic lights area */}
+      <div className="title-bar flex items-center px-3 py-1 border-b bg-bg-secondary">
+        {/* Title Bar Actions - icons immediately to the right of traffic lights area */}
         <TitleBarActions />
       </div>
 
