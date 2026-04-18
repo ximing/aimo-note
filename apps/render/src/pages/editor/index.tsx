@@ -7,6 +7,7 @@ import { EditorService } from '../../services/editor.service';
 import { useVaultService } from '@/services/vault.service';
 import { useUIService } from '@/services/ui.service';
 import { ContextMenu } from '@/components/common/ContextMenu';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { PromptDialog } from '@/components/common/PromptDialog';
 import type { TreeNode } from '@/ipc/vault';
 
@@ -19,6 +20,8 @@ const EditorPageContent = observer(() => {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [newFileDialog, setNewFileDialog] = useState(false);
   const [newFolderDialog, setNewFolderDialog] = useState(false);
+  const [renameDialog, setRenameDialog] = useState<{ node: TreeNode } | null>(null);
+  const [deleteDialog, setDeleteDialog] = useState<{ node: TreeNode } | null>(null);
 
   useEffect(() => {
     // Initialize editor service - restores current note if path not provided
@@ -60,6 +63,14 @@ const EditorPageContent = observer(() => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [path, service]);
 
+  // React to tab changes
+  useEffect(() => {
+    const activeTab = uiService.tabs.find((t) => t.id === uiService.activeTabId);
+    if (activeTab && activeTab.path !== service.currentNote?.path) {
+      service.openNote(activeTab.path);
+    }
+  }, [uiService.activeTabId, uiService.tabs, service]);
+
   const handleChange = useCallback((markdown: string) => {
     service.updateContent(markdown);
   }, [service]);
@@ -96,19 +107,27 @@ const EditorPageContent = observer(() => {
     }
   }, [vaultService]);
 
-  const handleRename = useCallback(async (node: TreeNode) => {
-    const newName = prompt('Enter new name:', node.name);
-    if (newName && newName !== node.name) {
-      await vaultService.renameNode(node, newName);
-    }
-  }, [vaultService]);
+  const handleRename = useCallback((node: TreeNode) => {
+    setRenameDialog({ node });
+  }, []);
 
-  const handleDelete = useCallback(async (node: TreeNode) => {
-    const confirmed = confirm(`Delete "${node.name}"? This cannot be undone.`);
-    if (confirmed) {
-      await vaultService.deleteNode(node);
+  const handleConfirmRename = useCallback(async (newName: string) => {
+    setRenameDialog(null);
+    if (renameDialog && newName && newName !== renameDialog.node.name) {
+      await vaultService.renameNode(renameDialog.node, newName);
     }
-  }, [vaultService]);
+  }, [vaultService, renameDialog]);
+
+  const handleDelete = useCallback((node: TreeNode) => {
+    setDeleteDialog({ node });
+  }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (deleteDialog) {
+      await vaultService.deleteNode(deleteDialog.node);
+      setDeleteDialog(null);
+    }
+  }, [vaultService, deleteDialog]);
 
   const handleCloseContextMenu = useCallback(() => {
     setContextMenu(null);
@@ -166,6 +185,24 @@ const EditorPageContent = observer(() => {
           placeholder="Enter folder name"
           onConfirm={handleConfirmNewFolder}
           onCancel={() => setNewFolderDialog(false)}
+        />
+      )}
+      {renameDialog && (
+        <PromptDialog
+          title="Rename"
+          defaultValue={renameDialog.node.name}
+          placeholder="Enter new name"
+          onConfirm={handleConfirmRename}
+          onCancel={() => setRenameDialog(null)}
+        />
+      )}
+      {deleteDialog && (
+        <ConfirmDialog
+          title="Delete"
+          message={`Delete "${deleteDialog.node.name}"? This cannot be undone.`}
+          danger
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setDeleteDialog(null)}
         />
       )}
     </div>
