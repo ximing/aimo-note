@@ -35,26 +35,23 @@
 --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
 --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
 
-/* Dark Theme */
---bg-primary: #ffffff;    /* 暗色下仍保持白底，避免刺眼 */
---bg-secondary: #f7f7f7;
---bg-tertiary: #ebebeb;
---bg-quaternary: #e0e0e0;
-
---text-primary: #1f1f1f;
---text-secondary: #6e6e6e;
---text-muted: #999999;
-
+/* Dark Theme - TBD */
+/* 暗色模式设计待后续单独迭代，当前保持现有炭灰底不变。 */
+/* 规划值（暂不启用）:
+--bg-primary: #1a1a1b;
+--bg-secondary: #252525;
+--bg-tertiary: #1e1e1e;
+--bg-quaternary: #333333;
+--text-primary: #cccccc;
+--text-secondary: #999999;
+--text-muted: #666666;
 --accent: #4ade80;
 --accent-hover: #6ee7a0;
---accent-subtle: #f0fdf4;
-
---shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.1);
---shadow-md: 0 2px 8px rgba(0, 0, 0, 0.2);
---shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3);
-```
-
-> **注意**：暗色模式设计待后续单独迭代，当前保持现有炭灰底不变。
+--accent-subtle: #1a3a2a;
+--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+--shadow-md: 0 2px 8px rgba(0, 0, 0, 0.4);
+--shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+*/
 
 ### 1.2 语义化映射
 
@@ -124,8 +121,8 @@
 │ a  │              │                    │               │
 │ i  │              │                    │               │
 │ l  │              │                    │               │
-│    │              │                    │               │
-│48px│              │                    │               │
+│ 48 │              │                    │               │
+│ px │              │                    │               │
 └────┴──────────────┴────────────────────┴───────────────┘
 ```
 
@@ -133,7 +130,10 @@
 
 - 高度：40px
 - 背景：`--bg-secondary`
-- 底部分隔：移除 border，改用背景色渐变（--bg-secondary → --bg-primary）
+- 底部分隔：移除 border，改用 1px 渐变线（--bg-secondary → --bg-primary）
+  ```css
+  border-bottom: 1px solid #f7f7f7; /* 单色分隔线即可 */
+  ```
 
 ### 5.3 Left Rail
 
@@ -147,7 +147,7 @@
 - 宽度：256px（可调）
 - 背景：`--bg-primary`
 - 头部区域：背景 `--bg-secondary`（通过 padding 分隔，不用 border）
-- 折叠/展开按钮：hover 时背景 `--bg-secondary`
+- 折叠/展开按钮：hover 时背景 `--bg-quaternary`（确保可见性）
 
 ### 5.5 Editor Tabs
 
@@ -209,6 +209,19 @@
 .btn-icon:hover {
   background: var(--bg-quaternary);
 }
+
+/* 禁用态 */
+.btn-secondary:disabled,
+.btn-primary:disabled,
+.btn-icon:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn-secondary:disabled:hover,
+.btn-primary:disabled:hover,
+.btn-icon:disabled:hover {
+  background: transparent;
+}
 ```
 
 ### 6.2 文件树节点（TreeNode）
@@ -263,7 +276,7 @@
 ```css
 .card {
   background: var(--bg-primary);
-  border-radius: 8px;
+  border-radius: 6px;
   box-shadow: var(--shadow-md);
   padding: 16px;
 }
@@ -284,6 +297,12 @@
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-subtle);
+}
+
+.input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--bg-secondary);
 }
 ```
 
@@ -318,7 +337,7 @@ transition: background-color 0.2s ease,
 
 ### 8.2 布局组件更新
 - [ ] Layout.tsx - 移除所有 border
-- [ ] LeftRail.tsx - 更新样式
+- [ ] LeftRail.tsx - 当前使用 `bg-bg-secondary`，应改为 `bg-bg-tertiary`
 - [ ] EditorTabs.tsx - 用 box-shadow 替代 border
 - [ ] SidePanel.tsx - 更新背景色
 
