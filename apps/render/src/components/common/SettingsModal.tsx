@@ -138,7 +138,7 @@ export const SettingsModal = observer(() => {
                   <div className="flex items-center justify-between p-3 bg-bg-secondary rounded-md">
                     <span className="text-sm text-text-primary">打开设置</span>
                     <kbd className="px-2 py-1 text-xs bg-bg-tertiary rounded text-text-secondary">
-                      {process.platform === 'darwin' ? '⌘' : 'Ctrl'} + .
+                      {window.electronAPI?.platform === 'darwin' ? '⌘' : 'Ctrl'} + ,
                     </kbd>
                   </div>
                 </div>

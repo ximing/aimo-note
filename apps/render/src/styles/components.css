@@ -112,7 +112,7 @@
 .file-name-input {
   color: var(--text-primary);
   padding: 6px 0px;
-  font-size: 24px;
+  font-size: 2em;
   border-radius: 4px;
   transition: background-color 0.15s ease;
 }

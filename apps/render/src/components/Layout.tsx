@@ -20,8 +20,8 @@ export const Layout = observer(() => {
   // Global keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd/Ctrl + . to toggle settings modal
-      if (e.key === '.' && (e.metaKey || e.ctrlKey)) {
+      // Cmd/Ctrl + , to toggle settings modal
+      if (e.key === ',' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         if (uiService.settingsModalOpen) {
           uiService.closeSettings();
