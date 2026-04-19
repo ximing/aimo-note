@@ -7,12 +7,15 @@ import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { SlashProvider, slashFactory } from '@milkdown/kit/plugin/slash';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { Milkdown } from '@milkdown/react';
-import { useRef, useEffect, useMemo, useCallback } from 'react';
+import { useRef, useEffect, useMemo, useState, useCallback } from 'react';
 import { math } from '@milkdown/plugin-math';
 import {
   imageBlockComponent,
   imageBlockConfig,
 } from '@milkdown/kit/component/image-block';
+import {
+  imageInlineComponent,
+} from '@milkdown/kit/component/image-inline';
 import {
   linkTooltipPlugin,
   configureLinkTooltip,
@@ -30,6 +33,8 @@ import {
 import type { Ctx } from '@milkdown/kit/ctx';
 import 'katex/dist/katex.min.css';
 import { useImageStorageService } from '../../services/image-storage.service';
+import { useVaultService } from '../../services/vault.service';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 
 export interface MilkdownEditorInnerProps {
   onChange?: (markdown: string) => void;
@@ -67,18 +72,6 @@ class SlashMenu {
   constructor() {
     this.element = document.createElement('div');
     this.element.className = 'slash-menu';
-    this.element.style.cssText = `
-      position: absolute;
-      background: white;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      padding: 4px 0;
-      min-width: 200px;
-      z-index: 1000;
-      font-size: 14px;
-      display: none;
-    `;
     this.provider = new SlashProvider({
       content: this.element,
       offset: 8,
@@ -145,27 +138,9 @@ class SlashMenu {
     this.element.innerHTML = this.items
       .map(
         (item, i) => `
-        <div class="slash-menu-item" data-index="${i}" style="
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 8px 12px;
-          cursor: pointer;
-          color: #374151;
-          transition: background 0.15s;
-        ">
-          <span style="
-            width: 28px;
-            height: 28px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #f3f4f6;
-            border-radius: 6px;
-            font-weight: 600;
-            font-size: 12px;
-          ">${item.icon}</span>
-          <span>${item.label}</span>
+        <div class="slash-menu-item" data-index="${i}">
+          <span class="slash-menu-item-icon">${item.icon}</span>
+          <span class="slash-menu-item-label">${item.label}</span>
         </div>
       `
       )
@@ -199,6 +174,7 @@ class SlashMenu {
 
   destroy = () => {
     this.provider.destroy();
+    this.element.innerHTML = '';
     this.element.remove();
   };
 
@@ -221,7 +197,11 @@ export function MilkdownEditorInner({
   const defaultValueRef = useRef(defaultValue);
   const onChangeRef = useRef(onChange);
   const imageStorageService = useImageStorageService();
+  const vaultService = useVaultService();
   const [, getEditor] = useInstance();
+  const [pasteError, setPasteError] = useState<string | null>(null);
+  const editorRootRef = useRef<HTMLDivElement | null>(null);
+  const loadingRef = useRef(true);
 
   // Keep refs updated without triggering re-render
   useEffect(() => {
@@ -229,20 +209,78 @@ export function MilkdownEditorInner({
     onChangeRef.current = onChange;
   });
 
+  const resolvePreviewImageUrl = useCallback(
+    (src: string) => {
+      if (!vaultService.path) return src;
+      if (/^(https?:|file:|data:|blob:|aimo-image:)/i.test(src)) {
+        return src;
+      }
+
+      const normalizedPath = src.replace(/^([./\\])+/, '');
+      return `aimo-image://vault?vaultPath=${encodeURIComponent(vaultService.path)}&path=${encodeURIComponent(normalizedPath)}`;
+    },
+    [vaultService.path]
+  );
+
+  const syncRenderedImages = useCallback(() => {
+    const editorRoot = editorRootRef.current;
+    if (!editorRoot) return;
+
+    editorRoot.querySelectorAll<HTMLImageElement>('img[src]').forEach((image) => {
+      const rawSrc = image.getAttribute('src');
+      if (!rawSrc) return;
+
+      const resolvedSrc = resolvePreviewImageUrl(rawSrc);
+      if (resolvedSrc !== rawSrc) {
+        image.setAttribute('src', resolvedSrc);
+      }
+    });
+  }, [resolvePreviewImageUrl]);
+
   // Create slash menu instance
   const slashMenu = useMemo(() => new SlashMenu(), []);
 
+  // Cleanup slash menu on unmount
+  useEffect(() => {
+    return () => {
+      slashMenu.destroy();
+    };
+  }, [slashMenu]);
+
+  useEffect(() => {
+    const editorRoot = editorRootRef.current;
+    if (!editorRoot) return;
+
+    syncRenderedImages();
+    const observer = new MutationObserver(() => {
+      syncRenderedImages();
+    });
+
+    observer.observe(editorRoot, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['src'],
+    });
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [syncRenderedImages]);
+
   // Expose ProseMirror DOM via editorRef and apply search highlight
   useEffect(() => {
-    if (!loading && editorRef) {
-      const pm = document.querySelector('.milkdown .ProseMirror') as HTMLElement | null;
-      editorRef.current.dom = pm;
+    if (!loadingRef.current) {
+      if (editorRef) {
+        const pm = document.querySelector('.milkdown .ProseMirror') as HTMLElement | null;
+        editorRef.current.dom = pm;
+      }
     }
-  }, [loading, editorRef]);
+  });
 
   // Apply highlight query to editor content
   useEffect(() => {
-    if (!highlightQuery || loading) return;
+    if (!highlightQuery || loadingRef.current) return;
 
     const applyHighlight = () => {
       const pm = document.querySelector('.milkdown .ProseMirror');
@@ -297,9 +335,9 @@ export function MilkdownEditorInner({
     // Small delay to ensure DOM is ready after content load
     const timeout = setTimeout(applyHighlight, 100);
     return () => clearTimeout(timeout);
-  }, [highlightQuery, loading, defaultValue]);
+  }, [highlightQuery]);
 
-  const handlePaste = async (event: ClipboardEvent) => {
+  const handlePaste = async (event: React.ClipboardEvent<HTMLDivElement>) => {
     const items = event.clipboardData?.items;
     if (!items) return;
 
@@ -310,18 +348,27 @@ export function MilkdownEditorInner({
         try {
           const url = await imageStorageService.uploadFromClipboard();
           if (url) {
-            const imageMarkdown = `![${url}](${url})`;
             const editor = getEditor();
             if (editor) {
               editor.action((ctx) => {
-                const { state, dispatch } = ctx;
-                const tr = state.tr.insertText(imageMarkdown, state.selection.from);
+                const view = ctx.get(editorViewCtx);
+                const { state, dispatch } = view;
+                const imageNodeType = state.schema.nodes.image ?? state.schema.nodes.imageBlock;
+                if (!imageNodeType) {
+                  console.error('[Editor] Image node type not found in schema');
+                  return;
+                }
+
+                const altText = url.split('/').pop() || 'image';
+                const imageNode = imageNodeType.create({ src: url, alt: altText, title: '' });
+                const tr = state.tr.replaceSelectionWith(imageNode).scrollIntoView();
                 dispatch(tr);
               });
             }
           }
         } catch (error) {
           console.error('[Editor] Image paste failed:', error);
+          setPasteError(error instanceof Error ? error.message : String(error));
         }
         return;
       }
@@ -369,18 +416,31 @@ export function MilkdownEditorInner({
       .use(slash) // Slash command menu
       .use(math) // LaTeX math support
       .use(imageBlockComponent) // Image block with upload
+      .use(imageInlineComponent) // Inline image support (for paste inserted images)
       .use(linkTooltipPlugin) // Link tooltip UI
       .use(block); // Block drag handle
   }, []);
 
   return (
-    <div className={`milkdown-wrapper h-full flex flex-col ${className}`} onPaste={handlePaste}>
-      {loading && (
-        <div className="milkdown-loading p-4 text-gray-500">Loading editor...</div>
-      )}
-      <div className="milkdown h-full flex flex-col">
-        <Milkdown />
+    <>
+      <div ref={editorRootRef} className={`milkdown-wrapper h-full flex flex-col ${className}`} onPaste={handlePaste}>
+        {loading && (
+          <div className="milkdown-loading p-4 text-gray-500">Loading editor...</div>
+        )}
+        <div className="milkdown h-full flex flex-col">
+          <Milkdown />
+        </div>
       </div>
-    </div>
+      {pasteError && (
+        <ConfirmDialog
+          title="图片粘贴失败"
+          message={pasteError}
+          confirmText="知道了"
+          hideCancel
+          onConfirm={() => setPasteError(null)}
+          onCancel={() => setPasteError(null)}
+        />
+      )}
+    </>
   );
 }

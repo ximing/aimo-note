@@ -1,7 +1,10 @@
 import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
-import { FileText, FolderPlus, Pencil, Trash2 } from 'lucide-react';
+import { FileText, FolderPlus, Pencil, Trash2, FolderOpen, Copy, Link } from 'lucide-react';
 import type { TreeNode } from '@/ipc/vault';
+import { clipboard, shell } from '@/ipc';
+import { useService } from '@rabjs/react';
+import { VaultService } from '@/services/vault.service';
 
 export interface ContextMenuProps {
   x: number;
@@ -85,12 +88,32 @@ export function ContextMenu({
   adjustedY = Math.max(PADDING, adjustedY);
 
   const targetPath = node?.path || '';
+  const vaultService = useService(VaultService);
+  const vaultPath = vaultService.path || '';
+
+  const handleOpenContainingFolder = async (fullPath: string) => {
+    const dirPath = fullPath.substring(0, fullPath.lastIndexOf('/'));
+    const absolutePath = vaultPath + '/' + dirPath;
+    await shell.openPath(absolutePath);
+  };
+
+  const handleCopyAbsolutePath = async (fullPath: string) => {
+    const absolutePath = vaultPath + '/' + fullPath;
+    await clipboard.writeText(absolutePath);
+  };
+
+  const handleCopyRelativePath = async (fullPath: string) => {
+    await clipboard.writeText(fullPath);
+  };
 
   const items: MenuItem[] = [
     { label: '新建文件', icon: <FileText size={14} />, onClick: () => onNewFile(targetPath) },
     { label: '新建文件夹', icon: <FolderPlus size={14} />, onClick: () => onNewFolder(targetPath) },
     ...(node
       ? [
+          { label: '打开所在文件夹', icon: <FolderOpen size={14} />, onClick: () => handleOpenContainingFolder(node.path) },
+          { label: '复制绝对路径', icon: <Copy size={14} />, onClick: () => handleCopyAbsolutePath(node.path) },
+          { label: '复制相对路径', icon: <Link size={14} />, onClick: () => handleCopyRelativePath(node.path) },
           { label: '重命名', icon: <Pencil size={14} />, onClick: () => onRename(node), section: '当前文件' },
           { label: '删除', icon: <Trash2 size={14} />, danger: true, onClick: () => onDelete(node) },
         ]

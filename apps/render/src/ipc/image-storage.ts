@@ -12,7 +12,10 @@ export const imageStorage: ImageStorageAPI = {
     if (!result.success) {
       throw new Error(result.error || 'Upload failed');
     }
-    return result.url!;
+    if (result.url === undefined) {
+      throw new Error(result.error || 'Upload failed');
+    }
+    return result.url;
   },
 
   async getConfig(vaultPath: string): Promise<ImageStorageConfig | null> {

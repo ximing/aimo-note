@@ -3,7 +3,7 @@ import { Sun, Moon, Monitor } from 'lucide-react';
 import { useUIService } from '../../services/ui.service';
 import type { Theme } from '../../services/ui.service';
 import { useImageStorageService } from '../../services/image-storage.service';
-import type { ImageStorageConfig } from '../../types/image-storage';
+import type { ImageStorageConfig, S3ImageStorageConfig } from '../../types/image-storage';
 
 const themeOptions: { value: Theme; label: string; icon: typeof Sun }[] = [
   { value: 'light', label: 'Light', icon: Sun },
@@ -32,9 +32,10 @@ export const SettingsPage = observer(() => {
     imageStorageService.saveConfig({ type: 'local', local: { path } });
   };
 
-  const handleS3FieldChange = (field: keyof typeof imageStorageService.config.s3, value: string) => {
-    if (imageStorageService.config.type !== 's3') return;
-    const currentS3 = { ...imageStorageService.config.s3 };
+  const handleS3FieldChange = (field: keyof S3ImageStorageConfig['s3'], value: string) => {
+    const cfg = imageStorageService.config;
+    if (cfg.type !== 's3') return;
+    const currentS3 = (cfg as S3ImageStorageConfig).s3;
     imageStorageService.saveConfig({ type: 's3', s3: { ...currentS3, [field]: value } });
   };
 

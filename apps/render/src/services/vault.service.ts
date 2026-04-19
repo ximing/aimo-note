@@ -5,6 +5,7 @@ import { config } from '@/ipc/config';
 import type { TreeNode } from '@/ipc/vault';
 import type { RecentVault } from '@/ipc/config';
 import { UIService } from './ui.service';
+import { ImageStorageService } from './image-storage.service';
 
 function debounce<Args extends unknown[], R>(fn: (...args: Args) => R, ms: number): (...args: Args) => void {
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -185,6 +186,8 @@ export class VaultService extends Service {
         this.persistState();
         await this.refreshTree();
         await this.restoreVaultConfig();
+        const imageStorageService = this.resolve(ImageStorageService);
+        await imageStorageService.loadConfig();
         this.recentVaults = await config.addRecentVault(path);
       }
     } finally {
@@ -215,6 +218,8 @@ export class VaultService extends Service {
         this.persistState();
         await this.refreshTree();
         await this.restoreVaultConfig();
+        const imageStorageService = this.resolve(ImageStorageService);
+        await imageStorageService.loadConfig();
         this.recentVaults = await config.addRecentVault(vaultPath);
         return true;
       }

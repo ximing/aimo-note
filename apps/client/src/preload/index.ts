@@ -197,6 +197,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Clipboard operations
   clipboard: {
     readImage: () => ipcRenderer.invoke('clipboard:read-image'),
+    writeText: (text: string) => ipcRenderer.invoke('clipboard:writeText', text),
+  },
+
+  // Shell operations
+  shell: {
+    openPath: (filePath: string) => ipcRenderer.invoke('shell:openPath', filePath),
   },
 
   // Image storage operations
@@ -270,6 +276,11 @@ declare global {
       // Clipboard operations
       clipboard: {
         readImage: () => Promise<{ success: boolean; data: ClipboardImageData | null; error?: string }>;
+        writeText: (text: string) => Promise<{ success: boolean; error?: string }>;
+      };
+      // Shell operations
+      shell: {
+        openPath: (filePath: string) => Promise<{ success: boolean; error?: string }>;
       };
       // Image storage operations
       imageStorage: {

@@ -151,6 +151,19 @@ declare global {
         addRecentVault: (vaultPath: string) => Promise<{ success: boolean; recentVaults: RecentVault[] }>;
         removeRecentVault: (vaultPath: string) => Promise<{ success: boolean; recentVaults: RecentVault[] }>;
       };
+      // Clipboard APIs
+      clipboard: {
+        readImage: () => Promise<{ success: boolean; data: { arrayBuffer: ArrayBuffer; mimeType: string } | null; error?: string }>;
+      };
+      // Image storage APIs
+      imageStorage: {
+        upload: (data: { arrayBuffer: ArrayBuffer; mimeType: string; vaultPath: string }) =>
+          Promise<{ success: boolean; url?: string; error?: string }>;
+        getConfig: (vaultPath: string) =>
+          Promise<{ success: boolean; config?: ElectronImageStorageConfig | null }>;
+        setConfig: (vaultPath: string, config: ElectronImageStorageConfig) =>
+          Promise<{ success: boolean; error?: string }>;
+      };
     };
   }
 }
@@ -167,3 +180,18 @@ interface TreeNode {
   type: 'file' | 'folder';
   children?: TreeNode[];
 }
+
+type ElectronImageStorageConfig =
+  | { type: 'local'; local: { path: string } }
+  | {
+      type: 's3';
+      s3: {
+        accessKey: string;
+        secretKey: string;
+        bucket: string;
+        region: string;
+        endpoint?: string;
+        keyPrefix?: string;
+      };
+    };
+

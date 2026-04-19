@@ -7,6 +7,7 @@ export { window } from './window';
 export { config } from './config';
 export { clipboard } from './clipboard';
 export { imageStorage } from './image-storage';
+export { shell } from './shell';
 export type { RecentVault } from './config';
 // Re-export search types from dto
 export type { SearchMatch, SearchResult, SearchOptions, SearchResponse } from '@aimo-note/dto';

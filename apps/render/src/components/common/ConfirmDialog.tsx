@@ -6,6 +6,7 @@ export interface ConfirmDialogProps {
   confirmText?: string;
   cancelText?: string;
   danger?: boolean;
+  hideCancel?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -16,6 +17,7 @@ export function ConfirmDialog({
   confirmText = 'Confirm',
   cancelText = 'Cancel',
   danger = false,
+  hideCancel = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -41,13 +43,15 @@ export function ConfirmDialog({
         <h3 className="text-lg font-semibold mb-2 text-[--text-primary]">{title}</h3>
         <p className="text-sm text-muted-foreground mb-4">{message}</p>
         <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-5 py-2.5 text-sm font-medium rounded-lg bg-[--bg-tertiary] text-[--text-primary] hover:bg-[--border] transition-colors"
-          >
-            {cancelText}
-          </button>
+          {!hideCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-5 py-2.5 text-sm font-medium rounded-lg bg-[--bg-tertiary] text-[--text-primary] hover:bg-[--border] transition-colors"
+            >
+              {cancelText}
+            </button>
+          )}
           <button
             type="button"
             onClick={onConfirm}

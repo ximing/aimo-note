@@ -1,4 +1,4 @@
-import { app, ipcMain, safeStorage, dialog, clipboard } from 'electron';
+import { app, ipcMain, safeStorage, dialog, clipboard, shell } from 'electron';
 import Store from 'electron-store';
 import fs from 'fs/promises';
 import path from 'path';
@@ -566,6 +566,26 @@ export function registerIpcHandlers(): void {
       return { success: true };
     } catch (error) {
       console.error('[IPC] image-storage:set-config error:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Shell handlers
+  ipcMain.handle('shell:openPath', async (_event, filePath: string) => {
+    try {
+      await shell.openPath(filePath);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Clipboard write text handler
+  ipcMain.handle('clipboard:writeText', async (_event, text: string) => {
+    try {
+      clipboard.writeText(text);
+      return { success: true };
+    } catch (error) {
       return { success: false, error: String(error) };
     }
   });

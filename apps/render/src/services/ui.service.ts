@@ -30,7 +30,7 @@ export class UIService extends Service {
 
   // Settings Modal
   settingsModalOpen = false;
-  activeSettingsCategory: 'appearance' | 'editor' | 'shortcuts' | 'about' = 'appearance';
+  activeSettingsCategory: 'appearance' | 'editor' | 'shortcuts' | 'image-storage' | 'about' = 'appearance';
 
   // Legacy (removed, kept for reference during migration)
   // sidebarOpen = true; // replaced by leftRailOpen and explorerOpen
@@ -172,7 +172,7 @@ export class UIService extends Service {
     this.settingsModalOpen = false;
   }
 
-  setActiveSettingsCategory(category: 'appearance' | 'editor' | 'shortcuts' | 'about'): void {
+  setActiveSettingsCategory(category: 'appearance' | 'editor' | 'shortcuts' | 'image-storage' | 'about'): void {
     this.activeSettingsCategory = category;
   }
 
