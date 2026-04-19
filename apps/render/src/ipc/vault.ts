@@ -17,6 +17,11 @@ export interface Vault {
   rename(vaultPath: string, oldPath: string, newPath: string): Promise<void>;
 }
 
+export interface TabConfig {
+  openTabs: Array<{ id: string; path: string }>;
+  activeTabId: string | null;
+}
+
 export const vault: Vault = {
   async open(path: string) {
     const result = await window.electronAPI!.vault.open(path);
