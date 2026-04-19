@@ -1,4 +1,5 @@
 import { Service, resolve } from '@rabjs/react';
+import { vaultService } from './vault.service';
 
 export type Theme = 'light' | 'dark' | 'system';
 
@@ -104,6 +105,7 @@ export class UIService extends Service {
       this.tabs = [...this.tabs, { id, path, title }];
       this.activeTabId = id;
     }
+    vaultService.saveTabs(this.tabs, this.activeTabId);
   }
 
   closeTab(id: string): void {
@@ -114,10 +116,17 @@ export class UIService extends Service {
       // Activate adjacent tab
       this.activeTabId = this.tabs[idx - 1]?.id ?? this.tabs[idx]?.id ?? null;
     }
+    vaultService.saveTabs(this.tabs, this.activeTabId);
   }
 
   setActiveTab(id: string): void {
     this.activeTabId = id;
+    vaultService.saveTabs(this.tabs, this.activeTabId);
+  }
+
+  restoreTabs(tabs: Array<{id: string; path: string}>, activeTabId: string | null): void {
+    this.tabs = tabs;
+    this.activeTabId = activeTabId;
   }
 
   // Side Panel
