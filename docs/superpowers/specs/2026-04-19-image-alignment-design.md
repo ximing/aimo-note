@@ -11,6 +11,7 @@
 | 图片对齐 | 支持左对齐、居中对齐、右对齐三种方式 |
 | 拖拽调整大小 | 通过四角和四边手柄拖拽调整图片尺寸，支持等比缩放 |
 | 默认对齐 | 新插入图片默认居中对齐 |
+| 删除图片 | 通过工具栏删除按钮移除图片 |
 
 ## 用户交互
 
@@ -40,67 +41,113 @@
 - **四角手柄**：支持自由缩放（宽高独立）
 - **四边手柄**：支持单向拉伸
 - **等比缩放**：按住 Shift 拖拽保持原图比例
+- **尺寸约束**：
+  - 最小宽度：40px
+  - 最大宽度：编辑器内容区域宽度（100%）
 - 拖拽时实时预览尺寸变化
+- 拖拽结束后：将新的宽度值回写到 ProseMirror 节点属性（`width` 属性）
+
+### 删除图片
+
+1. 用户点击工具栏删除按钮
+2. 执行 ProseMirror `deleteSelection` 命令
+3. 清空选中状态，隐藏工具栏和手柄
+4. 自动聚焦到上一个可编辑节点
 
 ## 技术实现
 
-### 组件结构
+### 组件接口
+
+#### ImageToolbarProps
+
+| 属性 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `alignment` | `'left' \| 'center' \| 'right'` | 是 | 当前对齐方式 |
+| `position` | `{ top: number; left: number; width: number }` | 是 | 图片位置信息，用于定位工具栏 |
+| `onAlign` | `(align: 'left' \| 'center' \| 'right') => void` | 是 | 对齐方式变更回调 |
+| `onDelete` | `() => void` | 是 | 删除按钮回调 |
+| `containerRef` | `React.RefObject<HTMLElement>` | 是 | 编辑器容器 ref，用于计算相对位置 |
+
+#### ImageResizeHandlesProps
+
+| 属性 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `imageRef` | `React.RefObject<HTMLImageElement>` | 是 | 图片元素 ref |
+| `onResizeStart` | `() => void` | 是 | 开始拖拽回调 |
+| `onResize` | `(width: number, height: number) => void` | 是 | 拖拽中回调 |
+| `onResizeEnd` | `(width: number, height: number) => void` | 是 | 拖拽结束回调 |
+
+### 状态流
 
 ```
-ImageToolbar.tsx          # 浮动工具栏组件
-├── AlignLeftButton
-├── AlignCenterButton
-├── AlignRightButton
-└── DeleteButton
-
-ImageResizeHandles.tsx    # 拖拽手柄组件
-├── CornerHandle (x4)
-└── EdgeHandle (x4)
-```
-
-### 状态管理
-
-在 `MilkdownEditorInner` 中新增图片选中状态：
-
-```typescript
-const [selectedImageNode, setSelectedImageNode] = useState<ProsemirrorNode | null>(null);
+用户单击图片
+    ↓
+selectedImageNode = 点击的 ProsemirrorNode
+selectedAlignment = 'center' (默认) 或从节点属性读取
+    ↓
+渲染 ImageToolbar + ImageResizeHandles
+    ↓
+用户点击对齐按钮
+    ↓
+更新 DOM class + 更新节点属性 (data-align)
+    ↓
+用户拖拽手柄
+    ↓
+onResize(width, height) → 更新图片 DOM width/height
+    ↓
+onResizeEnd(width, height) → 写入节点 width 属性到 ProseMirror
+    ↓
+用户点击删除
+    ↓
+执行 deleteSelection → 从文档删除节点
+    ↓
+selectedImageNode = null → 隐藏工具栏和手柄
 ```
 
 ### 工具栏定位
 
-工具栏定位在图片上方居中，通过计算图片的 `getBoundingClientRect()` 获取位置。
+1. 获取图片的 `getBoundingClientRect()`
+2. 获取编辑器容器的 `getBoundingClientRect()`
+3. 计算相对位置：`top = imgRect.top - containerRect.top - toolbarHeight - offset(8px)`
+4. **边界处理**：
+   - 如果工具栏超出容器顶部，则显示在图片下方（`bottom` 定位）
+   - 如果工具栏超出容器左右边界，则左右偏移保证不溢出
+5. 工具栏宽度自适应图片宽度，最多不超过图片宽度
 
-### Markdown 存储
+### 数据存储
 
-对齐方式通过 `text-align` CSS 属性实现，不改变 Markdown 源代码：
+对齐方式和宽度存储在节点属性中：
 
-```markdown
-<!-- 居中图片 -->
-<div style="text-align: center;">
-
-</div>
-
-<!-- 左对齐图片 -->
-<div style="text-align: left;">
-
-</div>
+```typescript
+interface ImageNodeAttrs {
+  src: string;
+  alt?: string;
+  title?: string;
+  align?: 'left' | 'center' | 'right';  // 新增
+  width?: number;                        // 新增：用户拖拽设置的宽度
+}
 ```
+
+### 渲染层实现
+
+使用 ProseMirror 装饰器（decoration）动态添加 wrapper div 和手柄：
+
+1. **不需要修改 Markdown 源**：wrapper 是在渲染层动态注入的 DOM
+2. **对齐样式**：通过添加 `.align-left` / `.align-center` / `.align-right` 类名实现
+3. **选中状态**：通过添加 `.is-selected` 类名实现
+4. **属性持久化**：拖拽结束时，通过事务更新节点属性
 
 ### CSS 样式
 
 在 `editor-content.css` 中添加：
 
 ```css
+/* 图片包装器 */
 .ProseMirror .image-wrapper {
   position: relative;
   display: block;
   margin: 1em 0;
-}
-
-.ProseMirror .image-wrapper img {
-  max-width: 100%;
-  height: auto;
-  border-radius: 8px;
+  text-align: center; /* 默认居中 */
 }
 
 .ProseMirror .image-wrapper.align-left {
@@ -115,50 +162,104 @@ const [selectedImageNode, setSelectedImageNode] = useState<ProsemirrorNode | nul
   text-align: right;
 }
 
-.ProseMirror .image-wrapper.is-selected img {
+/* 选中状态 */
+.ProseMirror .image-wrapper.is-selected > img,
+.ProseMirror img.ProseMirror-selectednode {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* 工具栏 */
+.image-toolbar {
+  position: absolute;
+  z-index: 100;
+  background: #1a1a1a;
+  border-radius: 8px;
+  padding: 6px 8px;
+  display: flex;
+  gap: 2px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transform: translateX(-50%);
+}
+
+/* 拖拽手柄 */
+.resize-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: white;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  z-index: 10;
 }
 ```
 
 ### 拖拽实现
 
-使用原生鼠标事件实现拖拽：
-
 ```typescript
-const handleMouseDown = (e: MouseEvent) => {
+const handleResize = (e: MouseEvent, handle: HandlePosition) => {
   e.preventDefault();
   const startX = e.clientX;
   const startY = e.clientY;
-  const startWidth = imageElement.offsetWidth;
-  const startHeight = imageElement.offsetHeight;
+  const imageEl = imageRef.current;
+  if (!imageEl) return;
+
+  // 记录原始尺寸
+  const origWidth = imageEl.naturalWidth;
+  const origHeight = imageEl.naturalHeight;
+  const styleWidth = parseInt(imageEl.style.width) || imageEl.offsetWidth;
+
+  const MIN_WIDTH = 40;
+  const MAX_WIDTH = imageEl.parentElement?.offsetWidth || 800;
 
   const onMouseMove = (moveEvent: MouseEvent) => {
     const dx = moveEvent.clientX - startX;
     const dy = moveEvent.clientY - startY;
 
+    let newWidth: number;
+
+    switch (handle) {
+      case 'se': // 右下角：自由缩放
+        newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, styleWidth + dx));
+        break;
+      case 'e': // 右边中点
+        newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, styleWidth + dx));
+        break;
+      // ... 其他 handle
+    }
+
     if (moveEvent.shiftKey) {
       // 等比缩放
-      const ratio = startWidth / startHeight;
-      const newWidth = startWidth + dx;
-      imageElement.style.width = `${newWidth}px`;
-      imageElement.style.height = `${newWidth / ratio}px`;
+      const ratio = origWidth / origHeight;
+      imageEl.style.width = `${newWidth}px`;
+      imageEl.style.height = `${newWidth / ratio}px`;
     } else {
-      // 自由缩放
-      imageElement.style.width = `${startWidth + dx}px`;
-      imageElement.style.height = `${startHeight + dy}px`;
+      imageEl.style.width = `${newWidth}px`;
     }
+
+    onResize(imageEl.offsetWidth, imageEl.offsetHeight);
   };
 
   const onMouseUp = () => {
     document.removeEventListener('mousemove', onMouseMove);
     document.removeEventListener('mouseup', onMouseUp);
+    onResizeEnd(imageEl.offsetWidth, imageEl.offsetHeight);
   };
 
   document.addEventListener('mousemove', onMouseMove);
   document.addEventListener('mouseup', onMouseUp);
 };
 ```
+
+### 边界情况处理
+
+| 情况 | 处理方式 |
+|------|----------|
+| 图片加载失败 | 不显示手柄，工具栏只显示删除按钮 |
+| 图片被外部删除 | 工具栏自动隐藏 |
+| 图片在折叠区域内 | 工具栏不可见，不处理选中 |
+| 工具栏超出视口 | 调整位置到可见区域（上方/下方/左右偏移） |
 
 ## 文件清单
 
@@ -171,13 +272,10 @@ const handleMouseDown = (e: MouseEvent) => {
 
 ## 实现顺序
 
-1. 添加 CSS 样式（对齐类名）
-2. 实现拖拽手柄组件
-3. 实现工具栏组件
-4. 在编辑器中集成工具栏和选中状态
-5. 测试三种对齐方式和拖拽缩放
-
-## 已知约束
-
-- Milkdown 的图片节点可能需要包装层才能应用 text-align
-- 拖拽缩放需要处理边界情况（最小/最大尺寸）
+1. 添加 CSS 样式（对齐类名、工具栏、手柄）
+2. 实现 `ImageResizeHandles.tsx` 拖拽手柄组件
+3. 实现 `ImageToolbar.tsx` 工具栏组件
+4. 在 `MilkdownEditorInner` 中添加选中状态管理和工具栏集成
+5. 实现对齐方式的节点属性读写
+6. 实现拖拽结束后的属性回写
+7. 测试三种对齐方式和拖拽缩放
