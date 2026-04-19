@@ -96,7 +96,7 @@ export function TreeNode({
         onClick={handleClick}
         onDoubleClick={handleDoubleClick}
         onContextMenu={handleContextMenu}
-        className={`flex items-center gap-1 w-full px-2 py-1 hover:bg-accent rounded text-left ${nodeIsSelected ? 'bg-accent text-white' : ''}`}
+        className={`flex items-center gap-1 w-full px-2 py-1 hover:bg-bg-secondary rounded text-left transition-colors ${nodeIsSelected ? 'bg-bg-tertiary shadow-[inset_3px_0_0_var(--accent)]' : ''}`}
         style={{ paddingLeft: depth * 16 + 8 }}
       >
         {isFolder && (
