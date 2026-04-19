@@ -3,19 +3,10 @@ import { SearchResultItem } from './SearchResultItem';
 
 interface SearchResultListProps {
   results: SearchResultGroup[];
-  query: string;
-  onResultClick?: (filePath: string, line?: number) => void;
+  onResultClick: (filePath: string, line?: number) => void;
 }
 
-export function SearchResultList({ results, query, onResultClick }: SearchResultListProps) {
-  if (results.length === 0) {
-    return (
-      <div className="search-result-empty">
-        No results found
-      </div>
-    );
-  }
-
+export function SearchResultList({ results, onResultClick }: SearchResultListProps) {
   return (
     <div className="search-result-list">
       {results.map((result) => (
@@ -23,7 +14,6 @@ export function SearchResultList({ results, query, onResultClick }: SearchResult
           key={result.path}
           filePath={result.path}
           matches={result.matches}
-          query={query}
           onResultClick={onResultClick}
         />
       ))}

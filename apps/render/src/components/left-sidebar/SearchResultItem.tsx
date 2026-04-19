@@ -4,9 +4,8 @@ import type { SearchMatch } from '@aimo-note/dto';
 interface SearchResultItemProps {
   filePath: string;
   matches: SearchMatch[];
-  query: string;
   defaultExpanded?: number;
-  onResultClick?: (filePath: string, line?: number) => void;
+  onResultClick: (filePath: string, line?: number) => void;
 }
 
 function highlightMatch(text: string, start: number, end: number) {
@@ -19,7 +18,7 @@ function highlightMatch(text: string, start: number, end: number) {
   );
 }
 
-export function SearchResultItem({ filePath, matches, query, defaultExpanded = 3, onResultClick }: SearchResultItemProps) {
+export function SearchResultItem({ filePath, matches, defaultExpanded = 3, onResultClick }: SearchResultItemProps) {
   const [expanded, setExpanded] = useState(false);
 
   const fileName = filePath.split('/').pop() || filePath;
@@ -40,7 +39,7 @@ export function SearchResultItem({ filePath, matches, query, defaultExpanded = 3
           <div
             key={`${match.path}-${match.line}-${index}`}
             className="search-result-line"
-            onClick={() => onResultClick?.(filePath, match.line)}
+            onClick={() => onResultClick(filePath, match.line)}
           >
             <span className="search-result-line-number">{match.line}</span>
             <span className="search-result-line-text">
