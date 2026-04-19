@@ -14,14 +14,110 @@
 
 ---
 
-## Chunk 1: IPC Layer (Main Process + Preload + Renderer Wrapper)
+## Chunk 1: Shared Types + CSS Variables
+
+### Files
+
+- Create: `packages/dto/src/search.ts`
+- Modify: `apps/render/src/styles/variables.css`
+- Modify: `packages/dto/src/index.ts`
+
+---
+
+> **⚠️ Breaking Change:** The existing `searchIPC` API (`search(query, limit)` and `searchInContent(query)`) will be replaced with a new API (`search(options)`). Update any dependent code accordingly.
+
+- [ ] **Step 1: Create shared search types in dto package**
+
+Create `packages/dto/src/search.ts`:
+
+```typescript
+/**
+ * Search-related types shared between main and renderer processes
+ */
+
+export interface SearchMatch {
+  path: string;
+  line: number;
+  text: string;
+  matchStart: number;
+  matchEnd: number;
+}
+
+export interface SearchResult {
+  path: string;
+  line: number;
+  text: string;
+  matchStart: number;
+  matchEnd: number;
+}
+
+export interface SearchOptions {
+  query: string;
+  rootPath: string;
+  caseSensitive: boolean;
+  isRegex: boolean;
+}
+
+export interface SearchResponse {
+  success: boolean;
+  results: SearchResult[];
+  error?: string;
+}
+```
+
+- [ ] **Step 2: Export from dto package**
+
+Modify `packages/dto/src/index.ts`:
+
+```typescript
+// Core types
+export * from './search';
+export * from './response';
+```
+
+- [ ] **Step 3: Add search highlight CSS variables**
+
+Modify `apps/render/src/styles/variables.css`:
+
+Add to `:root` (light theme) section:
+
+```css
+--search-highlight: #fff3bf;
+--search-highlight-active: #ffd700;
+```
+
+Add to `html.dark` section:
+
+```css
+--search-highlight-dark: #5c4a1f;
+--search-highlight-active-dark: #8b6914;
+```
+
+Run: Verify CSS variables are valid
+Expected: Variables defined in both themes
+
+- [ ] **Step 4: Commit shared types**
+
+```bash
+git add packages/dto/src/search.ts packages/dto/src/index.ts apps/render/src/styles/variables.css
+git commit -m "feat(search): add shared search types and CSS variables
+
+- packages/dto: SearchMatch, SearchResult, SearchOptions, SearchResponse
+- variables.css: --search-highlight tokens for both themes
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
+```
+
+---
+
+## Chunk 2: IPC Layer (Main Process + Preload + Renderer Wrapper)
 
 ### Files
 
 - Modify: `apps/client/src/main/ipc/handlers.ts:314-328`
-- Modify: `apps/client/src/preload/index.ts:166-206`
+- Modify: `apps/client/src/preload/index.ts`
 - Modify: `apps/render/src/ipc/search.ts`
-- Modify: `apps/render/src/ipc/index.ts:3`
+- Modify: `apps/render/src/ipc/index.ts`
 
 ---
 
@@ -184,31 +280,13 @@ Expected: No errors
 Modify `apps/render/src/ipc/search.ts`:
 
 ```typescript
-export interface SearchMatch {
-  path: string;
-  line: number;
-  text: string;
-  matchStart: number;
-  matchEnd: number;
-}
+// Re-export types from dto package
+export type { SearchMatch, SearchResult, SearchOptions, SearchResponse } from '@aimo-note/dto';
 
-export interface SearchResult {
-  path: string;
-  line: number;
-  text: string;
-  matchStart: number;
-  matchEnd: number;
-}
-
-export interface SearchOptions {
-  query: string;
-  rootPath: string;
-  caseSensitive: boolean;
-  isRegex: boolean;
-}
+import type { SearchOptions, SearchResponse } from '@aimo-note/dto';
 
 export interface Search {
-  search(options: SearchOptions): Promise<{ success: boolean; results: SearchResult[]; error?: string }>;
+  search(options: SearchOptions): Promise<SearchResponse>;
 }
 
 export const search: Search = {
@@ -219,12 +297,11 @@ export const search: Search = {
 ```
 
 Modify `apps/render/src/ipc/index.ts`:
-Change line 3 to use the new search export:
 
 ```typescript
 export { vault } from './vault';
 export { graph } from './graph';
-export { search } from './search';  // already correct
+export { search } from './search';
 export { plugin } from './plugin';
 export { fs } from './fs';
 export { window } from './window';
@@ -232,7 +309,8 @@ export { config } from './config';
 export { clipboard } from './clipboard';
 export { imageStorage } from './image-storage';
 export type { RecentVault } from './config';
-export type { SearchResult, SearchMatch } from './search';
+// Re-export search types from dto
+export type { SearchMatch, SearchResult, SearchOptions, SearchResponse } from '@aimo-note/dto';
 ```
 
 Run: `pnpm --filter @aimo-note/render typecheck`
@@ -289,7 +367,7 @@ Modify `apps/render/src/services/search.service.ts`:
 import { Service, resolve } from '@rabjs/react';
 import { search as searchIPC } from '@/ipc/search';
 import { VaultService } from './vault.service';
-import type { SearchResult, SearchMatch } from '@/ipc/search';
+import type { SearchMatch } from '@aimo-note/dto';
 
 export interface SearchResultGroup {
   path: string;
@@ -444,7 +522,7 @@ Create `apps/render/src/components/left-sidebar/SearchResultItem.tsx`:
 
 ```typescript
 import { useState } from 'react';
-import type { SearchMatch } from '@/ipc/search';
+import type { SearchMatch } from '@aimo-note/dto';
 
 interface SearchResultItemProps {
   filePath: string;
@@ -470,7 +548,7 @@ export function SearchResultItem({ filePath, matches, query, defaultExpanded = 3
   const folderPath = filePath.includes('/') ? filePath.substring(0, filePath.lastIndexOf('/')) : '';
 
   const visibleMatches = expanded ? matches : matches.slice(0, defaultExpanded);
-  const hiddenCount = matches.length - defaultExpanded;
+  const hiddenCount = Math.max(0, matches.length - defaultExpanded);
 
   return (
     <div className="search-result-item">
@@ -983,14 +1061,14 @@ Add at the end:
    ============================================ */
 
 .search-highlight {
-  background-color: var(--search-highlight, #fff3bf);
+  background-color: var(--search-highlight);
   border-radius: 2px;
   padding: 0 2px;
   color: inherit;
 }
 
 html.dark .search-highlight {
-  background-color: var(--search-highlight-dark, #5c4a1f);
+  background-color: var(--search-highlight-dark);
 }
 ```
 
@@ -1115,19 +1193,23 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 
 ### Files
 
-- Modify: `apps/render/src/app.tsx`
-- Modify: `apps/render/src/components/Layout.tsx` (remove /search route navigation if any)
+- Modify: `apps/render/src/pages/search/index.tsx`
+- Modify: `apps/render/src/components/Layout.tsx` (verify no stale /search navigation)
 
 ---
 
-- [ ] **Step 1: Remove search route if no longer needed**
+- [ ] **Step 1: Verify existing search page usage**
 
-Search page in sidebar replaces the standalone search page. Option to either:
+Check if any code navigates to `/search` route:
 
-**A)** Keep route but simplify to show "use sidebar search"
-**B)** Remove route entirely
+```bash
+grep -r "navigate.*search" apps/render/src/
+grep -r "/search" apps/render/src/
+```
 
-For now, keep the route but simplify the page to redirect or show a message:
+Expected: No direct navigation to `/search` from components
+
+- [ ] **Step 2: Simplify search page to redirect**
 
 Modify `apps/render/src/pages/search/index.tsx`:
 
@@ -1156,30 +1238,17 @@ This keeps the route functional (e.g., if Cmd+P command palette links to it) but
 Run: `pnpm --filter @aimo-note/render typecheck`
 Expected: No errors
 
-- [ ] **Step 2: Add search-highlight CSS variable to variables.css**
+- [ ] **Step 3: Verify Layout doesn't navigate to /search**
 
-Modify `apps/render/src/styles/variables.css`:
+In `Layout.tsx`, ensure the search icon click doesn't use `navigate('/search')`. Instead, it should call `uiService.setSidebarView('search')`. The current plan already handles this in Chunk 3.
 
-Add to light theme section:
-```css
---search-highlight: #fff3bf;
---search-highlight-active: #ffd700;
-```
-
-Add to dark theme section (under html.dark):
-```css
---search-highlight-dark: #5c4a1f;
---search-highlight-active-dark: #8b6914;
-```
-
-- [ ] **Step 3: Final commit**
+- [ ] **Step 4: Final commit**
 
 ```bash
-git add apps/render/src/pages/search/index.tsx apps/render/src/styles/variables.css
+git add apps/render/src/pages/search/index.tsx
 git commit -m "chore(search): redirect /search route to sidebar search
 
 - SearchPage redirects to home with sidebar view change
-- Add search highlight CSS variables to tokens
 
 Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 ```
