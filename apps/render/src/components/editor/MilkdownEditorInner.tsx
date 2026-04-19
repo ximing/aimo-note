@@ -7,7 +7,7 @@ import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { SlashProvider, slashFactory } from '@milkdown/kit/plugin/slash';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { Milkdown } from '@milkdown/react';
-import { useRef, useEffect, useMemo } from 'react';
+import { useRef, useEffect, useMemo, useCallback } from 'react';
 import { math } from '@milkdown/plugin-math';
 import {
   imageBlockComponent,
@@ -35,6 +35,8 @@ export interface MilkdownEditorInnerProps {
   onChange?: (markdown: string) => void;
   defaultValue?: string;
   className?: string;
+  highlightQuery?: string;
+  editorRef?: React.MutableRefObject<{ dom: HTMLElement | null }>;
 }
 
 // Create slash factory
@@ -213,6 +215,8 @@ export function MilkdownEditorInner({
   onChange,
   defaultValue = '# New Note',
   className = '',
+  highlightQuery,
+  editorRef,
 }: MilkdownEditorInnerProps) {
   const defaultValueRef = useRef(defaultValue);
   const onChangeRef = useRef(onChange);
@@ -227,6 +231,73 @@ export function MilkdownEditorInner({
 
   // Create slash menu instance
   const slashMenu = useMemo(() => new SlashMenu(), []);
+
+  // Expose ProseMirror DOM via editorRef and apply search highlight
+  useEffect(() => {
+    if (!loading && editorRef) {
+      const pm = document.querySelector('.milkdown .ProseMirror') as HTMLElement | null;
+      editorRef.current.dom = pm;
+    }
+  }, [loading, editorRef]);
+
+  // Apply highlight query to editor content
+  useEffect(() => {
+    if (!highlightQuery || loading) return;
+
+    const applyHighlight = () => {
+      const pm = document.querySelector('.milkdown .ProseMirror');
+      if (!pm) return;
+
+      // Remove existing highlights first
+      pm.querySelectorAll('.search-highlight-editor').forEach((el) => {
+        const parent = el.parentNode;
+        if (parent) {
+          parent.replaceChild(document.createTextNode(el.textContent || ''), el);
+          parent.normalize();
+        }
+      });
+
+      // Walk text nodes and wrap matches
+      const walker = document.createTreeWalker(pm, NodeFilter.SHOW_TEXT, null);
+      const nodes: Text[] = [];
+      let node: Text | null;
+      while ((node = walker.nextNode() as Text | null)) {
+        nodes.push(node);
+      }
+
+      const query = highlightQuery.toLowerCase();
+      nodes.forEach((textNode) => {
+        const text = textNode.textContent || '';
+        const lowerText = text.toLowerCase();
+        let idx = lowerText.indexOf(query);
+        if (idx === -1) return;
+
+        const frag = document.createDocumentFragment();
+        let lastIdx = 0;
+        while (idx !== -1) {
+          if (idx > lastIdx) frag.appendChild(document.createTextNode(text.slice(lastIdx, idx)));
+          const mark = document.createElement('mark');
+          mark.className = 'search-highlight-editor';
+          mark.appendChild(document.createTextNode(text.slice(idx, idx + query.length)));
+          frag.appendChild(mark);
+          lastIdx = idx + query.length;
+          idx = lowerText.indexOf(query, lastIdx);
+        }
+        if (lastIdx < text.length) frag.appendChild(document.createTextNode(text.slice(lastIdx)));
+        textNode.parentNode?.replaceChild(frag, textNode);
+      });
+
+      // Scroll first highlight into view
+      const firstMark = pm.querySelector('.search-highlight-editor');
+      if (firstMark) {
+        firstMark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    };
+
+    // Small delay to ensure DOM is ready after content load
+    const timeout = setTimeout(applyHighlight, 100);
+    return () => clearTimeout(timeout);
+  }, [highlightQuery, loading]);
 
   const handlePaste = async (event: ClipboardEvent) => {
     const items = event.clipboardData?.items;

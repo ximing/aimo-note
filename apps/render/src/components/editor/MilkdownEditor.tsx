@@ -5,12 +5,16 @@ export interface MilkdownEditorProps {
   onChange?: (markdown: string) => void;
   defaultValue?: string;
   className?: string;
+  highlightQuery?: string;
+  editorRef?: React.MutableRefObject<{ dom: HTMLElement | null }>;
 }
 
 export function MilkdownEditor({
   onChange,
   defaultValue = '# New Note',
   className = '',
+  highlightQuery,
+  editorRef,
 }: MilkdownEditorProps) {
   return (
     <MilkdownProvider>
@@ -18,6 +22,8 @@ export function MilkdownEditor({
         onChange={onChange}
         defaultValue={defaultValue}
         className={className}
+        highlightQuery={highlightQuery}
+        editorRef={editorRef}
       />
     </MilkdownProvider>
   );

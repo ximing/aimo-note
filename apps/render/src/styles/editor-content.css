@@ -700,3 +700,36 @@ html.dark .milkdown .milkdown-link-edit .link-edit {
 .block-handle:active {
   cursor: grabbing;
 }
+
+/* ============================================
+   Search Highlight in Editor
+   ============================================ */
+
+.ProseMirror mark.search-highlight-editor {
+  background-color: var(--search-highlight, #fff3bf);
+  border-radius: 2px;
+  animation: search-highlight-pulse 1s ease-out;
+}
+
+@keyframes search-highlight-pulse {
+  0% {
+    background-color: var(--search-highlight-active, #ffd700);
+  }
+  100% {
+    background-color: var(--search-highlight, #fff3bf);
+  }
+}
+
+html.dark .ProseMirror mark.search-highlight-editor {
+  background-color: var(--search-highlight-dark, #5c4a1f);
+  animation-name: search-highlight-pulse-dark;
+}
+
+@keyframes search-highlight-pulse-dark {
+  0% {
+    background-color: var(--search-highlight-active-dark, #8b6914);
+  }
+  100% {
+    background-color: var(--search-highlight-dark, #5c4a1f);
+  }
+}
