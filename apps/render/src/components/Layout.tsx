@@ -6,6 +6,7 @@ import { TitleBarActions } from './titlebar-actions';
 import { EditorTabs } from './editor-tabs';
 import { SidePanel } from './side-panel';
 import { VaultTree } from './explorer/VaultTree';
+import { SettingsModal } from './common/SettingsModal';
 
 export const Layout = observer(() => {
   const uiService = useUIService();
@@ -13,7 +14,7 @@ export const Layout = observer(() => {
   return (
     <div className="app-layout h-screen flex flex-col">
       {/* Title Bar Row - Electron handles native traffic lights */}
-      <div className="title-bar flex items-center px-3 py-1 border-b bg-bg-secondary">
+      <div className="title-bar flex items-center px-3 py-1 bg-bg-secondary">
         {/* Title Bar Actions - icons immediately to the right of traffic lights area */}
         <TitleBarActions />
       </div>
@@ -25,7 +26,7 @@ export const Layout = observer(() => {
 
         {/* Explorer (File Tree) */}
         {uiService.explorerOpen && (
-          <aside className="explorer w-64 border-r flex flex-col bg-bg-primary">
+          <aside className="explorer w-64 flex flex-col bg-bg-primary">
             <VaultTree />
           </aside>
         )}
@@ -36,7 +37,7 @@ export const Layout = observer(() => {
           <EditorTabs />
 
           {/* Document Editor Container */}
-          <div className="editor-container flex-1 border m-2 rounded-md overflow-hidden">
+          <div className="editor-container flex-1 bg-bg-primary m-2 overflow-hidden">
             <div className="page-content flex-1 overflow-hidden">
               <Outlet />
             </div>
@@ -46,6 +47,9 @@ export const Layout = observer(() => {
         {/* Side Panel */}
         <SidePanel />
       </div>
+
+      {/* Settings Modal */}
+      {uiService.settingsModalOpen && <SettingsModal />}
     </div>
   );
 });
