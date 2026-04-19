@@ -338,7 +338,7 @@ html.dark .ProseMirror code {
 }
 
 /* Selected state */
-.ProseMirror .image-wrapper.is-selected > img,
+.ProseMirror img.is-selected,
 .ProseMirror img.ProseMirror-selectednode {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
@@ -355,6 +355,7 @@ html.dark .ProseMirror code {
   gap: 2px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   transform: translateX(-50%);
+  user-select: none;
 }
 
 /* Drag handles for resizing */

@@ -6,6 +6,7 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { randomUUID } from 'crypto';
 import { spawn } from 'child_process';
 import { rgPath } from '@vscode/ripgrep';
+import type { SearchResult } from '@aimo-note/dto';
 
 /**
  * High-level wrapper around ripgrep spawn that returns stdout as a Promise.
@@ -43,6 +44,30 @@ async function rgFiles(args: string[]): Promise<string> {
       reject(err);
     });
   });
+}
+
+function extractRipgrepPath(pathValue: unknown): string | null {
+  if (typeof pathValue === 'string') {
+    return pathValue;
+  }
+
+  if (pathValue && typeof pathValue === 'object') {
+    const candidate = Reflect.get(pathValue, 'text');
+    if (typeof candidate === 'string') {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
+function toVaultRelativePath(rootPath: string, candidatePath: string): string | null {
+  const relativePath = path.relative(rootPath, candidatePath);
+  if (!relativePath || relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+    return null;
+  }
+
+  return relativePath.split(path.sep).join('/');
 }
 
 import { checkForUpdates, downloadUpdate, installUpdate } from '../updater';
@@ -386,34 +411,31 @@ export function registerIpcHandlers(): void {
       // Use high-level rgFiles API from vscode-ripgrep wrapper
       const output = await rgFiles(args);
 
-      const searchResults: Array<{
-        path: string;
-        line: number;
-        text: string;
-        matchStart: number;
-        matchEnd: number;
-      }> = [];
+      const searchResults: SearchResult[] = [];
 
       for (const line of output.split('\n')) {
         if (!line.trim()) continue;
         try {
           const parsed = JSON.parse(line);
           if (parsed.type === 'match') {
-            const resultPath =
-              typeof parsed.data.path?.text === 'string' ? parsed.data.path.text : parsed.data.path;
+            const resultPath = extractRipgrepPath(parsed.data.path);
+            if (!resultPath) {
+              continue;
+            }
 
-            if (typeof resultPath !== 'string') {
+            const relativePath = toVaultRelativePath(rootPath, resultPath);
+            if (!relativePath) {
               continue;
             }
 
             const submatches = parsed.data.submatches || [];
             for (const match of submatches) {
               searchResults.push({
-                path: resultPath,
+                path: relativePath,
                 line: parsed.data.line_number,
                 text: parsed.data.lines.text,
-                matchStart: match.start,
-                matchEnd: match.end,
+                byteStart: match.start,
+                byteEnd: match.end,
               });
             }
           }

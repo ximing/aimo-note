@@ -10,18 +10,14 @@ interface SearchResultListProps {
 export function SearchResultList({ results, onResultClick }: SearchResultListProps) {
   return (
     <div className="search-result-list">
-      {results.map((result, index) => {
-        const normalizedPath = typeof result.path === 'string' ? result.path : String(result.path);
-
-        return (
-          <SearchResultItem
-            key={`${normalizedPath}-${index}`}
-            filePath={normalizedPath}
-            matches={result.matches}
-            onResultClick={onResultClick}
-          />
-        );
-      })}
+      {results.map((result) => (
+        <SearchResultItem
+          key={result.path}
+          filePath={result.path}
+          matches={result.matches}
+          onResultClick={onResultClick}
+        />
+      ))}
     </div>
   );
 }

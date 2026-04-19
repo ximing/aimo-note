@@ -484,6 +484,14 @@ export function MilkdownEditorInner({
           const containerRect = editorRootRef.current?.getBoundingClientRect();
           if (!containerRect) return;
 
+          // Remove is-selected from previously selected image
+          if (selectedImageRef.current && selectedImageRef.current !== img) {
+            selectedImageRef.current.classList.remove('is-selected');
+          }
+
+          // Add is-selected to the clicked image
+          img.classList.add('is-selected');
+
           setSelectedAlignment(align);
           setImagePosition({
             top: rect.top - containerRect.top,
@@ -499,6 +507,9 @@ export function MilkdownEditorInner({
 
       // Clicked outside image - deselect
       if (selectedImageNodePos !== null) {
+        if (selectedImageRef.current) {
+          selectedImageRef.current.classList.remove('is-selected');
+        }
         setSelectedImageNodePos(null);
         setImagePosition(null);
         selectedImageRef.current = null;
@@ -528,15 +539,6 @@ export function MilkdownEditorInner({
           align,
         });
         dispatch(tr);
-
-        // Also update the DOM class
-        if (selectedImageRef.current) {
-          const wrapper = selectedImageRef.current.closest('.image-wrapper');
-          if (wrapper) {
-            wrapper.classList.remove('align-left', 'align-center', 'align-right');
-            wrapper.classList.add(`align-${align}`);
-          }
-        }
       });
     },
     [getEditor, selectedImageNodePos]
@@ -595,6 +597,29 @@ export function MilkdownEditorInner({
     },
     [getEditor, selectedImageNodePos]
   );
+
+  // Recalculate toolbar position on window resize and container scroll
+  const handleRecalcImagePosition = useCallback(() => {
+    if (selectedImageNodePos === null || !selectedImageRef.current || !editorRootRef.current) return;
+    const imgRect = selectedImageRef.current.getBoundingClientRect();
+    const containerRect = editorRootRef.current.getBoundingClientRect();
+    setImagePosition({
+      top: imgRect.top - containerRect.top,
+      left: imgRect.left - containerRect.left,
+      width: imgRect.width,
+    });
+  }, [selectedImageNodePos]);
+
+  useEffect(() => {
+    window.addEventListener('resize', handleRecalcImagePosition);
+    const editorEl = editorRootRef.current;
+    editorEl?.addEventListener('scroll', handleRecalcImagePosition);
+
+    return () => {
+      window.removeEventListener('resize', handleRecalcImagePosition);
+      editorEl?.removeEventListener('scroll', handleRecalcImagePosition);
+    };
+  }, [handleRecalcImagePosition]);
 
   const { loading } = useEditor((root) => {
     return Editor.make()

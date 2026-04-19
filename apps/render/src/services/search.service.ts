@@ -71,8 +71,8 @@ export class SearchService extends Service {
             path: result.path,
             line: result.line,
             text: result.text,
-            matchStart: result.matchStart,
-            matchEnd: result.matchEnd,
+            byteStart: result.byteStart,
+            byteEnd: result.byteEnd,
           });
           grouped.set(result.path, existing);
         }

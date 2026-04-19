@@ -120,14 +120,18 @@ interface InitResizeParams {
   imageEl: HTMLImageElement;
   clientX: number;
   clientY: number;
+  pointerId: number;
   handle: HandlePosition;
   onResizeStart: () => void;
   onResize: (width: number, height: number) => void;
   onResizeEnd: (width: number, height: number) => void;
 }
 
-const initResize = (params: InitResizeParams) => {
-  const { imageEl, clientX, clientY, handle, onResizeStart, onResize, onResizeEnd } = params;
+const initResize = (
+  params: InitResizeParams,
+  activeListenersRef: React.MutableRefObject<{ onMouseMove: (e: MouseEvent) => void; onMouseUp: () => void } | null>
+) => {
+  const { imageEl, clientX, clientY, pointerId, handle, onResizeStart, onResize, onResizeEnd } = params;
 
   onResizeStart();
 
@@ -153,13 +157,18 @@ const initResize = (params: InitResizeParams) => {
   const onMouseUp = () => {
     document.removeEventListener('mousemove', onMouseMove);
     document.removeEventListener('mouseup', onMouseUp);
-    imageEl.style.userSelect = '';
+    imageEl.style.removeProperty('user-select');
+    imageEl.releasePointerCapture(pointerId);
+    activeListenersRef.current = null;
     onResizeEnd(imageEl.offsetWidth, imageEl.offsetHeight);
   };
 
   imageEl.style.userSelect = 'none';
+  imageEl.setPointerCapture(pointerId);
   document.addEventListener('mousemove', onMouseMove);
   document.addEventListener('mouseup', onMouseUp);
+
+  activeListenersRef.current = { onMouseMove, onMouseUp };
 };
 
 export const ImageResizeHandles: React.FC<ImageResizeHandlesProps> = ({
@@ -171,6 +180,7 @@ export const ImageResizeHandles: React.FC<ImageResizeHandlesProps> = ({
   const onResizeRef = useRef(onResize);
   const onResizeEndRef = useRef(onResizeEnd);
   const onResizeStartRef = useRef(onResizeStart);
+  const activeListenersRef = useRef<{ onMouseMove: (e: MouseEvent) => void; onMouseUp: () => void } | null>(null);
 
   useEffect(() => {
     onResizeRef.current = onResize;
@@ -178,8 +188,19 @@ export const ImageResizeHandles: React.FC<ImageResizeHandlesProps> = ({
     onResizeStartRef.current = onResizeStart;
   }, [onResize, onResizeEnd, onResizeStart]);
 
+  // Cleanup active listeners on unmount to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (activeListenersRef.current) {
+        document.removeEventListener('mousemove', activeListenersRef.current.onMouseMove);
+        document.removeEventListener('mouseup', activeListenersRef.current.onMouseUp);
+        activeListenersRef.current = null;
+      }
+    };
+  }, []);
+
   const handleMouseDown = useCallback(
-    (e: React.MouseEvent, handle: HandlePosition) => {
+    (e: React.PointerEvent, handle: HandlePosition) => {
       e.preventDefault();
       e.stopPropagation();
 
@@ -189,29 +210,37 @@ export const ImageResizeHandles: React.FC<ImageResizeHandlesProps> = ({
       if (imageEl.naturalWidth === 0) {
         const loadHandler = () => {
           imageEl.removeEventListener('load', loadHandler);
-          initResize({
-            imageEl,
-            clientX: e.clientX,
-            clientY: e.clientY,
-            handle,
-            onResizeStart: onResizeStartRef.current,
-            onResize: onResizeRef.current,
-            onResizeEnd: onResizeEndRef.current,
-          });
+          initResize(
+            {
+              imageEl,
+              clientX: e.clientX,
+              clientY: e.clientY,
+              pointerId: e.pointerId,
+              handle,
+              onResizeStart: onResizeStartRef.current,
+              onResize: onResizeRef.current,
+              onResizeEnd: onResizeEndRef.current,
+            },
+            activeListenersRef
+          );
         };
         imageEl.addEventListener('load', loadHandler);
         return;
       }
 
-      initResize({
-        imageEl,
-        clientX: e.clientX,
-        clientY: e.clientY,
-        handle,
-        onResizeStart: onResizeStartRef.current,
-        onResize: onResizeRef.current,
-        onResizeEnd: onResizeEndRef.current,
-      });
+      initResize(
+        {
+          imageEl,
+          clientX: e.clientX,
+          clientY: e.clientY,
+          pointerId: e.pointerId,
+          handle,
+          onResizeStart: onResizeStartRef.current,
+          onResize: onResizeRef.current,
+          onResizeEnd: onResizeEndRef.current,
+        },
+        activeListenersRef
+      );
     },
     [imageRef]
   );
@@ -234,7 +263,7 @@ export const ImageResizeHandles: React.FC<ImageResizeHandlesProps> = ({
             zIndex: 10,
             ...positionStyles[handle],
           }}
-          onMouseDown={(e) => handleMouseDown(e, handle)}
+          onMouseDown={(e) => handleMouseDown(e as unknown as React.PointerEvent, handle)}
         />
       ))}
     </>
