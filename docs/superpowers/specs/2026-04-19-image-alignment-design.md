@@ -34,7 +34,11 @@
   - **分隔线**
   - **删除按钮**：垃圾桶图标
 - 点击对齐按钮立即切换对齐方式，当前激活按钮高亮显示
-- 悬停图标显示 tooltip 提示功能
+- 悬停图标显示 tooltip 提示功能，文本如下：
+  - 左对齐按钮：`左对齐` / `Left align`
+  - 居中对齐按钮：`居中` / `Center`
+  - 右对齐按钮：`右对齐` / `Right align`
+  - 删除按钮：`删除图片` / `Delete image`
 
 ### 拖拽调整大小
 
@@ -43,7 +47,9 @@
 - **等比缩放**：按住 Shift 拖拽保持原图比例
 - **尺寸约束**：
   - 最小宽度：40px
+  - 最小高度：40px
   - 最大宽度：编辑器内容区域宽度（100%）
+  - 等比缩放保护：拖拽开始前检查 `naturalWidth > 0`，若为 0 则等待图片加载完成后再允许拖拽
 - 拖拽时实时预览尺寸变化
 - 拖拽结束后：将新的宽度值回写到 ProseMirror 节点属性（`width` 属性）
 
@@ -124,9 +130,15 @@ interface ImageNodeAttrs {
   alt?: string;
   title?: string;
   align?: 'left' | 'center' | 'right';  // 新增
-  width?: number;                        // 新增：用户拖拽设置的宽度
+  width?: number;                        // 新增：用户拖拽设置的宽度（像素值）
 }
 ```
+
+### Markdown / HTML 序列化
+
+- **`width`**：序列化为 `<img width="...">` HTML 属性
+- **`align`**：序列化为 CSS 类名（`align-left` / `align-center` / `align-right`），通过 ProseMirror `addAttributes` 注册为 DOM 属性，与渲染层共用同一套 CSS 样式
+- 序列化时优先使用 `width` 属性控制显示宽度，与 CSS `max-width: 100%` 配合实现响应式
 
 ### 渲染层实现
 
@@ -260,15 +272,23 @@ const handleResize = (e: MouseEvent, handle: HandlePosition) => {
 | 图片被外部删除 | 工具栏自动隐藏 |
 | 图片在折叠区域内 | 工具栏不可见，不处理选中 |
 | 工具栏超出视口 | 调整位置到可见区域（上方/下方/左右偏移） |
+| naturalWidth 为 0（图片未加载完成） | 禁止拖拽开始，等图片加载完成后再允许 |
+| 四角/侧边自由缩放超出最小高度 | 同步限制最小高度 40px |
+
+### 交互范围约定
+
+- **单图操作**：当前版本仅支持单张图片操作，不支持多选批量对齐
+- **撤销/重做**：所有操作（对齐、缩放、删除）均通过 ProseMirror 事务执行，自动进入撤销栈，无需特殊处理
+- **工具栏宽度**：由内容撑开，最小宽度由按钮数量决定，不会主动截断
 
 ## 文件清单
 
-| 文件 | 操作 |
-|------|------|
-| `apps/render/src/components/editor/ImageToolbar.tsx` | 新增 |
-| `apps/render/src/components/editor/ImageResizeHandles.tsx` | 新增 |
-| `apps/render/src/styles/editor-content.css` | 修改 |
-| `apps/render/src/components/editor/MilkdownEditorInner.tsx` | 修改 |
+| 文件 | 操作 | 改动范围 |
+|------|------|----------|
+| `apps/render/src/components/editor/ImageToolbar.tsx` | 新增 | 完整新文件 |
+| `apps/render/src/components/editor/ImageResizeHandles.tsx` | 新增 | 完整新文件 |
+| `apps/render/src/styles/editor-content.css` | 修改 | 在 `/* Images */` 区块后追加 `.image-wrapper.*`、`.image-toolbar`、`.resize-handle` 样式 |
+| `apps/render/src/components/editor/MilkdownEditorInner.tsx` | 修改 | 添加选中状态、图片点击事件、渲染 ImageToolbar + ImageResizeHandles |
 
 ## 实现顺序
 
