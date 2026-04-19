@@ -175,7 +175,7 @@ body {
   background-color: var(--bg-tertiary);
 }
 
-.explorer {
+.left-sidebar {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -183,7 +183,7 @@ body {
   overflow: hidden;
 }
 
-.explorer-header {
+.left-sidebar-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -191,7 +191,7 @@ body {
   min-height: 40px;
 }
 
-.explorer-content {
+.left-sidebar-content {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;

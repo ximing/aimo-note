@@ -62,7 +62,7 @@ export function SidebarHeader({
   };
 
   return (
-    <div className="explorer-header flex items-center gap-1 px-2 py-2">
+    <div className="left-sidebar-header flex items-center gap-1 px-2 py-2">
       <button
         type="button"
         onClick={onNewFile}

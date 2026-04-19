@@ -132,7 +132,7 @@ export const VaultTree = observer(() => {
         onExpandAll={handleExpandAll}
         onCollapseAll={handleCollapseAll}
       />
-      <div className="explorer-content flex-1 overflow-auto py-1">
+      <div className="left-sidebar-content flex-1 overflow-auto py-1">
         {sortedTree.length === 0 ? (
           <div className="p-4 text-center text-muted-foreground text-sm">
             Vault is empty

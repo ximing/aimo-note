@@ -83,6 +83,39 @@ export class SearchPageService extends Service {
 - 不要在组件里直接 new Service，统一走 RSJS 注册和解析
 - 优先让页面 Service 依赖全局 Service，而不是让页面之间互相依赖
 
+## UIService
+
+全局 UI 状态管理，继承 `Service`。
+
+```typescript
+import { UIService } from '@/services/ui.service';
+
+const uiService = useService(UIService);
+```
+
+### 主要属性
+
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| `leftSidebarOpen` | `boolean` | 左侧边栏是否展开（原 `explorerOpen`） |
+| `statusBarMode` | `'edit' \| 'preview'` | 状态栏当前模式 |
+
+### 主要方法
+
+| 方法 | 说明 |
+|------|------|
+| `toggleLeftSidebar()` | 切换左侧边栏展开状态（原 `toggleExplorer()`） |
+| `setStatusBarMode(mode)` | 设置状态栏模式 |
+
+### StatusBar 组件
+
+`StatusBar` 是展示在编辑器底部的状态栏组件，显示当前文档的：
+
+- **字数统计**（Word count）
+- **字符数**（Character count）
+
+该组件订阅 `UIService` 的状态，无需手动管理。
+
 ## 推荐模式
 
 - `src/services`：应用级单例 Service

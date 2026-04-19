@@ -1,7 +1,7 @@
 import { observer, useService } from '@rabjs/react';
 import { useNavigate } from 'react-router';
 import { UIService } from '@/services/ui.service';
-import { Search, FolderTree } from 'lucide-react';
+import { Search, FolderTree, PanelLeftClose } from 'lucide-react';
 
 export const TitleBarActions = observer(() => {
   const uiService = useService(UIService);
@@ -30,6 +30,19 @@ export const TitleBarActions = observer(() => {
         }}
       >
         <FolderTree size={16} />
+      </button>
+      {/* Collapse Explorer */}
+      <button
+        type="button"
+        className="p-1.5 hover:bg-accent hover:text-white rounded text-sm"
+        title="收起目录树"
+        onClick={() => {
+          if (uiService.leftSidebarOpen) {
+            uiService.toggleLeftSidebar();
+          }
+        }}
+      >
+        <PanelLeftClose size={16} />
       </button>
     </div>
   );

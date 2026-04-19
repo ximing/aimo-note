@@ -7,7 +7,7 @@ export class UIService extends Service {
   leftRailOpen = true;
 
   // Explorer
-  explorerOpen = true;
+  leftSidebarOpen = true;
 
   // Title Bar Actions
   titleBarActionsOpen = true;
@@ -20,6 +20,9 @@ export class UIService extends Service {
   sidePanelOpen = false;
   sidePanelWidth = 280; // px
   activeSidePanelTab: 'backlinks' | 'outline' | 'tags' = 'backlinks';
+
+  // Settings Modal
+  settingsModalOpen = false;
 
   // Legacy (removed, kept for reference during migration)
   // sidebarOpen = true; // replaced by leftRailOpen and explorerOpen
@@ -87,8 +90,8 @@ export class UIService extends Service {
   }
 
   // Explorer
-  toggleExplorer(): void {
-    this.explorerOpen = !this.explorerOpen;
+  toggleLeftSidebar(): void {
+    this.leftSidebarOpen = !this.leftSidebarOpen;
   }
 
   // Editor Tabs

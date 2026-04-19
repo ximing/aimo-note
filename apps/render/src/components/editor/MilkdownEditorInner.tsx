@@ -43,11 +43,11 @@ export function MilkdownEditorInner({
   }, []); // Empty deps - editor created once, content managed via onChange
 
   return (
-    <div className={`milkdown-wrapper h-full ${className}`}>
+    <div className={`milkdown-wrapper h-full flex flex-col ${className}`}>
       {loading && (
         <div className="milkdown-loading p-4 text-gray-500">Loading editor...</div>
       )}
-      <div className="h-full">
+      <div className="milkdown h-full flex flex-col">
         <Milkdown />
       </div>
     </div>

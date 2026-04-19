@@ -71,3 +71,28 @@ Renderer never accesses file system directly. All operations go through typed IP
 | `packages/core/` | Vault, graph, search, plugins modules |
 | `packages/dto/` | Shared types |
 | `packages/logger/` | Logging utilities |
+
+## Layout Structure
+
+The app uses a nested layout with the following hierarchy:
+
+```
+app-layout (root)
+├── main-area (flex row)
+│   ├── left-rail (48px, icon navigation)
+│   ├── left-sidebar (w-64)
+│   │   ├── left-sidebar-header (pl-12 for macOS traffic lights, Search + collapse buttons)
+│   │   └── left-sidebar-content (VaultTree)
+│   └── main-content (flex col: EditorTabs + editor-container + StatusBar)
+└── StatusBar (bottom, word/character count)
+```
+
+### CSS Class Naming Convention
+
+| Old (deprecated) | New |
+|------------------|-----|
+| `.explorer` | `.left-sidebar` |
+| `.explorer-header` | `.left-sidebar-header` |
+| `.explorer-content` | `.left-sidebar-content` |
+
+EditorTabs live inside `main-content`, not in the title bar.

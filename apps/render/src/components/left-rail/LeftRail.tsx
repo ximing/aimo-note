@@ -23,7 +23,7 @@ export const LeftRail = observer(() => {
   if (!uiService.leftRailOpen) return null;
 
   return (
-    <aside className="left-rail w-12 flex flex-col items-center py-2 gap-1 bg-bg-tertiary">
+    <aside className="left-rail w-12 flex flex-col items-center pt-12 py-2 gap-1 bg-bg-tertiary">
       {navItems.map((item) => {
         const Icon = item.icon;
         return (

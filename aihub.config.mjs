@@ -28,6 +28,24 @@ export default {
       "version": "1.0.0",
       "path": ".claude/skills/rabjs.reactive-state-react",
       "category": "skills"
+    },
+    {
+      "name": "@github/create-issue",
+      "version": "1.0.0",
+      "path": ".claude/skills/github.create-issue",
+      "category": "skills"
+    },
+    {
+      "name": "@github/fix-issue",
+      "version": "1.0.0",
+      "path": ".claude/skills/github.fix-issue",
+      "category": "skills"
+    },
+    {
+      "name": "@github/issue",
+      "version": "1.0.0",
+      "path": ".claude/skills/github.issue",
+      "category": "skills"
     }
   ]
 }

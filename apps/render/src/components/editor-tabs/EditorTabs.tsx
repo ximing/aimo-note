@@ -9,7 +9,7 @@ export const EditorTabs = observer(() => {
 
   return (
     <div
-      className="editor-tabs flex items-center bg-bg-secondary overflow-x-auto"
+      className="editor-tabs flex items-center overflow-x-auto"
       role="tablist"
       aria-label="Document tabs"
     >
@@ -19,7 +19,7 @@ export const EditorTabs = observer(() => {
           role="tab"
           aria-selected={uiService.activeTabId === tab.id}
           tabIndex={uiService.activeTabId === tab.id ? 0 : -1}
-          className={`editor-tab flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-bg-primary transition-colors ${
+          className={`editor-tab flex items-center gap-2 px-3 py-1 cursor-pointer hover:bg-bg-primary transition-colors ${
             uiService.activeTabId === tab.id ? 'bg-bg-primary shadow-[inset_0_-2px_0_var(--accent)]' : ''
           }`}
           onClick={() => uiService.setActiveTab(tab.id)}
