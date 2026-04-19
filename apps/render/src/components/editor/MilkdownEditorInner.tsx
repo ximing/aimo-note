@@ -1,4 +1,4 @@
-import { useEditor } from '@milkdown/react';
+import { useEditor, useInstance } from '@milkdown/react';
 import { Editor, rootCtx, defaultValueCtx, commandsCtx, editorViewCtx } from '@milkdown/kit/core';
 import { commonmark } from '@milkdown/kit/preset/commonmark';
 import { gfm, insertTableCommand } from '@milkdown/kit/preset/gfm';
@@ -29,6 +29,7 @@ import {
 } from '@milkdown/kit/preset/commonmark';
 import type { Ctx } from '@milkdown/kit/ctx';
 import 'katex/dist/katex.min.css';
+import { useImageStorageService } from '../../services/image-storage.service';
 
 export interface MilkdownEditorInnerProps {
   onChange?: (markdown: string) => void;
@@ -215,6 +216,8 @@ export function MilkdownEditorInner({
 }: MilkdownEditorInnerProps) {
   const defaultValueRef = useRef(defaultValue);
   const onChangeRef = useRef(onChange);
+  const imageStorageService = useImageStorageService();
+  const [, getEditor] = useInstance();
 
   // Keep refs updated without triggering re-render
   useEffect(() => {
@@ -224,6 +227,35 @@ export function MilkdownEditorInner({
 
   // Create slash menu instance
   const slashMenu = useMemo(() => new SlashMenu(), []);
+
+  const handlePaste = async (event: ClipboardEvent) => {
+    const items = event.clipboardData?.items;
+    if (!items) return;
+
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith('image/')) {
+        event.preventDefault();
+
+        try {
+          const url = await imageStorageService.uploadFromClipboard();
+          if (url) {
+            const imageMarkdown = `![${url}](${url})`;
+            const editor = getEditor();
+            if (editor) {
+              editor.action((ctx) => {
+                const { state, dispatch } = ctx;
+                const tr = state.tr.insertText(imageMarkdown, state.selection.from);
+                dispatch(tr);
+              });
+            }
+          }
+        } catch (error) {
+          console.error('[Editor] Image paste failed:', error);
+        }
+        return;
+      }
+    }
+  };
 
   const { loading } = useEditor((root) => {
     return Editor.make()
@@ -271,7 +303,7 @@ export function MilkdownEditorInner({
   }, []);
 
   return (
-    <div className={`milkdown-wrapper h-full flex flex-col ${className}`}>
+    <div className={`milkdown-wrapper h-full flex flex-col ${className}`} onPaste={handlePaste}>
       {loading && (
         <div className="milkdown-loading p-4 text-gray-500">Loading editor...</div>
       )}
