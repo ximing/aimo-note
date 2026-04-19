@@ -11,14 +11,9 @@ const DEFAULT_CONFIG: ImageStorageConfig = {
 
 export class ImageStorageService extends Service {
   private _config: ImageStorageConfig = DEFAULT_CONFIG;
-  private _isLoading = false;
 
   get config(): ImageStorageConfig {
     return this._config;
-  }
-
-  get isLoading(): boolean {
-    return this._isLoading;
   }
 
   private get vaultService(): VaultService | null {
@@ -32,16 +27,14 @@ export class ImageStorageService extends Service {
       return this._config;
     }
 
-    this._isLoading = true;
     try {
       const config = await imageStorage.getConfig(vaultPath);
       this._config = config || DEFAULT_CONFIG;
       return this._config;
-    } catch {
+    } catch (error) {
+      console.error('[ImageStorageService] Failed to load config:', error);
       this._config = DEFAULT_CONFIG;
       return this._config;
-    } finally {
-      this._isLoading = false;
     }
   }
 
