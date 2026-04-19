@@ -4,6 +4,41 @@ import fs from 'fs/promises';
 import path from 'path';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { randomUUID } from 'crypto';
+import { spawn } from 'child_process';
+import { rgPath } from 'vscode-ripgrep';
+
+/**
+ * High-level wrapper around ripgrep spawn that returns stdout as a Promise.
+ * Matches the expected rg.rgFiles(args) API from the implementation spec.
+ */
+async function rgFiles(args: string[]): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    const proc = spawn(rgPath, args);
+    let stdout = '';
+    let stderr = '';
+
+    proc.stdout.on('data', (data) => {
+      stdout += data.toString();
+    });
+
+    proc.stderr.on('data', (data) => {
+      stderr += data.toString();
+    });
+
+    proc.on('close', (code) => {
+      if (code === 0 || code === 1) {
+        // 0 = matches found, 1 = no matches
+        resolve(stdout);
+      } else {
+        reject(new Error(stderr || `ripgrep exited with code ${code}`));
+      }
+    });
+
+    proc.on('error', (err) => {
+      reject(err);
+    });
+  });
+}
 
 import { checkForUpdates, downloadUpdate, installUpdate } from '../updater';
 
@@ -312,9 +347,70 @@ export function registerIpcHandlers(): void {
   });
 
   // Search handlers (core search operations)
-  ipcMain.handle('search:search', async (_event, options) => {
-    console.log('[IPC] search:search', options);
-    return [];
+  ipcMain.handle('search:search', async (_event, options: {
+    query: string;
+    rootPath: string;
+    caseSensitive: boolean;
+    isRegex: boolean;
+  }) => {
+    const { query, rootPath, caseSensitive } = options;
+
+    if (!query || !rootPath) {
+      return { success: true, results: [] };
+    }
+
+    try {
+      const args = [
+        '--heading',
+        '--json',
+        '--max-count=10',
+        '--glob=!.*',  // Skip .* directories
+        '--glob=!node_modules',
+        query,
+        rootPath,
+      ];
+
+      if (!caseSensitive) {
+        args.push('--ignore-case');
+      }
+
+      // Use high-level rgFiles API from vscode-ripgrep wrapper
+      const output = await rgFiles(args);
+
+      const searchResults: Array<{
+        path: string;
+        line: number;
+        text: string;
+        matchStart: number;
+        matchEnd: number;
+      }> = [];
+
+      for (const line of output.split('\n')) {
+        if (!line.trim()) continue;
+        try {
+          const parsed = JSON.parse(line);
+          if (parsed.type === 'match') {
+            const submatches = parsed.data.submatches || [];
+            for (const match of submatches) {
+              searchResults.push({
+                path: parsed.data.path,
+                line: parsed.data.line_number,
+                text: parsed.data.lines.text,
+                matchStart: match.start,
+                matchEnd: match.end,
+              });
+            }
+          }
+        } catch {
+          // Skip invalid JSON lines
+        }
+      }
+
+      return { success: true, results: searchResults };
+    } catch (error) {
+      console.error('[IPC] search:search error:', error);
+      return { success: false, error: String(error), results: [] };
+    }
   });
 
   ipcMain.handle('search:searchTitle', async (_event, query, _limit) => {

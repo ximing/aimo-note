@@ -1,23 +1,14 @@
-export interface SearchResult {
-  path: string;
-  score: number;
-  matches: unknown[];
-}
+// Re-export types from dto package
+export type { SearchMatch, SearchResult, SearchOptions, SearchResponse } from '@aimo-note/dto';
+
+import type { SearchOptions, SearchResponse } from '@aimo-note/dto';
 
 export interface Search {
-  search(query: string, limit?: number): Promise<SearchResult[]>;
-  searchInContent(query: string): Promise<SearchResult[]>;
+  search(options: SearchOptions): Promise<SearchResponse>;
 }
 
 export const search: Search = {
-  /* eslint-disable @typescript-eslint/no-unused-vars */
-  async search(_query: string, _limit = 50) {
-    // TODO: IPC call - window.electronAPI.search.query(query, limit)
-    return [];
+  async search(options: SearchOptions) {
+    return window.electronAPI.search.search(options);
   },
-  async searchInContent(_query: string) {
-    // TODO: IPC call - window.electronAPI.search.queryContent(query)
-    return [];
-  },
-  /* eslint-enable @typescript-eslint/no-unused-vars */
 };

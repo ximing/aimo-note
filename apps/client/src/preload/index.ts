@@ -74,6 +74,29 @@ export interface VaultResult {
   error?: string;
 }
 
+// Search types
+export interface SearchMatch {
+  path: string;
+  line: number;
+  text: string;
+  matchStart: number;
+  matchEnd: number;
+}
+
+export interface SearchResult {
+  path: string;
+  line: number;
+  text: string;
+  matchStart: number;
+  matchEnd: number;
+}
+
+export interface SearchResponse {
+  success: boolean;
+  results: SearchResult[];
+  error?: string;
+}
+
 // Store wrapped callbacks to allow proper removal
 const messageCallbackMap = new Map<
   MessageCallback,
@@ -204,6 +227,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
     setConfig: (vaultPath: string, config: ImageStorageConfig) =>
       ipcRenderer.invoke('image-storage:set-config', vaultPath, config),
   },
+
+  // Search operations
+  search: {
+    search: (options: {
+      query: string;
+      rootPath: string;
+      caseSensitive: boolean;
+      isRegex: boolean;
+    }) => ipcRenderer.invoke('search:search', options) as Promise<{
+      success: boolean;
+      results: SearchResult[];
+      error?: string;
+    }>,
+  },
 });
 
 // --------- Type definitions for Renderer process ---------
@@ -260,6 +297,19 @@ declare global {
           Promise<{ success: boolean; url?: string; error?: string }>;
         getConfig: (vaultPath: string) => Promise<{ success: boolean; config: ImageStorageConfig | null }>;
         setConfig: (vaultPath: string, config: ImageStorageConfig) => Promise<{ success: boolean; error?: string }>;
+      };
+      // Search operations
+      search: {
+        search: (options: {
+          query: string;
+          rootPath: string;
+          caseSensitive: boolean;
+          isRegex: boolean;
+        }) => Promise<{
+          success: boolean;
+          results: SearchResult[];
+          error?: string;
+        }>;
       };
     };
   }

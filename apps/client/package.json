@@ -28,7 +28,8 @@
     "@aimo-note/dto": "workspace:*",
     "@aws-sdk/client-s3": "^3.1032.0",
     "electron-store": "^11.0.2",
-    "electron-updater": "^6.7.3"
+    "electron-updater": "^6.7.3",
+    "vscode-ripgrep": "^1.13.2"
   },
   "devDependencies": {
     "@aimo-note/eslint-config": "workspace:*",
