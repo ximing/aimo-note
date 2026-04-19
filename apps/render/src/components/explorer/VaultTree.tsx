@@ -14,43 +14,18 @@ interface DialogState {
 
 export const VaultTree = observer(() => {
   const vaultService = useService(VaultService);
-  const { tree, path } = vaultService;
-  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
+  const { tree, path, expandedPaths } = vaultService;
   const [sortBy, setSortBy] = useState<'name' | 'created' | 'modified'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [dialog, setDialog] = useState<DialogState>({ type: null });
 
-  const toggleExpanded = useCallback((nodePath: string) => {
-    setExpandedPaths((prev) => {
-      const next = new Set(prev);
-      if (next.has(nodePath)) {
-        next.delete(nodePath);
-      } else {
-        next.add(nodePath);
-      }
-      return next;
-    });
-  }, []);
-
   const handleExpandAll = useCallback(() => {
-    const allFolderPaths = new Set<string>();
-    const collectPaths = (nodes: typeof tree) => {
-      for (const node of nodes) {
-        if (node.type === 'folder') {
-          allFolderPaths.add(node.path);
-          if (node.children) {
-            collectPaths(node.children);
-          }
-        }
-      }
-    };
-    collectPaths(tree);
-    setExpandedPaths(allFolderPaths);
-  }, [tree]);
+    vaultService.expandAll();
+  }, [vaultService]);
 
   const handleCollapseAll = useCallback(() => {
-    setExpandedPaths(new Set());
-  }, []);
+    vaultService.collapseAll();
+  }, [vaultService]);
 
   const handleSortChange = useCallback((newSortBy: 'name' | 'created' | 'modified', newSortOrder: 'asc' | 'desc') => {
     setSortBy(newSortBy);
@@ -146,9 +121,9 @@ export const VaultTree = observer(() => {
               node={node}
               depth={0}
               isExpanded={expandedPaths.has(node.path)}
-              onToggleExpand={() => toggleExpanded(node.path)}
+              onToggleExpand={() => vaultService.toggleExpanded(node.path)}
               expandedPaths={expandedPaths}
-              onToggleExpandDeep={toggleExpanded}
+              onToggleExpandDeep={(path) => vaultService.toggleExpanded(path)}
               onNewFile={handleNewFile}
               onNewFolder={handleNewFolder}
               onRename={handleRename}

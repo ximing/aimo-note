@@ -4,10 +4,11 @@ import type { TabConfig } from '@/ipc/vault';
 import { config } from '@/ipc/config';
 import type { TreeNode } from '@/ipc/vault';
 import type { RecentVault } from '@/ipc/config';
+import { UIService } from './ui.service';
 
-function debounce<T extends (...args: unknown[]) => unknown>(fn: T, ms: number): (...args: Parameters<T>) => void {
+function debounce<Args extends unknown[], R>(fn: (...args: Args) => R, ms: number): (...args: Args) => void {
   let timer: ReturnType<typeof setTimeout> | null = null;
-  return (...args: Parameters<T>) => {
+  return (...args: Args) => {
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => fn(...args), ms);
   };
@@ -26,6 +27,7 @@ export class VaultService extends Service {
   activeFile: string | null = null;
   isLoading = false;
   recentVaults: RecentVault[] = [];
+  expandedPaths: Set<string> = new Set();
 
   private _currentNotePath: string | null = null;
 
@@ -163,7 +165,7 @@ export class VaultService extends Service {
     }
   }
 
-  private debouncedSaveTabs = debounce(async (tabs: Array<{ id: string; path: string }>, activeTabId: string | null) => {
+  private debouncedSaveTabs = debounce(async (tabs: Array<{ id: string; path: string; title?: string }>, activeTabId: string | null) => {
     if (!this.path) return;
     const tabConfig: { openTabs: Array<{ id: string; path: string }>; activeTabId: string | null } = { openTabs: tabs, activeTabId };
     await vault.writeNote(this.path, '.aimo-note/config.json', JSON.stringify(tabConfig, null, 2));
@@ -177,6 +179,36 @@ export class VaultService extends Service {
     this.activeFile = path;
     this._currentNotePath = path;
     this.persistState();
+  }
+
+  toggleExpanded(nodePath: string): void {
+    const next = new Set(this.expandedPaths);
+    if (next.has(nodePath)) {
+      next.delete(nodePath);
+    } else {
+      next.add(nodePath);
+    }
+    this.expandedPaths = next;
+  }
+
+  expandAll(): void {
+    const allFolderPaths = new Set<string>();
+    const collectPaths = (nodes: TreeNode[]) => {
+      for (const node of nodes) {
+        if (node.type === 'folder') {
+          allFolderPaths.add(node.path);
+          if (node.children) {
+            collectPaths(node.children);
+          }
+        }
+      }
+    };
+    collectPaths(this.tree);
+    this.expandedPaths = allFolderPaths;
+  }
+
+  collapseAll(): void {
+    this.expandedPaths = new Set();
   }
 
   get vaultPath(): string | null {
