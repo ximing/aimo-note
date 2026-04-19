@@ -48,8 +48,9 @@
 - **尺寸约束**：
   - 最小宽度：40px
   - 最小高度：40px
-  - 最大宽度：编辑器内容区域宽度（100%）
+  - 最大宽度：CSS `max-width: 100%`，即父容器宽度（即图片 wrapper 的宽度）
   - 等比缩放保护：拖拽开始前检查 `naturalWidth > 0`，若为 0 则等待图片加载完成后再允许拖拽
+  - 拖拽期间：使用 `imageEl.parentElement?.offsetWidth` 计算最大宽度约束
 - 拖拽时实时预览尺寸变化
 - 拖拽结束后：将新的宽度值回写到 ProseMirror 节点属性（`width` 属性）
 
@@ -95,7 +96,7 @@ selectedAlignment = 'center' (默认) 或从节点属性读取
     ↓
 用户点击对齐按钮
     ↓
-更新 DOM class + 更新节点属性 (data-align)
+更新 DOM class + 更新节点属性 (align)
     ↓
 用户拖拽手柄
     ↓
@@ -235,10 +236,39 @@ const handleResize = (e: MouseEvent, handle: HandlePosition) => {
       case 'se': // 右下角：自由缩放
         newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, styleWidth + dx));
         break;
-      case 'e': // 右边中点
+      case 's': // 下边中点：仅改变高度
+        const newHeight = Math.max(MIN_HEIGHT, styleHeight + dy);
+        imageEl.style.height = `${newHeight}px`;
+        break;
+      case 'e': // 右边中点：仅改变宽度
         newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, styleWidth + dx));
         break;
-      // ... 其他 handle
+      case 'sw': // 左下角：调整宽度 + 调整 left
+        newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, styleWidth - dx));
+        imageEl.style.width = `${newWidth}px`;
+        imageEl.style.marginLeft = `${parseInt(imageEl.style.marginLeft || '0') + dx}px`;
+        break;
+      case 'w': // 左边中点：调整宽度 + 调整 marginLeft
+        newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, styleWidth - dx));
+        imageEl.style.width = `${newWidth}px`;
+        imageEl.style.marginLeft = `${parseInt(imageEl.style.marginLeft || '0') + dx}px`;
+        break;
+      case 'nw': // 左上角：自由缩放 + 调整 marginLeft + 调整 marginTop
+        newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, styleWidth - dx));
+        imageEl.style.width = `${newWidth}px`;
+        imageEl.style.marginLeft = `${parseInt(imageEl.style.marginLeft || '0') + dx}px`;
+        imageEl.style.marginTop = `${parseInt(imageEl.style.marginTop || '0') + dy}px`;
+        break;
+      case 'n': // 上边中点：调整高度 + 调整 marginTop
+        const newHeightN = Math.max(MIN_HEIGHT, styleHeight - dy);
+        imageEl.style.height = `${newHeightN}px`;
+        imageEl.style.marginTop = `${parseInt(imageEl.style.marginTop || '0') + dy}px`;
+        break;
+      case 'ne': // 右上角：自由缩放 + 调整 marginTop
+        newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, styleWidth + dx));
+        imageEl.style.width = `${newWidth}px`;
+        imageEl.style.marginTop = `${parseInt(imageEl.style.marginTop || '0') + dy}px`;
+        break;
     }
 
     if (moveEvent.shiftKey) {
@@ -274,6 +304,8 @@ const handleResize = (e: MouseEvent, handle: HandlePosition) => {
 | 工具栏超出视口 | 调整位置到可见区域（上方/下方/左右偏移） |
 | naturalWidth 为 0（图片未加载完成） | 禁止拖拽开始，等图片加载完成后再允许 |
 | 四角/侧边自由缩放超出最小高度 | 同步限制最小高度 40px |
+| 图片在折叠区域内被脚本操作 | 操作被拒绝，等待图片进入可见状态 |
+| 拖拽期间文本选择 | 拖拽开始时对图片元素调用 `setPointerCapture`，同时设置 `user-select: none` 防止选中文本 |
 
 ### 交互范围约定
 
@@ -296,6 +328,6 @@ const handleResize = (e: MouseEvent, handle: HandlePosition) => {
 2. 实现 `ImageResizeHandles.tsx` 拖拽手柄组件
 3. 实现 `ImageToolbar.tsx` 工具栏组件
 4. 在 `MilkdownEditorInner` 中添加选中状态管理和工具栏集成
-5. 实现对齐方式的节点属性读写
-6. 实现拖拽结束后的属性回写
+5. 通过 Milkdown `addAttributes` 配置注册 `align` 和 `width` 属性（无需自定义 plugin）
+6. 实现拖拽结束后的属性回写（通过 ProseMirror 事务更新节点属性）
 7. 测试三种对齐方式和拖拽缩放
