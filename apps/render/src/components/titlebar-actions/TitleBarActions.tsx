@@ -26,7 +26,7 @@ export const TitleBarActions = observer(() => {
         className="p-1.5 hover:bg-accent hover:text-white rounded text-sm"
         title="文件树"
         onClick={() => {
-          uiService.toggleExplorer();
+          uiService.toggleLeftSidebar();
         }}
       >
         <FolderTree size={16} />

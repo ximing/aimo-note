@@ -7,7 +7,7 @@ import { SidePanel } from './side-panel';
 import { VaultTree } from './explorer/VaultTree';
 import { SettingsModal } from './common/SettingsModal';
 import { StatusBar } from './common/StatusBar';
-import { Search, PanelLeftClose } from 'lucide-react';
+import { Search, PanelLeftClose, PanelLeft } from 'lucide-react';
 
 export const Layout = observer(() => {
   const uiService = useUIService();
@@ -49,10 +49,22 @@ export const Layout = observer(() => {
         {/* Main Content */}
         <main className="main-content flex-1 flex flex-col overflow-hidden">
           {/* Editor Tabs */}
-          <EditorTabs />
+          <div className="flex items-center">
+            {!uiService.leftSidebarOpen && (
+              <button
+                type="button"
+                className="p-1.5 hover:bg-accent hover:text-white rounded text-sm"
+                title="展开目录树"
+                onClick={() => uiService.toggleLeftSidebar()}
+              >
+                <PanelLeft size={16} />
+              </button>
+            )}
+            <EditorTabs />
+          </div>
 
           {/* Document Editor Container */}
-          <div className="editor-container flex-1 bg-bg-primary m-2 overflow-hidden">
+          <div className="editor-container flex-1 flex flex-col bg-bg-primary m-2 overflow-hidden">
             <div className="page-content flex-1 overflow-hidden">
               <Outlet />
             </div>

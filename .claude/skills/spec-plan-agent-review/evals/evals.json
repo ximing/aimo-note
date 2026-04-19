@@ -1,0 +1,40 @@
+{
+  "skill_name": "spec-plan-agent-review",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我采取 specs + plan 的方式开发。现在 theme 这块我觉得已经做完了，请你用 Agent Team 的方式做一次验收：看实现是否符合 spec 和 plan，如果发现明确问题就直接修。spec 在 docs/superpowers/specs/2026-04-17-theme-design.md，plan 在 docs/superpowers/plans/2026-04-19-theme-design.md，代码范围先看 apps/render/src。",
+      "expected_output": "应主动采用 Agent Team 结构，分别从 spec、plan、risk 三个角度并行检查，lead 汇总后直接修复明确问题，而不是只停在 review 报告。",
+      "files": [],
+      "expectations": [
+        "The workflow explicitly compares the implementation against both the spec and the plan, not just one of them.",
+        "The workflow uses distinct agent-team roles such as spec reviewer, plan reviewer, risk reviewer, and a lead or fixer role.",
+        "When clear issues are found, the workflow continues into direct fixes instead of stopping at a review-only report.",
+        "The final answer distinguishes fixed issues from any remaining unresolved items."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "我这次是按 spec + plan 做的 vault tab persistence。请你像验收一样处理一遍：如果 plan 已完成，就用多 agent 视角帮我判断代码是不是符合设计、实现步骤有没有跑偏、还有没有回归风险。相关文档在 docs/superpowers/specs 和 docs/superpowers/plans 里自己找最匹配的；如果发现明确问题，就直接修。",
+      "expected_output": "应能在用户未明确给路径时主动推断最匹配的 spec/plan，说明假设，并在有清晰结论时继续进入修复阶段。",
+      "files": [],
+      "expectations": [
+        "The workflow infers or selects matching spec/plan documents when the user does not provide exact paths.",
+        "The final answer makes the inferred document choice explicit.",
+        "The workflow separates source-of-truth gaps from generic code risks before deciding what to fix.",
+        "Clear, low-ambiguity issues are repaired instead of being left as a review note."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "帮我看一下这次 settings 页面的小文案调整。就几个文本改动，不需要太大阵仗；如果有明显问题就顺手修掉。",
+      "expected_output": "对于很小的改动，应避免强行启用完整 Agent Team，而是采用轻量 review-and-fix 流程，并说明为什么不需要完整团队分工。",
+      "files": [],
+      "expectations": [
+        "The workflow avoids forcing a full agent team for a tiny low-risk change.",
+        "The response explains why a lightweight review-and-fix flow is sufficient for this scope.",
+        "If an obvious issue exists, the workflow prefers directly fixing it."
+      ]
+    }
+  ]
+}
