@@ -10,8 +10,12 @@ export const SearchPanel = observer(() => {
 
   const handleResultClick = (filePath: string, line?: number) => {
     const title = filePath.split('/').pop() || filePath;
-    uiService.openTab(filePath, title);
-    // TODO: scroll to line when editor supports it
+    const params = new URLSearchParams();
+    if (line) params.set('line', String(line));
+    if (searchService.query) params.set('highlight', searchService.query);
+    const query = params.toString();
+    const url = query ? `${filePath}?${query}` : filePath;
+    uiService.openTab(url, title);
   };
 
   return (
@@ -35,7 +39,6 @@ export const SearchPanel = observer(() => {
         ) : searchService.results.length > 0 ? (
           <SearchResultList
             results={searchService.results}
-            query={searchService.query}
             onResultClick={handleResultClick}
           />
         ) : (

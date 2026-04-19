@@ -84,27 +84,23 @@ const EditorPageContent = observer(() => {
     }
   }, [service.currentNote, service.currentNote?.path]);
 
-  // Scroll to line when ?line param is present
+  // Scroll to first highlight when ?highlight param is present
   useEffect(() => {
-    const lineParam = searchParams.get('line');
-    if (!lineParam || !editorRef.current.dom) return;
+    const highlightParam = searchParams.get('highlight');
+    if (!highlightParam || !editorRef.current.dom) return;
 
     const scrollToLine = () => {
       const pm = editorRef.current.dom;
       if (!pm) return;
-      const targetLine = parseInt(lineParam, 10);
-      if (isNaN(targetLine)) return;
-
-      // Find the nth block child (1-indexed)
-      const blockNodes = Array.from(pm.querySelectorAll(':scope > *'));
-      const targetNode = blockNodes[targetLine - 1];
-      if (targetNode instanceof HTMLElement) {
-        targetNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Find first highlighted element and scroll to it
+      const highlight = pm.querySelector('.search-highlight-editor');
+      if (highlight) {
+        highlight.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     };
 
-    // Wait for editor DOM to be ready
-    const timeout = setTimeout(scrollToLine, 200);
+    // Wait for editor DOM and highlight to be ready
+    const timeout = setTimeout(scrollToLine, 300);
     return () => clearTimeout(timeout);
   }, [path, searchParams]);
 
