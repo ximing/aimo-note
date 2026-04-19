@@ -25,19 +25,21 @@ export class ImageStorageService extends Service {
     return this.resolve(VaultService);
   }
 
-  async loadConfig(): Promise<void> {
+  async loadConfig(): Promise<ImageStorageConfig> {
     const vaultPath = this.vaultService?.path;
     if (!vaultPath) {
       this._config = DEFAULT_CONFIG;
-      return;
+      return this._config;
     }
 
     this._isLoading = true;
     try {
       const config = await imageStorage.getConfig(vaultPath);
       this._config = config || DEFAULT_CONFIG;
+      return this._config;
     } catch {
       this._config = DEFAULT_CONFIG;
+      return this._config;
     } finally {
       this._isLoading = false;
     }
@@ -73,6 +75,18 @@ export class ImageStorageService extends Service {
     });
 
     return url;
+  }
+
+  async upload(arrayBuffer: ArrayBuffer, mimeType: string): Promise<string> {
+    const vaultPath = this.vaultService?.path;
+    if (!vaultPath) {
+      throw new Error('No vault open');
+    }
+    return await imageStorage.upload({
+      arrayBuffer,
+      mimeType,
+      vaultPath,
+    });
   }
 }
 
