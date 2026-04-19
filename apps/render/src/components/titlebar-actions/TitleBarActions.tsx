@@ -1,11 +1,9 @@
 import { observer, useService } from '@rabjs/react';
-import { useNavigate } from 'react-router';
 import { UIService } from '@/services/ui.service';
 import { Search, FolderTree, PanelLeftClose } from 'lucide-react';
 
 export const TitleBarActions = observer(() => {
   const uiService = useService(UIService);
-  const navigate = useNavigate();
 
   if (!uiService.titleBarActionsOpen) return null;
 
@@ -16,7 +14,7 @@ export const TitleBarActions = observer(() => {
         className="p-1.5 hover:bg-accent hover:text-white rounded text-sm"
         title="搜索"
         onClick={() => {
-          navigate('/search');
+          uiService.setSidebarView('search');
         }}
       >
         <Search size={16} />
