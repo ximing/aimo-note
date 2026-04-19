@@ -4,6 +4,7 @@ packages:
   - config/*
 
 onlyBuiltDependencies:
+  - '@vscode/ripgrep'
   - bcrypt
   - electron
   - esbuild

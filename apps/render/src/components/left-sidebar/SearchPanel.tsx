@@ -8,14 +8,10 @@ export const SearchPanel = observer(() => {
   const searchService = useService(SearchService);
   const uiService = useService(UIService);
 
-  const handleResultClick = (filePath: string, line?: number) => {
+  const handleResultClick = (filePath: string) => {
     const title = filePath.split('/').pop() || filePath;
-    const params = new URLSearchParams();
-    if (line) params.set('line', String(line));
-    if (searchService.query) params.set('highlight', searchService.query);
-    const query = params.toString();
-    const url = query ? `${filePath}?${query}` : filePath;
-    uiService.openTab(url, title);
+    // Open tab with just the file path — line/highlight flow through URL searchParams
+    uiService.openTab(filePath, title);
   };
 
   return (
@@ -39,6 +35,7 @@ export const SearchPanel = observer(() => {
         ) : searchService.results.length > 0 ? (
           <SearchResultList
             results={searchService.results}
+            query={searchService.query}
             onResultClick={handleResultClick}
           />
         ) : (

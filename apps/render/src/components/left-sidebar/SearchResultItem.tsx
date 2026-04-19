@@ -4,7 +4,6 @@ import type { SearchMatch } from '@aimo-note/dto';
 interface SearchResultItemProps {
   filePath: string;
   matches: SearchMatch[];
-  defaultExpanded?: number;
   onResultClick: (filePath: string, line?: number) => void;
 }
 
@@ -18,14 +17,14 @@ function highlightMatch(text: string, start: number, end: number) {
   );
 }
 
-export function SearchResultItem({ filePath, matches, defaultExpanded = 3, onResultClick }: SearchResultItemProps) {
+export function SearchResultItem({ filePath, matches, onResultClick }: SearchResultItemProps) {
   const [expanded, setExpanded] = useState(false);
 
   const fileName = filePath.split('/').pop() || filePath;
   const folderPath = filePath.includes('/') ? filePath.substring(0, filePath.lastIndexOf('/')) : '';
 
-  const visibleMatches = expanded ? matches : matches.slice(0, defaultExpanded);
-  const hiddenCount = Math.max(0, matches.length - defaultExpanded);
+  const visibleMatches = expanded ? matches : matches.slice(0, 3);
+  const hiddenCount = Math.max(0, matches.length - 3);
 
   return (
     <div className="search-result-item">

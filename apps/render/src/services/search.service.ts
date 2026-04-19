@@ -96,10 +96,16 @@ export class SearchService extends Service {
 
   toggleCaseSensitive(): void {
     this.caseSensitive = !this.caseSensitive;
+    if (this.query.trim()) {
+      this.search(this.query);
+    }
   }
 
   toggleRegex(): void {
     this.isRegex = !this.isRegex;
+    if (this.query.trim()) {
+      this.search(this.query);
+    }
   }
 
   clearResults(): void {

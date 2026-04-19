@@ -3,6 +3,7 @@ import { SearchResultItem } from './SearchResultItem';
 
 interface SearchResultListProps {
   results: SearchResultGroup[];
+  query?: string;
   onResultClick: (filePath: string, line?: number) => void;
 }
 
