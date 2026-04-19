@@ -6,6 +6,7 @@ export interface MilkdownEditorProps {
   defaultValue?: string;
   className?: string;
   highlightQuery?: string;
+  targetLine?: number;
   editorRef?: React.MutableRefObject<{ dom: HTMLElement | null }>;
 }
 
@@ -14,6 +15,7 @@ export function MilkdownEditor({
   defaultValue = '# New Note',
   className = '',
   highlightQuery,
+  targetLine,
   editorRef,
 }: MilkdownEditorProps) {
   return (
@@ -23,6 +25,7 @@ export function MilkdownEditor({
         defaultValue={defaultValue}
         className={className}
         highlightQuery={highlightQuery}
+        targetLine={targetLine}
         editorRef={editorRef}
       />
     </MilkdownProvider>

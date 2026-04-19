@@ -1,17 +1,28 @@
 import { observer, useService } from '@rabjs/react';
+import { useNavigate } from 'react-router';
 import { SearchService } from '@/services/search.service';
 import { UIService } from '@/services/ui.service';
 import { SearchInput } from './SearchInput';
 import { SearchResultList } from './SearchResultList';
 
 export const SearchPanel = observer(() => {
+  const navigate = useNavigate();
   const searchService = useService(SearchService);
   const uiService = useService(UIService);
 
-  const handleResultClick = (filePath: string) => {
+  const handleResultClick = (filePath: string, line?: number) => {
     const title = filePath.split('/').pop() || filePath;
-    // Open tab with just the file path — line/highlight flow through URL searchParams
+    const params = new URLSearchParams();
+
+    if (searchService.query.trim()) {
+      params.set('highlight', searchService.query);
+    }
+    if (typeof line === 'number' && line > 0) {
+      params.set('line', String(line));
+    }
+
     uiService.openTab(filePath, title);
+    navigate(`/editor/${encodeURIComponent(filePath)}${params.size ? `?${params.toString()}` : ''}`);
   };
 
   return (
