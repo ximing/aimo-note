@@ -559,11 +559,10 @@ html.dark .ProseMirror code {
   cursor: pointer;
 }
 
-.ProseMirror .image-block .image-caption {
-  margin-top: 0.5em;
-  font-size: 0.9em;
-  color: var(--text-muted);
-  font-style: italic;
+.ProseMirror .image-block .image-caption,
+.ProseMirror .image-block input,
+.ProseMirror .image-block textarea {
+  display: none;
 }
 
 /* Image upload placeholder */

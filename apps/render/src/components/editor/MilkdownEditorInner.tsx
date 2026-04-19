@@ -1,7 +1,16 @@
 import { useEditor, useInstance } from '@milkdown/react';
 import { Editor, rootCtx, defaultValueCtx, commandsCtx, editorViewCtx } from '@milkdown/kit/core';
 import { commonmark, imageAttr } from '@milkdown/kit/preset/commonmark';
-import { gfm, insertTableCommand } from '@milkdown/kit/preset/gfm';
+import {
+  gfm,
+  insertTableCommand,
+  addColBeforeCommand,
+  addColAfterCommand,
+  addRowBeforeCommand,
+  addRowAfterCommand,
+  deleteSelectedCellsCommand,
+} from '@milkdown/kit/preset/gfm';
+import { isInTable, findTable } from 'prosemirror-tables';
 import { history } from '@milkdown/kit/plugin/history';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { SlashProvider, slashFactory } from '@milkdown/kit/plugin/slash';
@@ -10,13 +19,6 @@ import type { EditorView } from '@milkdown/kit/prose/view';
 import { Milkdown } from '@milkdown/react';
 import { useRef, useEffect, useMemo, useState, useCallback } from 'react';
 import { math } from '@milkdown/plugin-math';
-import {
-  imageBlockComponent,
-  imageBlockConfig,
-} from '@milkdown/kit/component/image-block';
-import {
-  imageInlineComponent,
-} from '@milkdown/kit/component/image-inline';
 import {
   linkTooltipPlugin,
   configureLinkTooltip,
@@ -37,6 +39,7 @@ import { useImageStorageService } from '../../services/image-storage.service';
 import { useVaultService } from '../../services/vault.service';
 import { ConfirmDialog } from '../common/ConfirmDialog';
 import { ImageToolbar } from './ImageToolbar';
+import { TableContextMenu } from './TableContextMenu';
 import { ImageResizeHandles } from './ImageResizeHandles';
 
 export interface MilkdownEditorInnerProps {
@@ -54,6 +57,40 @@ interface ImageOverlayPosition {
   width: number;
   height: number;
 }
+
+interface PersistedImageState {
+  src: string;
+  align?: 'left' | 'center' | 'right';
+  width?: number;
+}
+
+const IMAGE_STATE_COMMENT_RE = /\n?<!--\s*aimo-image-state\s+(\[[\s\S]*?\])\s*-->\s*$/;
+
+const extractPersistedImageState = (markdown: string): { cleanMarkdown: string; imageStates: PersistedImageState[] } => {
+  const match = markdown.match(IMAGE_STATE_COMMENT_RE);
+  if (!match) {
+    return { cleanMarkdown: markdown, imageStates: [] };
+  }
+
+  try {
+    const parsed = JSON.parse(match[1]) as PersistedImageState[];
+    return {
+      cleanMarkdown: markdown.replace(IMAGE_STATE_COMMENT_RE, '').trimEnd(),
+      imageStates: Array.isArray(parsed) ? parsed : [],
+    };
+  } catch {
+    return { cleanMarkdown: markdown, imageStates: [] };
+  }
+};
+
+const serializePersistedImageState = (markdown: string, imageStates: PersistedImageState[]): string => {
+  const cleanMarkdown = markdown.replace(IMAGE_STATE_COMMENT_RE, '').trimEnd();
+  if (imageStates.length === 0) {
+    return cleanMarkdown;
+  }
+
+  return `${cleanMarkdown}\n\n<!-- aimo-image-state ${JSON.stringify(imageStates)} -->`;
+};
 
 // Create slash factory
 const slash = slashFactory('Commands');
@@ -206,7 +243,8 @@ export function MilkdownEditorInner({
   targetLine,
   editorRef,
 }: MilkdownEditorInnerProps) {
-  const defaultValueRef = useRef(defaultValue);
+  const initialPersistedImageState = useMemo(() => extractPersistedImageState(defaultValue), [defaultValue]);
+  const defaultValueRef = useRef(initialPersistedImageState.cleanMarkdown);
   const onChangeRef = useRef(onChange);
   const imageStorageService = useImageStorageService();
   const vaultService = useVaultService();
@@ -215,6 +253,8 @@ export function MilkdownEditorInner({
   const editorRootRef = useRef<HTMLDivElement | null>(null);
   const loadingRef = useRef(true);
   const pendingScrollTargetRef = useRef<{ line?: number; highlight?: string }>({});
+  const pendingImageStateRef = useRef<PersistedImageState[]>(initialPersistedImageState.imageStates);
+  const hydratingImageStateRef = useRef(initialPersistedImageState.imageStates.length > 0);
 
   // Image selection state
   const [selectedImageNodePos, setSelectedImageNodePos] = useState<number | null>(null);
@@ -222,11 +262,22 @@ export function MilkdownEditorInner({
   const [imagePosition, setImagePosition] = useState<ImageOverlayPosition | null>(null);
   const selectedImageRef = useRef<HTMLImageElement | null>(null);
 
+  // Table context menu state
+  const [tableContextMenu, setTableContextMenu] = useState<{
+    x: number;
+    y: number;
+    canDeleteCol: boolean;
+    canDeleteRow: boolean;
+  } | null>(null);
+
   // Keep refs updated without triggering re-render
   useEffect(() => {
-    defaultValueRef.current = defaultValue;
+    const nextPersistedImageState = extractPersistedImageState(defaultValue);
+    defaultValueRef.current = nextPersistedImageState.cleanMarkdown;
+    pendingImageStateRef.current = nextPersistedImageState.imageStates;
+    hydratingImageStateRef.current = nextPersistedImageState.imageStates.length > 0;
     onChangeRef.current = onChange;
-  });
+  }, [defaultValue, onChange]);
 
   const clearSelectedImage = useCallback(() => {
     if (selectedImageRef.current) {
@@ -280,7 +331,7 @@ export function MilkdownEditorInner({
 
   const syncSelectedImageFromView = useCallback(
     (view: EditorView, clickedImage?: HTMLImageElement | null) => {
-      const imageNodeType = view.state.schema.nodes.image ?? view.state.schema.nodes.imageBlock;
+      const imageNodeType = view.state.schema.nodes.image;
       if (!imageNodeType) {
         clearSelectedImage();
         return;
@@ -339,6 +390,81 @@ export function MilkdownEditorInner({
     },
     [clearSelectedImage, updateImageOverlayPosition]
   );
+
+  const collectPersistedImageState = useCallback((view: EditorView): PersistedImageState[] => {
+    const imageStates: PersistedImageState[] = [];
+
+    view.state.doc.descendants((node) => {
+      if (node.type.name !== 'image') {
+        return undefined;
+      }
+
+      const width = typeof node.attrs.width === 'number' ? node.attrs.width : undefined;
+      const align = (node.attrs.align as 'left' | 'center' | 'right' | undefined) || 'center';
+      if (width === undefined && align === 'center') {
+        return undefined;
+      }
+
+      imageStates.push({
+        src: String(node.attrs.src || ''),
+        align,
+        width,
+      });
+      return undefined;
+    });
+
+    return imageStates;
+  }, []);
+
+  const hydratePersistedImageState = useCallback((view: EditorView) => {
+    const pendingStates = pendingImageStateRef.current;
+    if (pendingStates.length === 0) {
+      hydratingImageStateRef.current = false;
+      return;
+    }
+
+    const imagePositions: Array<{ pos: number; src: string; attrs: Record<string, unknown> }> = [];
+    view.state.doc.descendants((node, pos) => {
+      if (node.type.name === 'image') {
+        imagePositions.push({
+          pos,
+          src: String(node.attrs.src || ''),
+          attrs: node.attrs as Record<string, unknown>,
+        });
+      }
+      return undefined;
+    });
+
+    let stateIndex = 0;
+    let tr = view.state.tr;
+    let changed = false;
+
+    imagePositions.forEach(({ pos, src, attrs }) => {
+      const persistedState = pendingStates[stateIndex];
+      if (!persistedState || persistedState.src !== src) {
+        return;
+      }
+
+      stateIndex += 1;
+      const nextAttrs = {
+        ...attrs,
+        align: persistedState.align || attrs.align || 'center',
+        width: persistedState.width,
+      };
+
+      if (attrs.align !== nextAttrs.align || attrs.width !== nextAttrs.width) {
+        tr = tr.setNodeMarkup(pos, undefined, nextAttrs);
+        changed = true;
+      }
+    });
+
+    pendingImageStateRef.current = [];
+    hydratingImageStateRef.current = false;
+
+    if (changed) {
+      view.dispatch(tr);
+    }
+  }, []);
 
   // Create slash menu instance
   const slashMenu = useMemo(() => new SlashMenu(), []);
@@ -517,7 +643,7 @@ export function MilkdownEditorInner({
               editor.action((ctx) => {
                 const view = ctx.get(editorViewCtx);
                 const { state, dispatch } = view;
-                const imageNodeType = state.schema.nodes.image ?? state.schema.nodes.imageBlock;
+                const imageNodeType = state.schema.nodes.image;
                 if (!imageNodeType) {
                   console.error('[Editor] Image node type not found in schema');
                   return;
@@ -618,6 +744,91 @@ export function MilkdownEditorInner({
     updateImageOverlayPosition(selectedImageRef.current);
   }, [selectedImageNodePos, updateImageOverlayPosition]);
 
+  // Table context menu handlers
+  const handleTableContextMenu = useCallback((e: MouseEvent) => {
+    e.preventDefault();
+    const editor = getEditor();
+    if (!editor) return;
+
+    editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const { state } = view;
+      if (!isInTable(state)) return;
+
+      const $pos = state.doc.resolve(state.selection.from);
+      const tableInfo = findTable($pos);
+      if (!tableInfo) return;
+
+      const rowCount = tableInfo.node.childCount;
+      const colCount = tableInfo.node.firstChild?.childCount || 0;
+
+      setTableContextMenu({
+        x: e.clientX,
+        y: e.clientY,
+        canDeleteCol: colCount > 1,
+        canDeleteRow: rowCount > 1,
+      });
+    });
+  }, [getEditor]);
+
+  const closeTableContextMenu = useCallback(() => {
+    setTableContextMenu(null);
+  }, []);
+
+  const insertColLeft = useCallback(() => {
+    const editor = getEditor();
+    if (!editor) return;
+    editor.action((ctx) => {
+      const commands = ctx.get(commandsCtx);
+      commands.call(addColBeforeCommand.key);
+    });
+  }, [getEditor]);
+
+  const insertColRight = useCallback(() => {
+    const editor = getEditor();
+    if (!editor) return;
+    editor.action((ctx) => {
+      const commands = ctx.get(commandsCtx);
+      commands.call(addColAfterCommand.key);
+    });
+  }, [getEditor]);
+
+  const insertRowUp = useCallback(() => {
+    const editor = getEditor();
+    if (!editor) return;
+    editor.action((ctx) => {
+      const commands = ctx.get(commandsCtx);
+      commands.call(addRowBeforeCommand.key);
+    });
+  }, [getEditor]);
+
+  const insertRowDown = useCallback(() => {
+    const editor = getEditor();
+    if (!editor) return;
+    editor.action((ctx) => {
+      const commands = ctx.get(commandsCtx);
+      commands.call(addRowAfterCommand.key);
+    });
+  }, [getEditor]);
+
+  const deleteCol = useCallback(() => {
+    const editor = getEditor();
+    if (!editor) return;
+    editor.action((ctx) => {
+      const commands = ctx.get(commandsCtx);
+      commands.call(deleteSelectedCellsCommand.key);
+    });
+  }, [getEditor]);
+
+  const deleteRow = useCallback(() => {
+    const editor = getEditor();
+    if (!editor) return;
+    editor.action((ctx) => {
+      const commands = ctx.get(commandsCtx);
+      commands.call(deleteSelectedCellsCommand.key);
+    });
+  }, [getEditor]);
+
   useEffect(() => {
     window.addEventListener('resize', handleRecalcImagePosition);
     const editorEl = editorRootRef.current;
@@ -646,16 +857,6 @@ export function MilkdownEditorInner({
           };
         });
 
-        // Configure image upload
-        ctx.update(imageBlockConfig.key, (prev) => ({
-          ...prev,
-          onUpload: async (file: File) => {
-            // TODO: Implement actual file upload logic
-            // For now, create a local object URL
-            return URL.createObjectURL(file);
-          },
-        }));
-
         // Configure link tooltip
         configureLinkTooltip(ctx);
 
@@ -670,7 +871,13 @@ export function MilkdownEditorInner({
 
         if (onChangeRef.current) {
           ctx.get(listenerCtx).markdownUpdated((_ctx, markdown) => {
-            onChangeRef.current?.(markdown);
+            if (hydratingImageStateRef.current) {
+              return;
+            }
+
+            const view = _ctx.get(editorViewCtx);
+            const persistedMarkdown = serializePersistedImageState(markdown, collectPersistedImageState(view));
+            onChangeRef.current?.(persistedMarkdown);
           });
         }
       })
@@ -680,8 +887,6 @@ export function MilkdownEditorInner({
       .use(listener)
       .use(slash) // Slash command menu
       .use(math) // LaTeX math support
-      .use(imageBlockComponent) // Image block with upload
-      .use(imageInlineComponent) // Inline image support (for paste inserted images)
       .use(linkTooltipPlugin) // Link tooltip UI
       .use(block); // Block drag handle
   }, []);
@@ -694,7 +899,15 @@ export function MilkdownEditorInner({
     }
 
     loadingRef.current = false;
-  }, [clearSelectedImage, loading]);
+
+    const editor = getEditor();
+    if (!editor) return;
+
+    editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      hydratePersistedImageState(view);
+    });
+  }, [clearSelectedImage, getEditor, hydratePersistedImageState, loading]);
 
   useEffect(() => {
     if (loading) return;
@@ -739,6 +952,27 @@ export function MilkdownEditorInner({
       };
     });
   }, [clearSelectedImage, getEditor, loading, syncSelectedImageFromView]);
+
+  // Attach contextmenu listener for table context menu
+  useEffect(() => {
+    if (loading) return;
+
+    const editor = getEditor();
+    if (!editor) return;
+
+    return editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const prosemirror = view.dom.querySelector('.ProseMirror') as HTMLElement | null;
+      if (!prosemirror) return;
+
+      const handler = (e: MouseEvent) => {
+        handleTableContextMenu(e);
+      };
+
+      prosemirror.addEventListener('contextmenu', handler);
+      return () => prosemirror.removeEventListener('contextmenu', handler);
+    });
+  }, [loading, getEditor, handleTableContextMenu]);
 
   useEffect(() => {
     if (loading) {
@@ -791,6 +1025,22 @@ export function MilkdownEditorInner({
               onResizeEnd={handleResizeEnd}
             />
           </>
+        )}
+
+        {tableContextMenu && (
+          <TableContextMenu
+            x={tableContextMenu.x}
+            y={tableContextMenu.y}
+            canDeleteCol={tableContextMenu.canDeleteCol}
+            canDeleteRow={tableContextMenu.canDeleteRow}
+            onClose={closeTableContextMenu}
+            onInsertColLeft={insertColLeft}
+            onInsertColRight={insertColRight}
+            onInsertRowUp={insertRowUp}
+            onInsertRowDown={insertRowDown}
+            onDeleteCol={deleteCol}
+            onDeleteRow={deleteRow}
+          />
         )}
       </div>
 
