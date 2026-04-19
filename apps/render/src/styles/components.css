@@ -231,3 +231,221 @@
   margin: 4px 12px;
   background-color: var(--bg-quaternary);
 }
+
+/* ============================================
+   Search Panel
+   ============================================ */
+
+.search-panel {
+  background-color: var(--bg-primary);
+}
+
+.search-input-container {
+  padding: 8px;
+  border-bottom: 1px solid var(--bg-quaternary);
+}
+
+.search-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--surface-soft);
+  border-radius: var(--radius-md);
+  padding: 4px 8px;
+}
+
+.search-input-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 13px;
+  color: var(--text-primary);
+  min-width: 0;
+}
+
+.search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.search-input-clear {
+  background: none;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+}
+
+.search-input-clear:hover {
+  color: var(--text-primary);
+  background-color: var(--hover-soft);
+}
+
+.search-options-row {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.search-option-button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  background: transparent;
+  border: 1px solid var(--bg-quaternary);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.search-option-button:hover {
+  color: var(--text-primary);
+  border-color: var(--bg-tertiary);
+}
+
+.search-option-button.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background-color: var(--accent-subtle);
+}
+
+.search-content {
+  padding: 8px;
+}
+
+.search-status {
+  text-align: center;
+  padding: 16px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.search-error {
+  color: var(--text-destructive, #ef4444);
+}
+
+.search-hint {
+  color: var(--text-muted);
+}
+
+/* ============================================
+   Search Results
+   ============================================ */
+
+.search-result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.search-result-item {
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background-color: var(--surface-soft);
+}
+
+.search-result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.search-result-file {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.search-result-count {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.search-result-folder {
+  padding: 0 10px 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-result-matches {
+  border-top: 1px solid var(--bg-quaternary);
+}
+
+.search-result-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.search-result-line:hover {
+  background-color: var(--hover-soft);
+}
+
+.search-result-line-number {
+  flex-shrink: 0;
+  width: 28px;
+  text-align: right;
+  color: var(--text-muted);
+  font-family: 'Fira Code', monospace;
+  font-size: 11px;
+}
+
+.search-result-line-text {
+  flex: 1;
+  color: var(--text-secondary);
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.search-result-show-more {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--bg-quaternary);
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+  text-align: center;
+  transition: background-color 0.15s ease;
+}
+
+.search-result-show-more:hover {
+  background-color: var(--hover-soft);
+}
+
+/* ============================================
+   Search Highlight
+   ============================================ */
+
+.search-highlight {
+  background-color: var(--search-highlight);
+  border-radius: 2px;
+  padding: 0 2px;
+  color: inherit;
+}
+
+html.dark .search-highlight {
+  background-color: var(--search-highlight-dark);
+}
