@@ -25,6 +25,7 @@ export default {
           primary: 'var(--bg-primary)',
           secondary: 'var(--bg-secondary)',
           tertiary: 'var(--bg-tertiary)',
+          quaternary: 'var(--bg-quaternary)',
         },
         text: {
           primary: 'var(--text-primary)',
