@@ -1,13 +1,19 @@
 import { observer, useService } from '@rabjs/react';
 import { useNavigate } from 'react-router';
 import { UIService } from '@/services/ui.service';
-import { Search, FileText, GitBranch, Settings } from 'lucide-react';
+import { GitBranch, Settings } from 'lucide-react';
 
-const navItems = [
-  { id: 'search', icon: Search, label: '搜索', path: '/search' },
-  { id: 'files', icon: FileText, label: '文件', path: '/editor' },
+type NavItem = {
+  id: string;
+  icon: typeof GitBranch;
+  label: string;
+  path?: string;
+  isModal?: boolean;
+};
+
+const navItems: NavItem[] = [
   { id: 'graph', icon: GitBranch, label: '图谱', path: '/graph' },
-  { id: 'settings', icon: Settings, label: '设置', path: '/settings' },
+  { id: 'settings', icon: Settings, label: '设置', isModal: true },
 ];
 
 export const LeftRail = observer(() => {
@@ -17,19 +23,19 @@ export const LeftRail = observer(() => {
   if (!uiService.leftRailOpen) return null;
 
   return (
-    <aside className="left-rail w-12 border-r flex flex-col items-center py-2 gap-1 bg-bg-secondary">
+    <aside className="left-rail w-12 flex flex-col items-center py-2 gap-1 bg-bg-tertiary">
       {navItems.map((item) => {
         const Icon = item.icon;
         return (
           <button
             key={item.id}
             type="button"
-            className="p-2 hover:bg-accent hover:text-white rounded text-gray-400 transition-colors"
+            className="p-2 hover:bg-accent hover:text-white rounded-full text-gray-400 transition-colors"
             title={item.label}
             onClick={() => {
-              if (item.id === 'files') {
-                uiService.toggleExplorer();
-              } else {
+              if (item.isModal) {
+                uiService.settingsModalOpen = true;
+              } else if (item.path) {
                 navigate(item.path);
               }
             }}
