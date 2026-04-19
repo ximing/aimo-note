@@ -47,9 +47,9 @@ export class EditorService extends Service {
     this.selection = null;
     console.log('[EditorService] openNote success:', { path, currentNote: this.currentNote });
 
-    // Persist current note path
+    // Keep the explorer selection in sync with the opened note.
     if (this.vaultService) {
-      this.vaultService.currentNotePath = path;
+      this.vaultService.setActiveFile(path);
     }
   }
 
@@ -103,9 +103,8 @@ export class EditorService extends Service {
     this.content = content;
     this.isDirty = false;
 
-    // Persist current note path
     if (this.vaultService) {
-      this.vaultService.currentNotePath = path;
+      this.vaultService.setActiveFile(path);
     }
   }
 }

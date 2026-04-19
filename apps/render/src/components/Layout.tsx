@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Outlet, useNavigate } from 'react-router';
 import { observer } from '@rabjs/react';
 import { useUIService } from '@/services/ui.service';
@@ -15,6 +16,32 @@ export const Layout = observer(() => {
   const uiService = useUIService();
   const vaultService = useVaultService();
   const navigate = useNavigate();
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + . to toggle settings modal
+      if (e.key === '.' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        if (uiService.settingsModalOpen) {
+          uiService.closeSettings();
+        } else {
+          uiService.openSettings();
+        }
+      }
+
+      // Escape to close settings modal
+      if (e.key === 'Escape' && uiService.settingsModalOpen) {
+        e.preventDefault();
+        uiService.closeSettings();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [uiService.settingsModalOpen]);
 
   const handleSidebarResize = (deltaX: number) => {
     uiService.setLeftSidebarWidth(uiService.leftSidebarWidth + deltaX);

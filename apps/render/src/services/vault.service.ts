@@ -40,6 +40,17 @@ export class VaultService extends Service {
   recentVaults: RecentVault[] = [];
   expandedPaths: Set<string> = new Set();
 
+  private getAncestorFolderPaths(filePath: string): string[] {
+    const segments = filePath.split('/').filter(Boolean);
+    if (segments.length <= 1) return [];
+
+    const ancestors: string[] = [];
+    for (let index = 1; index < segments.length; index += 1) {
+      ancestors.push(segments.slice(0, index).join('/'));
+    }
+    return ancestors;
+  }
+
   private _currentNotePath: string | null = null;
   private _pendingVaultConfig: Partial<VaultConfig> = {};
   private _pendingVaultConfigPath: string | null = null;
@@ -264,6 +275,19 @@ export class VaultService extends Service {
   setActiveFile(path: string | null): void {
     this.activeFile = path;
     this._currentNotePath = path;
+
+    if (path) {
+      const nextExpandedPaths = new Set(this.expandedPaths);
+      for (const ancestorPath of this.getAncestorFolderPaths(path)) {
+        nextExpandedPaths.add(ancestorPath);
+      }
+
+      if (nextExpandedPaths.size !== this.expandedPaths.size) {
+        this.expandedPaths = nextExpandedPaths;
+        this.saveUISettings({ expandedPaths: [...nextExpandedPaths] });
+      }
+    }
+
     this.persistState();
   }
 

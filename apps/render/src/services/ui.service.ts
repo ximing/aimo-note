@@ -27,6 +27,7 @@ export class UIService extends Service {
 
   // Settings Modal
   settingsModalOpen = false;
+  activeSettingsCategory: 'appearance' | 'editor' | 'shortcuts' | 'about' = 'appearance';
 
   // Legacy (removed, kept for reference during migration)
   // sidebarOpen = true; // replaced by leftRailOpen and explorerOpen
@@ -150,6 +151,22 @@ export class UIService extends Service {
 
   setSidePanelWidth(width: number): void {
     this.sidePanelWidth = Math.max(200, Math.min(600, width));
+  }
+
+  // Settings
+  openSettings(category?: 'appearance' | 'editor' | 'shortcuts' | 'about'): void {
+    if (category) {
+      this.activeSettingsCategory = category;
+    }
+    this.settingsModalOpen = true;
+  }
+
+  closeSettings(): void {
+    this.settingsModalOpen = false;
+  }
+
+  setActiveSettingsCategory(category: 'appearance' | 'editor' | 'shortcuts' | 'about'): void {
+    this.activeSettingsCategory = category;
   }
 
   dispose() {
