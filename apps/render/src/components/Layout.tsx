@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Outlet, useNavigate } from 'react-router';
+import { Outlet } from 'react-router';
 import { observer } from '@rabjs/react';
 import { useUIService } from '@/services/ui.service';
 import { useVaultService } from '@/services/vault.service';
@@ -7,15 +7,15 @@ import { LeftRail } from './left-rail';
 import { EditorTabs } from './editor-tabs';
 import { SidePanel } from './side-panel';
 import { VaultTree } from './explorer/VaultTree';
+import { SearchPanel } from './left-sidebar/SearchPanel';
 import { SettingsModal } from './common/SettingsModal';
 import { StatusBar } from './common/StatusBar';
 import { ResizeHandle } from './common/ResizeHandle';
-import { Search, PanelLeftClose, PanelLeft } from 'lucide-react';
+import { Search, PanelLeftClose, PanelLeft, FolderTree } from 'lucide-react';
 
 export const Layout = observer(() => {
   const uiService = useUIService();
   const vaultService = useVaultService();
-  const navigate = useNavigate();
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -64,10 +64,16 @@ export const Layout = observer(() => {
                 <button
                   type="button"
                   className="chrome-icon-button p-1.5 rounded text-sm"
-                  title="搜索"
-                  onClick={() => navigate('/search')}
+                  title={uiService.sidebarView === 'tree' ? '切换到搜索' : '切换到目录树'}
+                  onClick={() => uiService.setSidebarView(
+                    uiService.sidebarView === 'tree' ? 'search' : 'tree'
+                  )}
                 >
-                  <Search size={16} />
+                  {uiService.sidebarView === 'tree' ? (
+                    <Search size={16} />
+                  ) : (
+                    <FolderTree size={16} />
+                  )}
                 </button>
                 <button
                   type="button"
@@ -99,7 +105,11 @@ export const Layout = observer(() => {
             {uiService.leftSidebarOpen && (
               <>
                 <aside className="left-sidebar flex flex-col" style={{ width: uiService.leftSidebarWidth }}>
-                  <VaultTree />
+                  {uiService.sidebarView === 'tree' ? (
+                    <VaultTree />
+                  ) : (
+                    <SearchPanel />
+                  )}
                 </aside>
                 <ResizeHandle
                   onResize={handleSidebarResize}

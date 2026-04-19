@@ -1,4 +1,5 @@
 import { ipcRenderer, contextBridge, IpcRendererEvent, app } from 'electron';
+import type { SearchResult } from '@aimo-note/dto';
 
 type MessageCallback = (message: string) => void;
 type FileDropCallback = (filePaths: string[]) => void;
@@ -73,6 +74,8 @@ export interface VaultResult {
   content?: string;
   error?: string;
 }
+
+// Search types are imported from @aimo-note/dto
 
 // Store wrapped callbacks to allow proper removal
 const messageCallbackMap = new Map<
@@ -204,6 +207,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
     setConfig: (vaultPath: string, config: ImageStorageConfig) =>
       ipcRenderer.invoke('image-storage:set-config', vaultPath, config),
   },
+
+  // Search operations
+  search: {
+    search: (options: {
+      query: string;
+      rootPath: string;
+      caseSensitive: boolean;
+      isRegex: boolean;
+    }) => ipcRenderer.invoke('search:search', options) as Promise<{
+      success: boolean;
+      results: SearchResult[];
+      error?: string;
+    }>,
+  },
 });
 
 // --------- Type definitions for Renderer process ---------
@@ -260,6 +277,19 @@ declare global {
           Promise<{ success: boolean; url?: string; error?: string }>;
         getConfig: (vaultPath: string) => Promise<{ success: boolean; config: ImageStorageConfig | null }>;
         setConfig: (vaultPath: string, config: ImageStorageConfig) => Promise<{ success: boolean; error?: string }>;
+      };
+      // Search operations
+      search: {
+        search: (options: {
+          query: string;
+          rootPath: string;
+          caseSensitive: boolean;
+          isRegex: boolean;
+        }) => Promise<{
+          success: boolean;
+          results: SearchResult[];
+          error?: string;
+        }>;
       };
     };
   }

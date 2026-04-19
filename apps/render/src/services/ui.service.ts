@@ -13,6 +13,9 @@ export class UIService extends Service {
   readonly leftSidebarMinWidth = 160;
   readonly leftSidebarMaxWidth = 480;
 
+  // Sidebar view state
+  sidebarView: 'tree' | 'search' = 'tree';
+
   // Title Bar Actions
   titleBarActionsOpen = true;
 
@@ -101,6 +104,10 @@ export class UIService extends Service {
   // Explorer
   toggleLeftSidebar(): void {
     this.leftSidebarOpen = !this.leftSidebarOpen;
+  }
+
+  setSidebarView(view: 'tree' | 'search'): void {
+    this.sidebarView = view;
   }
 
   setLeftSidebarWidth(width: number): void {

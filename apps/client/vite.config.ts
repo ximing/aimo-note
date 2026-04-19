@@ -25,7 +25,7 @@ export default defineConfig({
             minify: process.env.NODE_ENV === 'production',
             outDir: 'dist/main',
             rollupOptions: {
-              external: ['electron'],
+              external: ['electron', '@vscode/ripgrep'],
             },
           },
         },
@@ -41,7 +41,7 @@ export default defineConfig({
             minify: process.env.NODE_ENV === 'production',
             outDir: 'dist/preload',
             rollupOptions: {
-              external: ['electron'],
+              external: ['electron', '@vscode/ripgrep'],
               output: {
                 format: 'cjs',
                 entryFileNames: '[name].cjs',

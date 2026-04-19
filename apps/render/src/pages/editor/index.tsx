@@ -1,5 +1,5 @@
-import { useParams, useNavigate } from 'react-router';
-import { useEffect, useState, useCallback } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { bindServices, observer, useService } from '@rabjs/react';
 import { MilkdownEditor } from '../../components/editor/MilkdownEditor';
 import { EditorService } from '../../services/editor.service';
@@ -17,6 +17,9 @@ const EditorPageContent = observer(() => {
   const service = useService(EditorService);
   const vaultService = useVaultService();
   const uiService = useUIService();
+  const [searchParams] = useSearchParams();
+  const highlightQuery = searchParams.get('highlight') || '';
+  const editorRef = useRef<{ dom: HTMLElement | null }>({ dom: null });
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [newFileDialog, setNewFileDialog] = useState(false);
   const [newFolderDialog, setNewFolderDialog] = useState(false);
@@ -80,6 +83,26 @@ const EditorPageContent = observer(() => {
       setFileName(name.replace(/\.md$/, ''));
     }
   }, [service.currentNote, service.currentNote?.path]);
+
+  // Scroll to first highlight when ?highlight param is present
+  useEffect(() => {
+    const highlightParam = searchParams.get('highlight');
+    if (!highlightParam || !editorRef.current.dom) return;
+
+    const scrollToLine = () => {
+      const pm = editorRef.current.dom;
+      if (!pm) return;
+      // Find first highlighted element and scroll to it
+      const highlight = pm.querySelector('.search-highlight-editor');
+      if (highlight) {
+        highlight.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    };
+
+    // Wait for editor DOM and highlight to be ready
+    const timeout = setTimeout(scrollToLine, 300);
+    return () => clearTimeout(timeout);
+  }, [path, searchParams]);
 
   const handleFileNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setFileName(e.target.value);
@@ -219,7 +242,7 @@ const EditorPageContent = observer(() => {
         className="editor-content flex-1 overflow-auto"
         onContextMenu={handleContextMenu}
       >
-        <MilkdownEditor key={service.currentNote?.path || 'empty'} onChange={handleChange} defaultValue={service.content || '# New Note'} />
+        <MilkdownEditor key={service.currentNote?.path || 'empty'} onChange={handleChange} defaultValue={service.content || '# New Note'} highlightQuery={highlightQuery} editorRef={editorRef} />
       </div>
       {contextMenu && (
         <ContextMenu
