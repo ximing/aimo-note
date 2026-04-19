@@ -1,10 +1,18 @@
 import { observer, useService } from '@rabjs/react';
 import { SearchService } from '@/services/search.service';
+import { UIService } from '@/services/ui.service';
 import { SearchInput } from './SearchInput';
 import { SearchResultList } from './SearchResultList';
 
 export const SearchPanel = observer(() => {
   const searchService = useService(SearchService);
+  const uiService = useService(UIService);
+
+  const handleResultClick = (filePath: string, line?: number) => {
+    const title = filePath.split('/').pop() || filePath;
+    uiService.openTab(filePath, title);
+    // TODO: scroll to line when editor supports it
+  };
 
   return (
     <div className="search-panel flex flex-col h-full">
@@ -28,6 +36,7 @@ export const SearchPanel = observer(() => {
           <SearchResultList
             results={searchService.results}
             query={searchService.query}
+            onResultClick={handleResultClick}
           />
         ) : (
           <div className="search-status search-hint">Enter keywords to search</div>

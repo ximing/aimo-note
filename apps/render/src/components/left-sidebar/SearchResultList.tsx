@@ -4,9 +4,10 @@ import { SearchResultItem } from './SearchResultItem';
 interface SearchResultListProps {
   results: SearchResultGroup[];
   query: string;
+  onResultClick?: (filePath: string, line?: number) => void;
 }
 
-export function SearchResultList({ results, query }: SearchResultListProps) {
+export function SearchResultList({ results, query, onResultClick }: SearchResultListProps) {
   if (results.length === 0) {
     return (
       <div className="search-result-empty">
@@ -23,6 +24,7 @@ export function SearchResultList({ results, query }: SearchResultListProps) {
           filePath={result.path}
           matches={result.matches}
           query={query}
+          onResultClick={onResultClick}
         />
       ))}
     </div>

@@ -6,6 +6,7 @@ interface SearchResultItemProps {
   matches: SearchMatch[];
   query: string;
   defaultExpanded?: number;
+  onResultClick?: (filePath: string, line?: number) => void;
 }
 
 function highlightMatch(text: string, start: number, end: number) {
@@ -18,7 +19,7 @@ function highlightMatch(text: string, start: number, end: number) {
   );
 }
 
-export function SearchResultItem({ filePath, matches, query, defaultExpanded = 3 }: SearchResultItemProps) {
+export function SearchResultItem({ filePath, matches, query, defaultExpanded = 3, onResultClick }: SearchResultItemProps) {
   const [expanded, setExpanded] = useState(false);
 
   const fileName = filePath.split('/').pop() || filePath;
@@ -36,7 +37,11 @@ export function SearchResultItem({ filePath, matches, query, defaultExpanded = 3
       {folderPath && <div className="search-result-folder">{folderPath}</div>}
       <div className="search-result-matches">
         {visibleMatches.map((match, index) => (
-          <div key={`${match.path}-${match.line}-${index}`} className="search-result-line">
+          <div
+            key={`${match.path}-${match.line}-${index}`}
+            className="search-result-line"
+            onClick={() => onResultClick?.(filePath, match.line)}
+          >
             <span className="search-result-line-number">{match.line}</span>
             <span className="search-result-line-text">
               {highlightMatch(match.text, match.matchStart, match.matchEnd)}
