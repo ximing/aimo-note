@@ -79,6 +79,14 @@ export class VaultService extends Service {
       // Also restore activeFile for tree selection highlight
       this.activeFile = savedState.currentNotePath;
     }
+    // Restore open tabs from vault config
+    if (this.path) {
+      const tabsConfig = await this.loadTabs();
+      if (tabsConfig && tabsConfig.openTabs.length > 0) {
+        const uiService = this.resolve<UIService>('UIService');
+        uiService.restoreTabs(tabsConfig.openTabs, tabsConfig.activeTabId);
+      }
+    }
   }
 
   async openVault(path: string): Promise<void> {

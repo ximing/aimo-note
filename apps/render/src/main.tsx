@@ -10,7 +10,7 @@ import { SearchService } from './services/search.service';
 import { PluginService } from './services/plugin.service';
 
 register(VaultService);
-register(UIService);
+register('UIService', UIService);
 register(GraphService);
 register(SearchService);
 register(PluginService);
