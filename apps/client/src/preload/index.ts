@@ -200,9 +200,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   imageStorage: {
     upload: (data: { arrayBuffer: ArrayBuffer; mimeType: string; vaultPath: string }) =>
       ipcRenderer.invoke('image-storage:upload', data),
-    getConfig: () => ipcRenderer.invoke('image-storage:get-config'),
-    setConfig: (config: ImageStorageConfig) =>
-      ipcRenderer.invoke('image-storage:set-config', config),
+    getConfig: (vaultPath: string) => ipcRenderer.invoke('image-storage:get-config', vaultPath),
+    setConfig: (vaultPath: string, config: ImageStorageConfig) =>
+      ipcRenderer.invoke('image-storage:set-config', vaultPath, config),
   },
 });
 
@@ -258,8 +258,8 @@ declare global {
       imageStorage: {
         upload: (data: { arrayBuffer: ArrayBuffer; mimeType: string; vaultPath: string }) =>
           Promise<{ success: boolean; url?: string; error?: string }>;
-        getConfig: () => Promise<{ success: boolean; config: ImageStorageConfig | null }>;
-        setConfig: (config: ImageStorageConfig) => Promise<{ success: boolean; error?: string }>;
+        getConfig: (vaultPath: string) => Promise<{ success: boolean; config: ImageStorageConfig | null }>;
+        setConfig: (vaultPath: string, config: ImageStorageConfig) => Promise<{ success: boolean; error?: string }>;
       };
     };
   }
