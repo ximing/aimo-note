@@ -10,3 +10,7 @@ export interface VaultStats {
   noteCount: number;
   lastModified: Date;
 }
+
+// Core types
+export * from './search.js';
+export * from './response.js';

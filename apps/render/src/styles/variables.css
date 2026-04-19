@@ -42,6 +42,10 @@
   --bg-rail: #e8e6e0;
   --bg-sidebar: #f2f1ed;
 
+  /* Search highlight */
+  --search-highlight: #fff3bf;
+  --search-highlight-active: #ffd700;
+
   font-family: Menlo, 'Meslo LG', 'Helvetica Neue', Helvetica, Arial, sans-serif, '微软雅黑', monospace, system-ui, -apple-system, 'Segoe UI', Roboto;
   line-height: 1.5;
   font-weight: 400;
@@ -82,6 +86,10 @@ html.dark {
   --bg-header: #2f2f2f;
   --bg-rail: #2a2a2a;
   --bg-sidebar: #1e1e1e;
+
+  /* Search highlight */
+  --search-highlight-dark: #5c4a1f;
+  --search-highlight-active-dark: #8b6914;
 
   color: var(--text-primary);
   background-color: var(--bg-secondary);
