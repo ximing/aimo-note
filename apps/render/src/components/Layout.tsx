@@ -20,7 +20,7 @@ export const Layout = observer(() => {
         {/* Left Column: Header Row + Content Area */}
         <div className="left-column flex flex-col overflow-hidden">
           {/* Header Row - pl-12 avoids macOS traffic lights */}
-          <div className="header-row pl-12 flex items-center gap-1 px-3 py-1">
+          <div className="header-row pl-16 flex items-center gap-1 px-3 py-1">
             {uiService.leftSidebarOpen ? (
               <>
                 <button
