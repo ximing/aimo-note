@@ -181,6 +181,19 @@ body {
   overflow: hidden;
 }
 
+.left-column {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.right-column {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
 .left-rail {
   display: flex;
   flex-direction: column;

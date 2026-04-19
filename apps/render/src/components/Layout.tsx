@@ -16,58 +16,31 @@ export const Layout = observer(() => {
   return (
     <div className="app-layout h-screen flex flex-col">
       {/* Main Content Area */}
-      <div className="main-area flex flex-1 flex-col overflow-hidden">
-        {/* Header Row - pl-12 avoids macOS traffic lights */}
-        <div className="header-row pl-12 flex items-center gap-1 px-3 py-1">
-          {uiService.leftSidebarOpen ? (
-            <>
-              <button
-                type="button"
-                className="p-1.5 hover:bg-accent hover:text-white rounded text-sm"
-                title="搜索"
-                onClick={() => navigate('/search')}
-              >
-                <Search size={16} />
-              </button>
-              <button
-                type="button"
-                className="p-1.5 hover:bg-accent hover:text-white rounded text-sm"
-                title="收起目录树"
-                onClick={() => uiService.toggleLeftSidebar()}
-              >
-                <PanelLeftClose size={16} />
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              className="p-1.5 hover:bg-accent hover:text-white rounded text-sm"
-              title="展开目录树"
-              onClick={() => uiService.toggleLeftSidebar()}
-            >
-              <PanelLeft size={16} />
-            </button>
-          )}
-        </div>
-
-        {/* Content Area */}
-        <div className="content-area flex flex-1 overflow-hidden">
-          {/* Left Rail */}
-          <LeftRail />
-
-          {/* Left Sidebar (File Tree, Search, Tags, etc.) */}
-          {uiService.leftSidebarOpen && (
-            <aside className="left-sidebar flex-1 flex flex-col bg-bg-secondary">
-              <VaultTree />
-            </aside>
-          )}
-        </div>
-
-        {/* Main Content */}
-        <main className="main-content flex-1 flex flex-col overflow-hidden">
-          {/* Editor Tabs */}
-          <div className="flex items-center">
-            {!uiService.leftSidebarOpen && (
+      <div className="main-area flex flex-1 overflow-hidden">
+        {/* Left Column: Header Row + Content Area */}
+        <div className="left-column flex flex-col overflow-hidden">
+          {/* Header Row - pl-12 avoids macOS traffic lights */}
+          <div className="header-row pl-12 flex items-center gap-1 px-3 py-1">
+            {uiService.leftSidebarOpen ? (
+              <>
+                <button
+                  type="button"
+                  className="p-1.5 hover:bg-accent hover:text-white rounded text-sm"
+                  title="搜索"
+                  onClick={() => navigate('/search')}
+                >
+                  <Search size={16} />
+                </button>
+                <button
+                  type="button"
+                  className="p-1.5 hover:bg-accent hover:text-white rounded text-sm"
+                  title="收起目录树"
+                  onClick={() => uiService.toggleLeftSidebar()}
+                >
+                  <PanelLeftClose size={16} />
+                </button>
+              </>
+            ) : (
               <button
                 type="button"
                 className="p-1.5 hover:bg-accent hover:text-white rounded text-sm"
@@ -77,16 +50,39 @@ export const Layout = observer(() => {
                 <PanelLeft size={16} />
               </button>
             )}
+          </div>
+
+          {/* Content Area */}
+          <div className="content-area flex flex-1 overflow-hidden">
+            {/* Left Rail */}
+            <LeftRail />
+
+            {/* Left Sidebar (File Tree, Search, Tags, etc.) */}
+            {uiService.leftSidebarOpen && (
+              <aside className="left-sidebar flex-1 flex flex-col bg-bg-secondary">
+                <VaultTree />
+              </aside>
+            )}
+          </div>
+        </div>
+
+        {/* Right Column: Editor Tabs + Main Content */}
+        <div className="right-column flex flex-col flex-1 overflow-hidden">
+          {/* Editor Tabs */}
+          <div className="flex items-center px-2 py-1">
             <EditorTabs />
           </div>
 
-          {/* Document Editor Container */}
-          <div className="editor-container flex-1 flex flex-col bg-bg-primary m-2 overflow-hidden">
-            <div className="page-content flex-1 overflow-hidden">
-              <Outlet />
+          {/* Main Content */}
+          <main className="main-content flex-1 flex flex-col overflow-hidden">
+            {/* Document Editor Container */}
+            <div className="editor-container flex-1 flex flex-col bg-bg-primary m-2 overflow-hidden">
+              <div className="page-content flex-1 overflow-hidden">
+                <Outlet />
+              </div>
             </div>
-          </div>
-        </main>
+          </main>
+        </div>
 
         {/* Side Panel */}
         <SidePanel />
