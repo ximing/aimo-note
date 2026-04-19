@@ -154,6 +154,19 @@ body {
   max-width: 100%;
 }
 
+/* Shadow utilities - Notion-style subtle shadows */
+.shadow-sm {
+  box-shadow: var(--shadow-sm);
+}
+
+.shadow-md {
+  box-shadow: var(--shadow-md);
+}
+
+.shadow-lg {
+  box-shadow: var(--shadow-lg);
+}
+
 /* New Layout Regions */
 .left-rail {
   display: flex;
