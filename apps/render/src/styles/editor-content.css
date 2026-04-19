@@ -314,6 +314,61 @@ html.dark .ProseMirror code {
 }
 
 /* ============================================
+   Image Alignment & Wrapper
+   ============================================ */
+
+.ProseMirror .image-wrapper {
+  position: relative;
+  display: block;
+  margin: 1em 0;
+  text-align: center;
+}
+
+.ProseMirror .image-wrapper.align-left {
+  text-align: left;
+}
+
+.ProseMirror .image-wrapper.align-center {
+  text-align: center;
+}
+
+.ProseMirror .image-wrapper.align-right {
+  text-align: right;
+}
+
+/* Selected state */
+.ProseMirror .image-wrapper.is-selected > img,
+.ProseMirror img.ProseMirror-selectednode {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Image toolbar */
+.image-toolbar {
+  position: absolute;
+  z-index: 100;
+  background: #1a1a1a;
+  border-radius: 8px;
+  padding: 6px 8px;
+  display: flex;
+  gap: 2px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transform: translateX(-50%);
+}
+
+/* Drag handles for resizing */
+.resize-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: white;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  z-index: 10;
+}
+
+/* ============================================
    Tables
    ============================================ */
 
