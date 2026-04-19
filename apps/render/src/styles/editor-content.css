@@ -324,15 +324,16 @@ html.dark .ProseMirror code {
   text-align: center;
 }
 
-.ProseMirror .image-wrapper.align-left {
+/* Image alignment - applied directly to img element via imageAttr */
+.ProseMirror img.align-left {
   text-align: left;
 }
 
-.ProseMirror .image-wrapper.align-center {
+.ProseMirror img.align-center {
   text-align: center;
 }
 
-.ProseMirror .image-wrapper.align-right {
+.ProseMirror img.align-right {
   text-align: right;
 }
 

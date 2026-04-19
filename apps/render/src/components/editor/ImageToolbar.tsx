@@ -81,9 +81,9 @@ const calculateToolbarPosition = (
 
   const containerRect = containerEl.getBoundingClientRect();
 
-  // Calculate relative position of image
-  const imageTop = position.top - containerRect.top;
-  const imageLeft = position.left - containerRect.left;
+  // Calculate relative position of image (position is already relative to container)
+  const imageTop = position.top;
+  const imageLeft = position.left;
   const imageWidth = position.width;
 
   // Calculate where toolbar would be positioned (above image)

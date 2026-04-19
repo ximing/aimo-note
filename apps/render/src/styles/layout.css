@@ -110,17 +110,17 @@
    Resize Handle
    ============================================ */
 
-.resize-handle {
+.panel-resize-handle {
   user-select: none;
   background-color: transparent;
   transition: background-color 0.15s ease;
 }
 
-.resize-handle:hover {
+.panel-resize-handle:hover {
   background-color: var(--hover-soft);
 }
 
-.resize-handle:active {
+.panel-resize-handle:active {
   user-select: none;
 }
 

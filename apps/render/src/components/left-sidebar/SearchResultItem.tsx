@@ -20,8 +20,11 @@ function highlightMatch(text: string, start: number, end: number) {
 export function SearchResultItem({ filePath, matches, onResultClick }: SearchResultItemProps) {
   const [expanded, setExpanded] = useState(false);
 
-  const fileName = filePath.split('/').pop() || filePath;
-  const folderPath = filePath.includes('/') ? filePath.substring(0, filePath.lastIndexOf('/')) : '';
+  const normalizedFilePath = typeof filePath === 'string' ? filePath : String(filePath);
+  const fileName = normalizedFilePath.split('/').pop() || normalizedFilePath;
+  const folderPath = normalizedFilePath.includes('/')
+    ? normalizedFilePath.substring(0, normalizedFilePath.lastIndexOf('/'))
+    : '';
 
   const visibleMatches = expanded ? matches : matches.slice(0, 3);
   const hiddenCount = Math.max(0, matches.length - 3);
@@ -38,7 +41,7 @@ export function SearchResultItem({ filePath, matches, onResultClick }: SearchRes
           <div
             key={`${match.path}-${match.line}-${index}`}
             className="search-result-line"
-            onClick={() => onResultClick(filePath, match.line)}
+            onClick={() => onResultClick(normalizedFilePath, match.line)}
           >
             <span className="search-result-line-number">{match.line}</span>
             <span className="search-result-line-text">

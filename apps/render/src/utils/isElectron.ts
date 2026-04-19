@@ -1,3 +1,5 @@
+import type { SearchResult } from '@aimo-note/dto';
+
 /**
  * Detect if the app is running in Electron environment
  * Checks for the presence of 'Electron' in the user agent string
@@ -114,8 +116,12 @@ declare global {
       };
       // Search APIs
       search: {
-        query: (query: string, limit?: number) => Promise<{ success: boolean; results?: unknown[]; error?: string }>;
-        queryContent: (query: string) => Promise<{ success: boolean; results?: unknown[]; error?: string }>;
+        search: (options: {
+          query: string;
+          rootPath: string;
+          caseSensitive: boolean;
+          isRegex: boolean;
+        }) => Promise<{ success: boolean; results: SearchResult[]; error?: string }>;
       };
       // Graph APIs
       graph: {
@@ -154,6 +160,11 @@ declare global {
       // Clipboard APIs
       clipboard: {
         readImage: () => Promise<{ success: boolean; data: { arrayBuffer: ArrayBuffer; mimeType: string } | null; error?: string }>;
+        writeText: (text: string) => Promise<{ success: boolean; error?: string }>;
+      };
+      // Shell APIs
+      shell: {
+        openPath: (filePath: string) => Promise<{ success: boolean; error?: string }>;
       };
       // Image storage APIs
       imageStorage: {

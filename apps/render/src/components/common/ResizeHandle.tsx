@@ -49,7 +49,7 @@ export function ResizeHandle({ onResize, onResizeEnd, side = 'right' }: ResizeHa
 
   return (
     <div
-      className="resize-handle w-1 cursor-col-resize flex-shrink-0"
+      className="panel-resize-handle w-1 cursor-col-resize flex-shrink-0"
       onMouseDown={handleMouseDown}
     />
   );

@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router';
+import { useParams, useNavigate, useSearchParams } from 'react-router';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { bindServices, observer, useService } from '@rabjs/react';
 import { MilkdownEditor } from '../../components/editor/MilkdownEditor';
@@ -17,7 +17,7 @@ const EditorPageContent = observer(() => {
   const service = useService(EditorService);
   const vaultService = useVaultService();
   const uiService = useUIService();
-  const searchParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+  const [searchParams] = useSearchParams();
   const highlightQuery = searchParams.get('highlight') || '';
   const lineParam = searchParams.get('line');
   const targetLine = lineParam ? Number.parseInt(lineParam, 10) : undefined;

@@ -43,6 +43,7 @@ export function createWindow(): void {
     title: 'AIMO-NOTE',
     icon: iconPath,
     titleBarStyle: 'hidden',
+    trafficLightPosition: { x: 8, y: 12 },
     webPreferences: {
       preload: PRELOAD_PATH,
       contextIsolation: true,

@@ -399,10 +399,17 @@ export function registerIpcHandlers(): void {
         try {
           const parsed = JSON.parse(line);
           if (parsed.type === 'match') {
+            const resultPath =
+              typeof parsed.data.path?.text === 'string' ? parsed.data.path.text : parsed.data.path;
+
+            if (typeof resultPath !== 'string') {
+              continue;
+            }
+
             const submatches = parsed.data.submatches || [];
             for (const match of submatches) {
               searchResults.push({
-                path: parsed.data.path,
+                path: resultPath,
                 line: parsed.data.line_number,
                 text: parsed.data.lines.text,
                 matchStart: match.start,

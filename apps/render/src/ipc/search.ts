@@ -9,6 +9,6 @@ export interface Search {
 
 export const search: Search = {
   async search(options: SearchOptions) {
-    return window.electronAPI.search.search(options);
+    return window.electronAPI!.search.search(options);
   },
 };
