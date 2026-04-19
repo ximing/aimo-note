@@ -2,7 +2,7 @@ import React, { useCallback, useMemo } from 'react';
 
 export interface ImageToolbarProps {
   alignment: 'left' | 'center' | 'right';
-  position: { top: number; left: number; width: number };
+  position: { top: number; left: number; width: number; height: number };
   onAlign: (align: 'left' | 'center' | 'right') => void;
   onDelete: () => void;
   containerRef: React.RefObject<HTMLElement>;
@@ -53,6 +53,7 @@ const DeleteIcon = () => (
       stroke="currentColor"
       strokeWidth="1.5"
       strokeLinecap="round"
+      strokeLinejoin="round"
     />
   </svg>
 );
@@ -72,7 +73,7 @@ const BUTTON_ICON_MAP: Record<Alignment, React.FC> = {
 
 // Calculate toolbar position based on image position and container bounds
 const calculateToolbarPosition = (
-  position: { top: number; left: number; width: number },
+  position: { top: number; left: number; width: number; height: number },
   containerRef: React.RefObject<HTMLElement>,
   toolbarWidth: number
 ): { top: number; left: number; showBelow: boolean } | null => {
@@ -81,25 +82,20 @@ const calculateToolbarPosition = (
 
   const containerRect = containerEl.getBoundingClientRect();
 
-  // Calculate relative position of image (position is already relative to container)
   const imageTop = position.top;
   const imageLeft = position.left;
   const imageWidth = position.width;
+  const imageHeight = position.height;
 
-  // Calculate where toolbar would be positioned (above image)
   let toolbarTop = imageTop - TOOLBAR_HEIGHT - TOOLBAR_OFFSET;
   let showBelow = false;
 
-  // If toolbar overflows container top, show below the image instead
-  if (toolbarTop < 0) {
-    toolbarTop = imageTop + TOOLBAR_HEIGHT + TOOLBAR_OFFSET;
+  if (toolbarTop < TRIANGLE_SIZE) {
+    toolbarTop = imageTop + imageHeight + TOOLBAR_OFFSET;
     showBelow = true;
   }
 
-  // Calculate horizontal center of the image
   const toolbarLeft = imageLeft + imageWidth / 2;
-
-  // Ensure toolbar doesn't overflow container left/right
   const toolbarHalfWidth = toolbarWidth / 2;
   let adjustedLeft = toolbarLeft;
 
@@ -110,7 +106,7 @@ const calculateToolbarPosition = (
   }
 
   return {
-    top: showBelow ? toolbarTop + TOOLBAR_HEIGHT + TRIANGLE_SIZE : toolbarTop - TRIANGLE_SIZE,
+    top: toolbarTop,
     left: adjustedLeft,
     showBelow,
   };
@@ -124,14 +120,15 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
   containerRef,
 }) => {
   const handleAlign = useCallback(
-    (align: Alignment) => {
+    (e: React.MouseEvent<HTMLButtonElement>, align: Alignment) => {
+      e.stopPropagation();
       onAlign(align);
     },
     [onAlign]
   );
 
   const handleDelete = useCallback(
-    (e: React.MouseEvent) => {
+    (e: React.MouseEvent<HTMLButtonElement>) => {
       e.stopPropagation();
       onDelete();
     },
@@ -166,6 +163,7 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
         gap: 2,
         boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
       }}
+      onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
       {/* Triangle pointer */}
@@ -174,12 +172,12 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
           position: 'absolute',
           left: '50%',
           transform: 'translateX(-50%)',
-          [positionState.showBelow ? 'bottom' : 'top']: -TRIANGLE_SIZE,
+          [positionState.showBelow ? 'top' : 'bottom']: -TRIANGLE_SIZE,
           width: 0,
           height: 0,
           borderLeft: `${TRIANGLE_SIZE}px solid transparent`,
           borderRight: `${TRIANGLE_SIZE}px solid transparent`,
-          [positionState.showBelow ? 'borderTop' : 'borderBottom']: `${TRIANGLE_SIZE}px solid #1a1a1a`,
+          [positionState.showBelow ? 'borderBottom' : 'borderTop']: `${TRIANGLE_SIZE}px solid #1a1a1a`,
         }}
       />
 
@@ -192,7 +190,7 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
           <button
             key={align}
             title={BUTTON_TOOLTIPS[align]}
-            onClick={() => handleAlign(align)}
+            onClick={(e) => handleAlign(e, align)}
             style={{
               display: 'flex',
               alignItems: 'center',

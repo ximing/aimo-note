@@ -4,6 +4,7 @@
 
 /* Editor Wrapper - fill parent space */
 .milkdown-wrapper {
+  position: relative;
   display: flex;
   flex-direction: column;
   width: 100%;

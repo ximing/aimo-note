@@ -7,18 +7,37 @@ interface SearchResultItemProps {
   onResultClick: (filePath: string, line?: number) => void;
 }
 
+function utf8ByteOffsetToStringIndex(text: string, byteOffset: number): number {
+  if (byteOffset <= 0) {
+    return 0;
+  }
+
+  const encoder = new TextEncoder();
+  let currentByteOffset = 0;
+  let stringIndex = 0;
+
+  for (const char of text) {
+    const nextByteOffset = currentByteOffset + encoder.encode(char).length;
+    if (nextByteOffset > byteOffset) {
+      break;
+    }
+
+    currentByteOffset = nextByteOffset;
+    stringIndex += char.length;
+  }
+
+  return stringIndex;
+}
+
 function highlightMatch(text: string, byteStart: number, byteEnd: number) {
-  // Convert byte offset to character index (UTF-16 code unit)
-  // ASCII: byte index == char index
-  // Multi-byte chars (Chinese 3 bytes, emoji 4 bytes): byte index > char index
-  const charStart = [...text.slice(0, byteStart)].length;
-  const charEnd = [...text.slice(0, byteEnd)].length;
+  const stringStart = utf8ByteOffsetToStringIndex(text, byteStart);
+  const stringEnd = utf8ByteOffsetToStringIndex(text, byteEnd);
 
   return (
     <>
-      {text.slice(0, charStart)}
-      <mark className="search-highlight">{text.slice(charStart, charEnd)}</mark>
-      {text.slice(charEnd)}
+      {text.slice(0, stringStart)}
+      <mark className="search-highlight">{text.slice(stringStart, stringEnd)}</mark>
+      {text.slice(stringEnd)}
     </>
   );
 }
@@ -40,18 +59,22 @@ export function SearchResultItem({ filePath, matches, onResultClick }: SearchRes
       </div>
       {folderPath && <div className="search-result-folder">{folderPath}</div>}
       <div className="search-result-matches">
-        {visibleMatches.map((match, index) => (
-          <div
-            key={`${match.path}-${match.line}-${index}`}
-            className="search-result-line"
-            onClick={() => onResultClick(filePath, match.line)}
-          >
-            <span className="search-result-line-number">{match.line}</span>
-            <span className="search-result-line-text">
-              {highlightMatch(match.text, match.byteStart, match.byteEnd)}
-            </span>
-          </div>
-        ))}
+        {visibleMatches.map((match, index) => {
+          const displayText = match.text.replace(/\r?\n$/, '');
+
+          return (
+            <div
+              key={`${match.path}-${match.line}-${index}`}
+              className="search-result-line"
+              onClick={() => onResultClick(filePath, match.line)}
+            >
+              <span className="search-result-line-number">{match.line}</span>
+              <span className="search-result-line-text">
+                {highlightMatch(displayText, match.byteStart, match.byteEnd)}
+              </span>
+            </div>
+          );
+        })}
         {!expanded && hiddenCount > 0 && (
           <button
             type="button"

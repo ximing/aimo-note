@@ -413,7 +413,8 @@
 .search-result-line-text {
   flex: 1;
   color: var(--text-secondary);
-  word-break: break-all;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   line-height: 1.4;
 }
 

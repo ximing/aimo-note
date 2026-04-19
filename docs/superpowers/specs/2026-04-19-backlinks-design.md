@@ -47,7 +47,9 @@ apps/render         # React renderer
 
 ## 三、packages/core — Graph 模块
 
-### 3.1 接口定义
+> ⚠️ 注意：`packages/core/src/graph/index.ts` 目前仅有接口定义（无实现）。本模块需新建 `packages/core/src/graph/graph.ts` 实现文件。
+
+### 3.1 接口定义（已有，复述确认）
 
 ```typescript
 // packages/core/src/graph/index.ts
@@ -76,35 +78,75 @@ export interface GraphEdge {
 
 ### 3.2 实现策略
 
-- `buildFromNotes()` 用已有的 `extractLinks(body)` 遍历所有笔记，构建 `path → Set<targetPath>` 的邻接表
+- `buildFromNotes()` 遍历所有笔记，通过 `extractLinks(body)` 提取链接，构建 `path → Set<targetPath>` 邻接表
 - `getBacklinks(path)` 反向查邻接表
 - `getOutlinks(path)` 正向查邻接表
-- Vault watcher 在文件变化时增量调用，传入 changed note 触发局部更新
+- Vault watcher 在文件变化时**按需增量**：传入 changed note，移除旧边、添加新边
 
-### 3.3 链接解析逻辑
+### 3.3 链接解析算法
+
+#### 3.3.1 Wiki-link 正则（需更新 `packages/core/src/index.ts`）
+
+原正则 `/\[\[([^\]]+)\]\]/g` 会把 `[[笔记|别名]]` 整体作为一个字符串捕获。需要拆分 alias：
 
 ```typescript
-// packages/core/src/index.ts 扩展
+const WIKI_LINK_REGEX = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
+// 捕获组1: target（链接目标，不含 | 和 ] 的部分）
+// 捕获组2: alias（可选，别名部分）
 
-export function resolveLink(linkText: string, allNotePaths: string[]): string | null {
-  // 1. 精确匹配（去掉 .md/.mdx 后缀）
-  // 2. 模糊匹配（忽略大小写、扩展名）
-  // 3. 返回 null 表示断链
+// 对于 ![[嵌入笔记]] 嵌入语法：
+const EMBED_REGEX = /!\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
+```
+
+> ⚠️ 块引用 `[[笔记#block-id]]` 暂不支持，正则中的 `[^\]|]` 排除 `#` 字符，确保本版本不会误匹配。
+
+#### 3.3.2 resolveLink 算法
+
+```typescript
+// packages/core/src/index.ts
+
+export function resolveLink(
+  linkText: string,      // wiki-link 中的 target 部分（不含 [[]] 和 alias）
+  allNotePaths: string[]  // vault 中所有笔记的相对路径（不含 .md/.mdx 后缀）
+): string | null {
+  const candidates = allNotePaths.map(p => p.replace(/\.mdx?$/, ''));
+
+  // Step 1: 精确匹配
+  const exact = candidates.find(c => c === linkText);
+  if (exact) return exact;
+
+  // Step 2: 模糊匹配（忽略大小写 + 忽略扩展名）
+  const lc = linkText.toLowerCase();
+  const fuzzy = candidates.find(c => c.toLowerCase() === lc);
+  if (fuzzy) return fuzzy;
+
+  // Step 3: 多结果时返回第一个（不稳定，后续可改进为评分排序）
+  const partial = candidates.filter(c => c.toLowerCase().includes(lc));
+  return partial[0] ?? null; // null = 断链
 }
 ```
+
+### 3.4 边缘情况处理
+
+| 场景 | 处理方式 |
+|---|---|
+| 自链 `[[当前笔记]]` | **不**计入 backlinks 和 outlinks（避免自我引用污染面板） |
+| 循环引用 A↔B | 正常计入各自 outlinks/backlinks，图谱中显示双向边 |
+| 笔记重命名 | **暂不处理**（rename propagation 属于高级特性，后续单独 spec） |
+| 多模糊匹配 | 返回第一个（模糊匹配列表无序，结果不稳定，接受现状） |
 
 ---
 
 ## 四、apps/client — IPC Handler
 
-实现以下 handlers：
+实现以下 handlers（统一使用 `noteId` 参数名，对应笔记相对路径）：
 
 | Handler | 说明 |
 |---|---|
-| `graph:build` | 接收所有笔记 path+body，调用 core.graph.buildFromNotes() |
-| `graph:getBacklinks` | 传入 notePath，返回 backlinks 路径数组 |
-| `graph:getOutlinks` | 同上，返回 outlinks |
-| `graph:getGraphData` | 返回 { nodes, edges } |
+| `graph:build` | 接收所有笔记 `{ path, body }[]`，调用 core.graph.buildFromNotes()，返回空 `{}` |
+| `graph:getBacklinks` | 传入 noteId，返回 backlinks 路径数组 `string[]` |
+| `graph:getOutlinks` | 传入 noteId，返回 outlinks 路径数组 `string[]` |
+| `graph:getGraph` | 返回完整图数据 `{ nodes: GraphNode[], edges: GraphEdge[] }` |
 
 ---
 
@@ -113,25 +155,79 @@ export function resolveLink(linkText: string, allNotePaths: string[]): string | 
 ### 5.1 新增 Milkdown Plugin
 
 1. **InputRule** — 监听 `[[` 输入，自动补全 `]]`，光标放中间
-2. **Node: wikiLink** — schema 定义 `{ attrs: { target: {}, alias: {} } }`
+2. **Node: wikiLink** — schema 定义 `{ attrs: { target: {}, alias: {}, isEmbed: false } }`
 3. **NodeView** — 渲染为 `<span class="wiki-link" data-target="...">`，支持点击跳转
-4. **NodeView — embed** — 识别 `![[` 前缀，渲染为嵌入占位块
+4. **NodeView — embed** — 识别 `![[` 前缀，渲染为嵌入占位块（详见 5.3）
 5. **Slash Command** — `/link` 触发补全列表
 
-### 5.2 插件注册顺序
+### 5.2 Wiki-link 点击行为
+
+| 场景 | 行为 |
+|---|---|
+| `[[笔记]]` + 目标存在 | 跳转（打开目标笔记） |
+| `[[笔记]]` + 目标**不存在** | 标记断链（红色虚线样式），点击提示"创建笔记？" |
+| `![[笔记]]` | 触发嵌入展开（hover/click，详见 5.3） |
+
+### 5.3 嵌入（Transclusion）渲染
+
+嵌入节点渲染为占位块，结构和交互：
+
+```tsx
+// 嵌入占位符结构
+<div class="embed-block" data-target="笔记名">
+  <div class="embed-header">
+    <span class="embed-title">笔记名</span>
+    <button class="embed-collapse">▼</button>
+  </div>
+  {expanded ? (
+    // 展开状态：渲染嵌入内容
+    <div class="embed-content">{renderedContent}</div>
+  ) : (
+    // 收起状态：显示预览摘要
+    <div class="embed-placeholder">点击展开 / hover 展开嵌入内容</div>
+  )}
+</div>
+```
+
+**触发展开方式**：鼠标 hover（300ms debounce）或点击占位区域。展开后内容缓存，源笔记变化时自动刷新。键盘支持 Enter/Space 展开。
+
+> ⚠️ 嵌入内容**仅读取**（不编辑），编辑需跳转原笔记。
+
+### 5.4 插件注册顺序
+
+在 `MilkdownEditorInner.tsx` 现有插件列表基础上**追加** wikiLinkPlugin：
 
 ```
-commonmark → GFM → wikiLinkPlugin → linkTooltipPlugin
+commonmark → gfm → history → listener → slash → math
+  → imageBlockComponent → imageInlineComponent
+  → wikiLinkPlugin  ← 新增
+  → linkTooltipPlugin → block
 ```
 
 ---
 
 ## 六、apps/render — Backlinks Panel
 
-- 位置：`apps/render/src/components/side-panel/SidePanel.tsx` 中已有的 Backlinks Tab
-- 展示内容：笔记标题 + 所在文件夹路径 + 包含链接的上下文片段（±30 字高亮关键词）
+- 位置：`apps/render/src/components/side-panel/SidePanel.tsx` 中已有的 Backlinks Tab（当前为占位输出，需替换）
+- 展示内容：笔记标题 + 所在文件夹路径 + 包含链接的上下文片段
 - 点击跳转到对应笔记并高亮
 - 数据来源：`graph:getBacklinks(currentNotePath)` + 内容片段搜索
+
+### 6.1 上下文片段提取算法
+
+1. 在源笔记中定位 `[[当前笔记]]` 出现位置（使用 `extractLinks` 结果）
+2. 取该位置前后各 **50 个字符**（不足则取到边界）作为上下文
+3. 高亮方式：将 `[[当前笔记]]` 文字本身用 `<mark>` 包裹
+4. 若同一笔记多次链接到当前笔记，每条单独展示一行
+
+### 6.2 Vault Watcher 触发条件
+
+> ⚠️ Vault watcher 在 `packages/core/src/vault/index.ts` 中仅为接口（无实现）。增量图更新依赖 watcher 实现后生效。
+>
+> 触发时序：
+> - **笔记保存** → 传入变化的 note `{ path, body }`，移除旧外链边，添加新边
+> - **笔记删除** → 传入 path，移除所有相关边
+> - **首次打开 vault** → 调用 `graph:build` 全量构建
 
 ---
 

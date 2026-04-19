@@ -2,8 +2,16 @@ import React, { useCallback, useRef, useEffect } from 'react';
 
 export type HandlePosition = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
+interface ImageOverlayPosition {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+}
+
 export interface ImageResizeHandlesProps {
   imageRef: React.RefObject<HTMLImageElement>;
+  position: ImageOverlayPosition;
   onResizeStart: () => void;
   onResize: (width: number, height: number) => void;
   onResizeEnd: (width: number, height: number) => void;
@@ -33,7 +41,7 @@ interface ResizeState {
   origMarginTop: number;
   origWidth: number;
   origHeight: number;
-  MAX_WIDTH: number;
+  maxWidth: number;
   handle: HandlePosition;
 }
 
@@ -50,7 +58,7 @@ const doResize = (
 
   switch (state.handle) {
     case 'se':
-      newWidth = Math.max(MIN_WIDTH, Math.min(state.MAX_WIDTH, state.styleWidth + dx));
+      newWidth = Math.max(MIN_WIDTH, Math.min(state.maxWidth, state.styleWidth + dx));
       if (shiftKey) {
         const ratio = state.origWidth / state.origHeight;
         imageEl.style.width = `${newWidth}px`;
@@ -66,21 +74,21 @@ const doResize = (
       imageEl.style.height = `${newHeight}px`;
       break;
     case 'e':
-      newWidth = Math.max(MIN_WIDTH, Math.min(state.MAX_WIDTH, state.styleWidth + dx));
+      newWidth = Math.max(MIN_WIDTH, Math.min(state.maxWidth, state.styleWidth + dx));
       imageEl.style.width = `${newWidth}px`;
       break;
     case 'sw':
-      newWidth = Math.max(MIN_WIDTH, Math.min(state.MAX_WIDTH, state.styleWidth - dx));
+      newWidth = Math.max(MIN_WIDTH, Math.min(state.maxWidth, state.styleWidth - dx));
       imageEl.style.width = `${newWidth}px`;
       imageEl.style.marginLeft = `${state.origMarginLeft + dx}px`;
       break;
     case 'w':
-      newWidth = Math.max(MIN_WIDTH, Math.min(state.MAX_WIDTH, state.styleWidth - dx));
+      newWidth = Math.max(MIN_WIDTH, Math.min(state.maxWidth, state.styleWidth - dx));
       imageEl.style.width = `${newWidth}px`;
       imageEl.style.marginLeft = `${state.origMarginLeft + dx}px`;
       break;
     case 'nw':
-      newWidth = Math.max(MIN_WIDTH, Math.min(state.MAX_WIDTH, state.styleWidth - dx));
+      newWidth = Math.max(MIN_WIDTH, Math.min(state.maxWidth, state.styleWidth - dx));
       if (shiftKey) {
         const ratio = state.origWidth / state.origHeight;
         imageEl.style.width = `${newWidth}px`;
@@ -99,7 +107,7 @@ const doResize = (
       imageEl.style.marginTop = `${state.origMarginTop + dy}px`;
       break;
     case 'ne':
-      newWidth = Math.max(MIN_WIDTH, Math.min(state.MAX_WIDTH, state.styleWidth + dx));
+      newWidth = Math.max(MIN_WIDTH, Math.min(state.maxWidth, state.styleWidth + dx));
       if (shiftKey) {
         const ratio = state.origWidth / state.origHeight;
         imageEl.style.width = `${newWidth}px`;
@@ -129,7 +137,7 @@ interface InitResizeParams {
 
 const initResize = (
   params: InitResizeParams,
-  activeListenersRef: React.MutableRefObject<{ onMouseMove: (e: MouseEvent) => void; onMouseUp: () => void } | null>
+  activeListenersRef: React.MutableRefObject<{ onPointerMove: (e: PointerEvent) => void; onPointerUp: () => void } | null>
 ) => {
   const { imageEl, clientX, clientY, pointerId, handle, onResizeStart, onResize, onResizeEnd } = params;
 
@@ -138,41 +146,44 @@ const initResize = (
   const state: ResizeState = {
     startX: clientX,
     startY: clientY,
-    styleWidth: parseInt(imageEl.style.width) || imageEl.offsetWidth,
-    styleHeight: parseInt(imageEl.style.height) || imageEl.offsetHeight,
-    origMarginLeft: parseInt(imageEl.style.marginLeft || '0'),
-    origMarginTop: parseInt(imageEl.style.marginTop || '0'),
+    styleWidth: parseInt(imageEl.style.width, 10) || imageEl.offsetWidth,
+    styleHeight: parseInt(imageEl.style.height, 10) || imageEl.offsetHeight,
+    origMarginLeft: parseInt(imageEl.style.marginLeft || '0', 10),
+    origMarginTop: parseInt(imageEl.style.marginTop || '0', 10),
     origWidth: imageEl.naturalWidth,
     origHeight: imageEl.naturalHeight,
-    MAX_WIDTH: imageEl.parentElement?.offsetWidth || 800,
+    maxWidth: imageEl.parentElement?.offsetWidth || 800,
     handle,
   };
 
-  const onMouseMove = (moveEvent: MouseEvent) => {
+  const onPointerMove = (moveEvent: PointerEvent) => {
     const dx = moveEvent.clientX - state.startX;
     const dy = moveEvent.clientY - state.startY;
     doResize(imageEl, state, dx, dy, moveEvent.shiftKey, onResize);
   };
 
-  const onMouseUp = () => {
-    document.removeEventListener('mousemove', onMouseMove);
-    document.removeEventListener('mouseup', onMouseUp);
+  const onPointerUp = () => {
+    document.removeEventListener('pointermove', onPointerMove);
+    document.removeEventListener('pointerup', onPointerUp);
     imageEl.style.removeProperty('user-select');
-    imageEl.releasePointerCapture(pointerId);
+    if (imageEl.hasPointerCapture(pointerId)) {
+      imageEl.releasePointerCapture(pointerId);
+    }
     activeListenersRef.current = null;
     onResizeEnd(imageEl.offsetWidth, imageEl.offsetHeight);
   };
 
   imageEl.style.userSelect = 'none';
   imageEl.setPointerCapture(pointerId);
-  document.addEventListener('mousemove', onMouseMove);
-  document.addEventListener('mouseup', onMouseUp);
+  document.addEventListener('pointermove', onPointerMove);
+  document.addEventListener('pointerup', onPointerUp);
 
-  activeListenersRef.current = { onMouseMove, onMouseUp };
+  activeListenersRef.current = { onPointerMove, onPointerUp };
 };
 
 export const ImageResizeHandles: React.FC<ImageResizeHandlesProps> = ({
   imageRef,
+  position,
   onResizeStart,
   onResize,
   onResizeEnd,
@@ -180,7 +191,7 @@ export const ImageResizeHandles: React.FC<ImageResizeHandlesProps> = ({
   const onResizeRef = useRef(onResize);
   const onResizeEndRef = useRef(onResizeEnd);
   const onResizeStartRef = useRef(onResizeStart);
-  const activeListenersRef = useRef<{ onMouseMove: (e: MouseEvent) => void; onMouseUp: () => void } | null>(null);
+  const activeListenersRef = useRef<{ onPointerMove: (e: PointerEvent) => void; onPointerUp: () => void } | null>(null);
 
   useEffect(() => {
     onResizeRef.current = onResize;
@@ -192,15 +203,15 @@ export const ImageResizeHandles: React.FC<ImageResizeHandlesProps> = ({
   useEffect(() => {
     return () => {
       if (activeListenersRef.current) {
-        document.removeEventListener('mousemove', activeListenersRef.current.onMouseMove);
-        document.removeEventListener('mouseup', activeListenersRef.current.onMouseUp);
+        document.removeEventListener('pointermove', activeListenersRef.current.onPointerMove);
+        document.removeEventListener('pointerup', activeListenersRef.current.onPointerUp);
         activeListenersRef.current = null;
       }
     };
   }, []);
 
-  const handleMouseDown = useCallback(
-    (e: React.PointerEvent, handle: HandlePosition) => {
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>, handle: HandlePosition) => {
       e.preventDefault();
       e.stopPropagation();
 
@@ -248,7 +259,17 @@ export const ImageResizeHandles: React.FC<ImageResizeHandlesProps> = ({
   const handles: HandlePosition[] = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];
 
   return (
-    <>
+    <div
+      style={{
+        position: 'absolute',
+        top: position.top,
+        left: position.left,
+        width: position.width,
+        height: position.height,
+        pointerEvents: 'none',
+        zIndex: 90,
+      }}
+    >
       {handles.map((handle) => (
         <div
           key={handle}
@@ -261,11 +282,13 @@ export const ImageResizeHandles: React.FC<ImageResizeHandlesProps> = ({
             border: '2px solid var(--accent)',
             borderRadius: '50%',
             zIndex: 10,
+            pointerEvents: 'auto',
+            touchAction: 'none',
             ...positionStyles[handle],
           }}
-          onMouseDown={(e) => handleMouseDown(e as unknown as React.PointerEvent, handle)}
+          onPointerDown={(e) => handlePointerDown(e, handle)}
         />
       ))}
-    </>
+    </div>
   );
 };

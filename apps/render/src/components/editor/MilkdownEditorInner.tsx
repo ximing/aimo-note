@@ -5,6 +5,7 @@ import { gfm, insertTableCommand } from '@milkdown/kit/preset/gfm';
 import { history } from '@milkdown/kit/plugin/history';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { SlashProvider, slashFactory } from '@milkdown/kit/plugin/slash';
+import { NodeSelection } from '@milkdown/kit/prose/state';
 import type { EditorView } from '@milkdown/kit/prose/view';
 import { Milkdown } from '@milkdown/react';
 import { useRef, useEffect, useMemo, useState, useCallback } from 'react';
@@ -45,6 +46,13 @@ export interface MilkdownEditorInnerProps {
   highlightQuery?: string;
   targetLine?: number;
   editorRef?: React.MutableRefObject<{ dom: HTMLElement | null }>;
+}
+
+interface ImageOverlayPosition {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
 }
 
 // Create slash factory
@@ -123,7 +131,7 @@ class SlashMenu {
       const view = this.ctx.get(editorViewCtx);
       const { state } = view;
       const { from } = state.selection;
-      
+
       // Delete the '/' character (1 character before cursor)
       const deleteTr = state.tr.delete(from - 1, from);
       view.dispatch(deleteTr);
@@ -211,7 +219,7 @@ export function MilkdownEditorInner({
   // Image selection state
   const [selectedImageNodePos, setSelectedImageNodePos] = useState<number | null>(null);
   const [selectedAlignment, setSelectedAlignment] = useState<'left' | 'center' | 'right'>('center');
-  const [imagePosition, setImagePosition] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [imagePosition, setImagePosition] = useState<ImageOverlayPosition | null>(null);
   const selectedImageRef = useRef<HTMLImageElement | null>(null);
 
   // Keep refs updated without triggering re-render
@@ -219,6 +227,28 @@ export function MilkdownEditorInner({
     defaultValueRef.current = defaultValue;
     onChangeRef.current = onChange;
   });
+
+  const clearSelectedImage = useCallback(() => {
+    if (selectedImageRef.current) {
+      selectedImageRef.current.classList.remove('is-selected');
+    }
+    selectedImageRef.current = null;
+    setSelectedImageNodePos(null);
+    setImagePosition(null);
+  }, []);
+
+  const updateImageOverlayPosition = useCallback((imageEl: HTMLImageElement) => {
+    const containerRect = editorRootRef.current?.getBoundingClientRect();
+    if (!containerRect) return;
+
+    const rect = imageEl.getBoundingClientRect();
+    setImagePosition({
+      top: rect.top - containerRect.top,
+      left: rect.left - containerRect.left,
+      width: rect.width,
+      height: rect.height,
+    });
+  }, []);
 
   const resolvePreviewImageUrl = useCallback(
     (src: string) => {
@@ -247,6 +277,68 @@ export function MilkdownEditorInner({
       }
     });
   }, [resolvePreviewImageUrl]);
+
+  const syncSelectedImageFromView = useCallback(
+    (view: EditorView, clickedImage?: HTMLImageElement | null) => {
+      const imageNodeType = view.state.schema.nodes.image ?? view.state.schema.nodes.imageBlock;
+      if (!imageNodeType) {
+        clearSelectedImage();
+        return;
+      }
+
+      let pos: number | null = null;
+      let imageEl: HTMLImageElement | null = null;
+      let node = null;
+
+      if (view.state.selection instanceof NodeSelection) {
+        const selectedNode = view.state.doc.nodeAt(view.state.selection.from);
+        if (selectedNode?.type === imageNodeType) {
+          pos = view.state.selection.from;
+          node = selectedNode;
+          const domNode = view.nodeDOM(pos);
+          imageEl = domNode instanceof HTMLImageElement
+            ? domNode
+            : domNode instanceof HTMLElement
+              ? domNode.querySelector('img')
+              : null;
+        }
+      }
+
+      if (!node && clickedImage) {
+        try {
+          const fallbackPos = view.posAtDOM(clickedImage, 0);
+          const fallbackNode = view.state.doc.nodeAt(fallbackPos);
+          if (fallbackNode?.type === imageNodeType) {
+            pos = fallbackPos;
+            node = fallbackNode;
+            imageEl = clickedImage;
+            if (!(view.state.selection instanceof NodeSelection) || view.state.selection.from !== fallbackPos) {
+              const tr = view.state.tr.setSelection(NodeSelection.create(view.state.doc, fallbackPos));
+              view.dispatch(tr);
+            }
+          }
+        } catch {
+          // Ignore DOM lookup failures and fall back to clearing selection.
+        }
+      }
+
+      if (pos === null || !node || !imageEl) {
+        clearSelectedImage();
+        return;
+      }
+
+      if (selectedImageRef.current && selectedImageRef.current !== imageEl) {
+        selectedImageRef.current.classList.remove('is-selected');
+      }
+
+      imageEl.classList.add('is-selected');
+      selectedImageRef.current = imageEl;
+      setSelectedImageNodePos(pos);
+      setSelectedAlignment((node.attrs.align as 'left' | 'center' | 'right') || 'center');
+      updateImageOverlayPosition(imageEl);
+    },
+    [clearSelectedImage, updateImageOverlayPosition]
+  );
 
   // Create slash menu instance
   const slashMenu = useMemo(() => new SlashMenu(), []);
@@ -447,77 +539,6 @@ export function MilkdownEditorInner({
     }
   };
 
-  // Image selection click handler
-  const handleEditorClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      const target = e.target as HTMLElement;
-
-      // Check if clicked on an image
-      const img = target.closest('img');
-      if (img) {
-        e.stopPropagation();
-
-        // Get the ProseMirror view to find the node position
-        const editor = getEditor();
-        if (!editor) return;
-
-        editor.action((ctx) => {
-          const view = ctx.get(editorViewCtx);
-          const domNode = img;
-
-          // Find the position of the image node in ProseMirror
-          const pos = view.posAtDOM(domNode, 0);
-          if (pos < 0) return;
-
-          const node = view.state.doc.nodeAt(pos);
-          if (!node) return;
-
-          // Check if it's an image node
-          const imageNodeType = view.state.schema.nodes.image ?? view.state.schema.nodes.imageBlock;
-          if (!imageNodeType || node.type !== imageNodeType) return;
-
-          // Get alignment from node attributes (default to center)
-          const align = (node.attrs.align as 'left' | 'center' | 'right') || 'center';
-
-          // Get image position for toolbar placement
-          const rect = img.getBoundingClientRect();
-          const containerRect = editorRootRef.current?.getBoundingClientRect();
-          if (!containerRect) return;
-
-          // Remove is-selected from previously selected image
-          if (selectedImageRef.current && selectedImageRef.current !== img) {
-            selectedImageRef.current.classList.remove('is-selected');
-          }
-
-          // Add is-selected to the clicked image
-          img.classList.add('is-selected');
-
-          setSelectedAlignment(align);
-          setImagePosition({
-            top: rect.top - containerRect.top,
-            left: rect.left - containerRect.left,
-            width: rect.width,
-          });
-          selectedImageRef.current = img;
-          setSelectedImageNodePos(pos);
-        });
-
-        return;
-      }
-
-      // Clicked outside image - deselect
-      if (selectedImageNodePos !== null) {
-        if (selectedImageRef.current) {
-          selectedImageRef.current.classList.remove('is-selected');
-        }
-        setSelectedImageNodePos(null);
-        setImagePosition(null);
-        selectedImageRef.current = null;
-      }
-    },
-    [getEditor, selectedImageNodePos]
-  );
-
   // Handle alignment change from toolbar
   const handleAlignmentChange = useCallback(
     (align: 'left' | 'center' | 'right') => {
@@ -533,15 +554,15 @@ export function MilkdownEditorInner({
         const node = state.doc.nodeAt(selectedImageNodePos);
         if (!node) return;
 
-        // Update the node's align attribute
         const tr = state.tr.setNodeMarkup(selectedImageNodePos, undefined, {
           ...node.attrs,
           align,
         });
         dispatch(tr);
+        window.requestAnimationFrame(() => syncSelectedImageFromView(view));
       });
     },
-    [getEditor, selectedImageNodePos]
+    [getEditor, selectedImageNodePos, syncSelectedImageFromView]
   );
 
   // Handle delete image
@@ -553,26 +574,19 @@ export function MilkdownEditorInner({
       const view = ctx.get(editorViewCtx);
       const { state, dispatch } = view;
 
-      // Get the node to determine its size for deletion
       const node = state.doc.nodeAt(selectedImageNodePos);
       if (!node) return;
 
-      // Calculate the end position of this node
-      const nodeSize = node.nodeSize;
-      const $pos = state.doc.resolve(selectedImageNodePos);
-      const start = $pos.start();
-      const end = start + nodeSize;
-
-      // Create a transaction to delete the node
-      const tr = state.tr.delete(start, end);
+      const tr = state.tr.delete(selectedImageNodePos, selectedImageNodePos + node.nodeSize);
       dispatch(tr);
-
-      // Clear selection state
-      setSelectedImageNodePos(null);
-      setImagePosition(null);
-      selectedImageRef.current = null;
+      clearSelectedImage();
     });
-  }, [getEditor, selectedImageNodePos]);
+  }, [clearSelectedImage, getEditor, selectedImageNodePos]);
+
+  const handleResize = useCallback(() => {
+    if (!selectedImageRef.current) return;
+    updateImageOverlayPosition(selectedImageRef.current);
+  }, [updateImageOverlayPosition]);
 
   // Handle resize end - update node width attribute
   const handleResizeEnd = useCallback(
@@ -587,28 +601,22 @@ export function MilkdownEditorInner({
         const node = state.doc.nodeAt(selectedImageNodePos);
         if (!node) return;
 
-        // Update the node's width attribute
         const tr = state.tr.setNodeMarkup(selectedImageNodePos, undefined, {
           ...node.attrs,
           width,
         });
         dispatch(tr);
+        window.requestAnimationFrame(() => syncSelectedImageFromView(view));
       });
     },
-    [getEditor, selectedImageNodePos]
+    [getEditor, selectedImageNodePos, syncSelectedImageFromView]
   );
 
   // Recalculate toolbar position on window resize and container scroll
   const handleRecalcImagePosition = useCallback(() => {
-    if (selectedImageNodePos === null || !selectedImageRef.current || !editorRootRef.current) return;
-    const imgRect = selectedImageRef.current.getBoundingClientRect();
-    const containerRect = editorRootRef.current.getBoundingClientRect();
-    setImagePosition({
-      top: imgRect.top - containerRect.top,
-      left: imgRect.left - containerRect.left,
-      width: imgRect.width,
-    });
-  }, [selectedImageNodePos]);
+    if (selectedImageNodePos === null || !selectedImageRef.current) return;
+    updateImageOverlayPosition(selectedImageRef.current);
+  }, [selectedImageNodePos, updateImageOverlayPosition]);
 
   useEffect(() => {
     window.addEventListener('resize', handleRecalcImagePosition);
@@ -627,7 +635,7 @@ export function MilkdownEditorInner({
         ctx.set(rootCtx, root);
         ctx.set(defaultValueCtx, defaultValueRef.current);
 
-        // Configure image attributes (align and width) for DOM rendering
+        // Configure image attributes (align and width) for DOM rendering.
         ctx.set(imageAttr.key, (node) => {
           const align = node.attrs.align as 'left' | 'center' | 'right' | undefined;
           const width = node.attrs.width as number | undefined;
@@ -681,10 +689,62 @@ export function MilkdownEditorInner({
   useEffect(() => {
     if (loading) {
       loadingRef.current = true;
+      clearSelectedImage();
       return;
     }
 
     loadingRef.current = false;
+  }, [clearSelectedImage, loading]);
+
+  useEffect(() => {
+    if (loading) return;
+
+    const editor = getEditor();
+    if (!editor) return;
+
+    return editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const syncSelection = (clickedImage?: HTMLImageElement | null) => {
+        window.requestAnimationFrame(() => {
+          syncSelectedImageFromView(view, clickedImage);
+        });
+      };
+
+      const handleDocumentPointerDown = (event: PointerEvent) => {
+        const target = event.target;
+        const editorRoot = editorRootRef.current;
+        if (!(target instanceof Node) || !editorRoot) return;
+
+        if (!editorRoot.contains(target)) {
+          clearSelectedImage();
+          return;
+        }
+
+        const clickedImage = target instanceof Element ? target.closest('img') : null;
+        syncSelection(clickedImage instanceof HTMLImageElement ? clickedImage : null);
+      };
+
+      const handleMouseUp = () => syncSelection();
+      const handleKeyUp = () => syncSelection();
+
+      view.dom.addEventListener('mouseup', handleMouseUp);
+      view.dom.addEventListener('keyup', handleKeyUp);
+      document.addEventListener('pointerdown', handleDocumentPointerDown, true);
+      syncSelection();
+
+      return () => {
+        view.dom.removeEventListener('mouseup', handleMouseUp);
+        view.dom.removeEventListener('keyup', handleKeyUp);
+        document.removeEventListener('pointerdown', handleDocumentPointerDown, true);
+      };
+    });
+  }, [clearSelectedImage, getEditor, loading, syncSelectedImageFromView]);
+
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+
     if (!pendingScrollTargetRef.current.line && !pendingScrollTargetRef.current.highlight) {
       return;
     }
@@ -706,7 +766,6 @@ export function MilkdownEditorInner({
         ref={editorRootRef}
         className={`milkdown-wrapper h-full flex flex-col ${className}`}
         onPaste={handlePaste}
-        onClick={handleEditorClick}
       >
         {loading && (
           <div className="milkdown-loading p-4 text-gray-500">Loading editor...</div>
@@ -714,28 +773,26 @@ export function MilkdownEditorInner({
         <div className="milkdown h-full flex flex-col">
           <Milkdown />
         </div>
+
+        {selectedImageNodePos !== null && imagePosition && (
+          <>
+            <ImageToolbar
+              alignment={selectedAlignment}
+              position={imagePosition}
+              onAlign={handleAlignmentChange}
+              onDelete={handleDeleteImage}
+              containerRef={editorRootRef as React.RefObject<HTMLElement>}
+            />
+            <ImageResizeHandles
+              imageRef={selectedImageRef as React.RefObject<HTMLImageElement>}
+              position={imagePosition}
+              onResizeStart={handleResize}
+              onResize={handleResize}
+              onResizeEnd={handleResizeEnd}
+            />
+          </>
+        )}
       </div>
-
-      {/* Image selection toolbar */}
-      {selectedImageNodePos !== null && imagePosition && (
-        <ImageToolbar
-          alignment={selectedAlignment}
-          position={imagePosition}
-          onAlign={handleAlignmentChange}
-          onDelete={handleDeleteImage}
-          containerRef={editorRootRef as React.RefObject<HTMLElement>}
-        />
-      )}
-
-      {/* Image resize handles */}
-      {selectedImageNodePos !== null && (
-        <ImageResizeHandles
-          imageRef={selectedImageRef as React.RefObject<HTMLImageElement>}
-          onResizeStart={() => {}}
-          onResize={() => {}}
-          onResizeEnd={handleResizeEnd}
-        />
-      )}
 
       {pasteError && (
         <ConfirmDialog

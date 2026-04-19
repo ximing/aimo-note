@@ -302,10 +302,12 @@ html.dark .ProseMirror code {
    ============================================ */
 
 .ProseMirror img {
+  display: block;
   max-width: 100%;
   height: auto;
   border-radius: 8px;
-  margin: 1em 0;
+  margin: 1em auto;
+  cursor: pointer;
 }
 
 .ProseMirror img.ProseMirror-selectednode {
@@ -325,16 +327,22 @@ html.dark .ProseMirror code {
 }
 
 /* Image alignment - applied directly to img element via imageAttr */
-.ProseMirror img.align-left {
-  text-align: left;
+.ProseMirror img.align-left,
+.ProseMirror img[data-align='left'] {
+  margin-left: 0;
+  margin-right: auto;
 }
 
-.ProseMirror img.align-center {
-  text-align: center;
+.ProseMirror img.align-center,
+.ProseMirror img[data-align='center'] {
+  margin-left: auto;
+  margin-right: auto;
 }
 
-.ProseMirror img.align-right {
-  text-align: right;
+.ProseMirror img.align-right,
+.ProseMirror img[data-align='right'] {
+  margin-left: auto;
+  margin-right: 0;
 }
 
 /* Selected state */
@@ -548,7 +556,7 @@ html.dark .ProseMirror code {
   max-width: 100%;
   height: auto;
   border-radius: 8px;
-  cursor: default;
+  cursor: pointer;
 }
 
 .ProseMirror .image-block .image-caption {
