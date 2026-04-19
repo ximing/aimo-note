@@ -199,7 +199,7 @@ body {
   display: flex;
   align-items: center;
   min-height: 40px;
-  background-color: var(--bg-secondary);
+  background-color: var(--bg-header);
 }
 
 .content-area {
@@ -212,7 +212,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background-color: var(--bg-secondary);
+  /* background removed - children handle their own backgrounds */
 }
 
 .right-column {
@@ -229,7 +229,7 @@ body {
   flex-direction: column;
   width: 48px;
   height: 100%;
-  background-color: transparent;
+  background-color: var(--bg-rail);
   padding-top: 0;
 }
 
@@ -237,7 +237,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: transparent;
+  background-color: var(--bg-sidebar);
   overflow: hidden;
 }
 
