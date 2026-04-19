@@ -297,7 +297,7 @@ export function MilkdownEditorInner({
     // Small delay to ensure DOM is ready after content load
     const timeout = setTimeout(applyHighlight, 100);
     return () => clearTimeout(timeout);
-  }, [highlightQuery, loading]);
+  }, [highlightQuery, loading, defaultValue]);
 
   const handlePaste = async (event: ClipboardEvent) => {
     const items = event.clipboardData?.items;

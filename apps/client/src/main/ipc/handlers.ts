@@ -13,6 +13,11 @@ import { rgPath } from '@vscode/ripgrep';
  */
 async function rgFiles(args: string[]): Promise<string> {
   return new Promise<string>((resolve, reject) => {
+    if (!rgPath) {
+      reject(new Error('Ripgrep binary not found. Please ensure @vscode/ripgrep is properly installed.'));
+      return;
+    }
+
     const proc = spawn(rgPath, args);
     let stdout = '';
     let stderr = '';
