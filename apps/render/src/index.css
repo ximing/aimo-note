@@ -80,8 +80,7 @@ body {
   box-sizing: border-box;
 }
 
-/* Custom Scrollbar Styles */
-/* Webkit browsers (Chrome, Safari, Edge) */
+/* Custom Scrollbar Styles - minimal, unobtrusive */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -92,9 +91,9 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
+  background: var(--bg-quaternary);
   border-radius: 3px;
-  transition: background 0.3s ease;
+  transition: background 0.15s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -103,7 +102,7 @@ body {
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
+  scrollbar-color: var(--bg-quaternary) transparent;
 }
 
 /* Smooth theme transitions for elements with transition-colors */
