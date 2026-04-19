@@ -22,7 +22,7 @@ export const Layout = observer(() => {
 
         {/* Left Sidebar (File Tree, Search, Tags, etc.) */}
         {uiService.leftSidebarOpen && (
-          <aside className="left-sidebar w-64 flex flex-col bg-bg-primary">
+          <aside className="left-sidebar w-64 flex flex-col bg-bg-secondary">
             {/* Left Sidebar Header - pl-12 avoids macOS traffic lights */}
             <div className="left-sidebar-header flex items-center gap-1 pl-12 px-3 py-1 bg-bg-secondary">
               <button
