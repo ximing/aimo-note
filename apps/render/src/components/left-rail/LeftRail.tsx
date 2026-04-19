@@ -23,14 +23,14 @@ export const LeftRail = observer(() => {
   if (!uiService.leftRailOpen) return null;
 
   return (
-    <aside className="left-rail w-12 flex flex-col items-center pt-12 py-2 gap-1 bg-bg-secondary">
+    <aside className="left-rail w-12 flex flex-col items-center pt-12 py-2 gap-1">
       {navItems.map((item) => {
         const Icon = item.icon;
         return (
           <button
             key={item.id}
             type="button"
-            className="p-2 hover:bg-accent hover:text-white rounded-full text-gray-400 transition-colors"
+            className="rail-nav-button p-2 rounded-full text-gray-400 transition-colors"
             title={item.label}
             onClick={() => {
               if (item.isModal) {

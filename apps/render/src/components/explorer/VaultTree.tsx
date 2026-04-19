@@ -12,6 +12,22 @@ interface DialogState {
   node?: TreeNodeType;
 }
 
+function getAllFolderPaths(nodes: TreeNodeType[]): string[] {
+  const paths: string[] = [];
+  const traverse = (nodes: TreeNodeType[]) => {
+    for (const node of nodes) {
+      if (node.type === 'folder') {
+        paths.push(node.path);
+        if (node.children) {
+          traverse(node.children);
+        }
+      }
+    }
+  };
+  traverse(nodes);
+  return paths;
+}
+
 export const VaultTree = observer(() => {
   const vaultService = useService(VaultService);
   const { tree, path, expandedPaths } = vaultService;
@@ -106,8 +122,16 @@ export const VaultTree = observer(() => {
         sortBy={sortBy}
         sortOrder={sortOrder}
         onSortChange={handleSortChange}
-        onExpandAll={handleExpandAll}
-        onCollapseAll={handleCollapseAll}
+        isAllExpanded={getAllFolderPaths(tree).every(p => expandedPaths.has(p))}
+        onToggleAll={() => {
+          const allFolderPaths = getAllFolderPaths(tree);
+          const isAllExpanded = allFolderPaths.every(p => expandedPaths.has(p));
+          if (isAllExpanded) {
+            handleCollapseAll();
+          } else {
+            handleExpandAll();
+          }
+        }}
       />
       <div className="left-sidebar-content flex-1 overflow-auto py-1">
         {sortedTree.length === 0 ? (

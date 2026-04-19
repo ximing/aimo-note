@@ -18,8 +18,8 @@ interface SidebarHeaderProps {
   sortBy: 'name' | 'created' | 'modified';
   sortOrder: 'asc' | 'desc';
   onSortChange: (sortBy: 'name' | 'created' | 'modified', sortOrder: 'asc' | 'desc') => void;
-  onExpandAll: () => void;
-  onCollapseAll: () => void;
+  isAllExpanded: boolean;
+  onToggleAll: () => void;
 }
 
 export function SidebarHeader({
@@ -28,8 +28,8 @@ export function SidebarHeader({
   sortBy,
   sortOrder,
   onSortChange,
-  onExpandAll,
-  onCollapseAll,
+  isAllExpanded,
+  onToggleAll,
 }: SidebarHeaderProps) {
   const [showSortMenu, setShowSortMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -66,7 +66,7 @@ export function SidebarHeader({
       <button
         type="button"
         onClick={onNewFile}
-        className="p-1.5 hover:bg-accent hover:text-white rounded text-sm"
+        className="chrome-icon-button p-1.5 rounded text-sm"
         title="新建文件"
       >
         <FilePlus size={16} />
@@ -74,7 +74,7 @@ export function SidebarHeader({
       <button
         type="button"
         onClick={onNewFolder}
-        className="p-1.5 hover:bg-accent hover:text-white rounded text-sm"
+        className="chrome-icon-button p-1.5 rounded text-sm"
         title="新建文件夹"
       >
         <FolderPlus size={16} />
@@ -86,7 +86,7 @@ export function SidebarHeader({
         <button
           type="button"
           onClick={() => setShowSortMenu(!showSortMenu)}
-          className="p-1.5 hover:bg-accent hover:text-white rounded text-sm flex items-center gap-1"
+          className="chrome-icon-button p-1.5 rounded text-sm flex items-center gap-1"
           title="排序"
         >
           <currentOption.icon size={14} className="mr-1" />
@@ -94,7 +94,7 @@ export function SidebarHeader({
         </button>
 
         {showSortMenu && (
-          <div className="absolute right-0 top-full mt-1 w-44 bg-bg-primary border border-border rounded-md shadow-lg z-50 py-1">
+          <div className="sidebar-menu absolute right-0 top-full mt-2 w-44 rounded-xl shadow-lg z-50 py-1">
             {sortOptions.map((option) => (
               <button
                 key={option.value}
@@ -117,19 +117,11 @@ export function SidebarHeader({
 
       <button
         type="button"
-        onClick={onExpandAll}
-        className="p-1.5 hover:bg-accent hover:text-white rounded text-sm"
-        title="展开全部"
+        onClick={onToggleAll}
+        className="chrome-icon-button p-1.5 rounded text-sm"
+        title={isAllExpanded ? '折叠全部' : '展开全部'}
       >
-        <ChevronsUpDown size={16} />
-      </button>
-      <button
-        type="button"
-        onClick={onCollapseAll}
-        className="p-1.5 hover:bg-accent hover:text-white rounded text-sm"
-        title="折叠全部"
-      >
-        <ChevronsUpDown size={16} className="rotate-180" />
+        <ChevronsUpDown size={16} className={isAllExpanded ? 'rotate-180' : ''} />
       </button>
     </div>
   );

@@ -9,6 +9,9 @@ export class UIService extends Service {
 
   // Explorer
   leftSidebarOpen = true;
+  leftSidebarWidth = 256; // px
+  readonly leftSidebarMinWidth = 160;
+  readonly leftSidebarMaxWidth = 480;
 
   // Title Bar Actions
   titleBarActionsOpen = true;
@@ -97,6 +100,10 @@ export class UIService extends Service {
   // Explorer
   toggleLeftSidebar(): void {
     this.leftSidebarOpen = !this.leftSidebarOpen;
+  }
+
+  setLeftSidebarWidth(width: number): void {
+    this.leftSidebarWidth = Math.max(this.leftSidebarMinWidth, Math.min(this.leftSidebarMaxWidth, width));
   }
 
   // Editor Tabs

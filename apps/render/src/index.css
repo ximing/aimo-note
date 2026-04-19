@@ -5,21 +5,24 @@
 :root {
   /* Light Theme - Notion-inspired minimal */
   --bg-primary: #ffffff;
-  --bg-secondary: #f7f7f7;
-  --bg-tertiary: #ebebeb;
-  --bg-quaternary: #e0e0e0;
+  --bg-secondary: #f7f6f3;
+  --bg-tertiary: #efede8;
+  --bg-quaternary: #e2dfd8;
 
   --text-primary: #1f1f1f;
-  --text-secondary: #6e6e6e;
-  --text-muted: #999999;
+  --text-secondary: #6b6b6b;
+  --text-muted: #9b9b9b;
 
   --accent: #4ade80;
   --accent-hover: #22c55e;
-  --accent-subtle: #f0fdf4;
+  --accent-subtle: #eef7f0;
+  --hover-soft: rgba(55, 53, 47, 0.08);
+  --surface-soft: rgba(55, 53, 47, 0.04);
+  --selection-soft: rgba(74, 222, 128, 0.14);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 2px 10px rgba(15, 23, 42, 0.06);
+  --shadow-lg: 0 8px 24px rgba(15, 23, 42, 0.08);
 
   /* Spacing tokens (as CSS custom properties for reference) */
   --space-xs: 4px;
@@ -48,19 +51,23 @@
 
 html.dark {
   color-scheme: dark;
-  --bg-primary: #1a1a1b;
-  --bg-secondary: #252525;
-  --bg-tertiary: #1e1e1e;
-  --text-primary: #cccccc;
-  --text-secondary: #999999;
-  --text-muted: #666666;
+  --bg-primary: #191919;
+  --bg-secondary: #202020;
+  --bg-tertiary: #252525;
+  --bg-quaternary: #2f2f2f;
+  --text-primary: #e8e8e6;
+  --text-secondary: #a1a09a;
+  --text-muted: #6f6e69;
   --border: #373737;
   --border-light: #2d2d2d;
   --accent: #5fc495;
   --accent-light: #1a3a2a;
   --accent-hover: #7dd5a8;
-  --shadow: rgba(0, 0, 0, 0.4);
-  --shadow-lg: rgba(0, 0, 0, 0.6);
+  --hover-soft: rgba(255, 255, 255, 0.07);
+  --surface-soft: rgba(255, 255, 255, 0.04);
+  --selection-soft: rgba(95, 196, 149, 0.14);
+  --shadow: rgba(0, 0, 0, 0.28);
+  --shadow-lg: rgba(0, 0, 0, 0.38);
   color: var(--text-primary);
   background-color: var(--bg-secondary);
 }
@@ -167,6 +174,16 @@ body {
 }
 
 /* New Layout Regions */
+.app-layout {
+  background-color: var(--bg-secondary);
+}
+
+.main-area {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
 .header-row {
   display: flex;
   align-items: center;
@@ -184,13 +201,16 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background-color: var(--bg-secondary);
 }
 
 .right-column {
   display: flex;
   flex-direction: column;
   flex: 1;
+  min-width: 0;
   overflow: hidden;
+  background-color: var(--bg-secondary);
 }
 
 .left-rail {
@@ -198,7 +218,7 @@ body {
   flex-direction: column;
   width: 48px;
   height: 100%;
-  background-color: var(--bg-tertiary);
+  background-color: transparent;
   padding-top: 0;
 }
 
@@ -206,7 +226,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background-color: var(--bg-primary);
+  background-color: transparent;
   overflow: hidden;
 }
 
@@ -224,19 +244,42 @@ body {
   overflow-x: hidden;
 }
 
+.chrome-icon-button,
+.rail-nav-button,
+.tab-close-button {
+  color: var(--text-secondary);
+  background-color: transparent;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.chrome-icon-button:hover,
+.rail-nav-button:hover,
+.tab-close-button:hover {
+  color: var(--text-primary);
+  background-color: var(--hover-soft);
+}
+
 .titlebar-actions {
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
+.editor-tabs-shell {
+  display: flex;
+  align-items: flex-end;
+  min-height: 34px;
+  padding: 6px 12px 0 8px;
+  background-color: var(--bg-secondary);
+}
+
 .editor-tabs {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 2px;
-  height: 36px;
-  padding: 0 8px;
-  background-color: var(--bg-tertiary);
+  min-height: 32px;
+  padding: 2px 0 0;
+  background-color: transparent;
   overflow-x: auto;
   overflow-y: hidden;
 }
@@ -245,25 +288,66 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px;
-  border-radius: 4px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 6px 6px 0 0;
   font-size: 12px;
   color: var(--text-secondary);
   background-color: transparent;
   border: none;
   cursor: pointer;
   white-space: nowrap;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
 }
 
 .editor-tab:hover {
-  background-color: var(--bg-secondary);
   color: var(--text-primary);
+  background-color: var(--hover-soft);
 }
 
 .editor-tab.active {
-  background-color: var(--bg-primary);
   color: var(--text-primary);
+  background-color: var(--bg-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.editor-tab .tab-close-button {
+  opacity: 0;
+}
+
+.editor-tab:hover .tab-close-button,
+.editor-tab.active .tab-close-button {
+  opacity: 1;
+}
+
+.editor-surface {
+  margin: 0 12px 12px 8px;
+  border-radius: 0 8px 8px 8px;
+  background-color: var(--bg-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.tree-node-button {
+  color: var(--text-secondary);
+}
+
+.tree-node-button:hover {
+  color: var(--text-primary);
+  background-color: var(--hover-soft);
+}
+
+.tree-node-button.is-selected {
+  color: var(--text-primary);
+  background-color: var(--selection-soft);
+}
+
+.sidebar-menu {
+  background-color: var(--bg-primary);
+  box-shadow: var(--shadow-md);
+}
+
+.status-bar {
+  background-color: var(--bg-secondary);
 }
 
 .side-panel {
@@ -286,4 +370,12 @@ body {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+.resize-handle {
+  user-select: none;
+}
+
+.resize-handle:active {
+  user-select: none;
 }

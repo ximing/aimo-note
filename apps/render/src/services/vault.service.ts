@@ -16,6 +16,10 @@ function debounce<Args extends unknown[], R>(fn: (...args: Args) => R, ms: numbe
 
 const STORAGE_KEY_CURRENT_NOTE = 'aimo-note-current-note';
 
+export interface UIConfig {
+  leftSidebarWidth?: number;
+}
+
 interface SavedState {
   vaultPath: string | null;
   currentNotePath: string | null;
@@ -87,6 +91,14 @@ export class VaultService extends Service {
       if (tabsConfig && tabsConfig.openTabs.length > 0) {
         const uiService = this.resolve<UIService>('UIService');
         uiService.restoreTabs(tabsConfig.openTabs, tabsConfig.activeTabId);
+      }
+      // Restore UI settings from vault config
+      const uiConfig = await this.loadUISettings();
+      if (uiConfig) {
+        const uiService = this.resolve<UIService>('UIService');
+        if (uiConfig.leftSidebarWidth) {
+          uiService.setLeftSidebarWidth(uiConfig.leftSidebarWidth);
+        }
       }
     }
   }
@@ -173,6 +185,31 @@ export class VaultService extends Service {
 
   saveTabs(tabs: Array<{ id: string; path: string }>, activeTabId: string | null): void {
     this.debouncedSaveTabs(tabs, activeTabId);
+  }
+
+  async loadUISettings(): Promise<UIConfig | null> {
+    if (!this.path) return null;
+    try {
+      const result = await vault.readNote(this.path, '.aimo-note/config.json');
+      return JSON.parse(result.content) as UIConfig;
+    } catch {
+      return null;
+    }
+  }
+
+  private debouncedSaveUISettings = debounce(async (uiConfig: UIConfig) => {
+    if (!this.path) return;
+    try {
+      const existing = await this.loadUISettings();
+      const merged = { ...existing, ...uiConfig };
+      await vault.writeNote(this.path, '.aimo-note/config.json', JSON.stringify(merged, null, 2));
+    } catch {
+      // Ignore errors
+    }
+  }, 300);
+
+  saveUISettings(settings: UIConfig): void {
+    this.debouncedSaveUISettings(settings);
   }
 
   setActiveFile(path: string | null): void {

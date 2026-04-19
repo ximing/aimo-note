@@ -32,7 +32,7 @@ export const StatusBar = observer(() => {
   }, [getEditor]);
 
   return (
-    <div className="status-bar flex items-center justify-between px-4 py-1 bg-bg-secondary text-xs text-gray-500 border-t border-border-light">
+    <div className="status-bar flex items-center justify-between px-4 py-1 text-xs text-gray-500">
       <div className="flex items-center gap-4">
         <span>{loading ? '...' : `${stats.words} words`}</span>
         <span>{stats.characters} characters</span>

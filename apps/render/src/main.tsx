@@ -9,8 +9,9 @@ import { GraphService } from './services/graph.service';
 import { SearchService } from './services/search.service';
 import { PluginService } from './services/plugin.service';
 
-register(VaultService);
+// 注册顺序不能乱
 register(UIService);
+register(VaultService);
 register(GraphService);
 register(SearchService);
 register(PluginService);

@@ -1,17 +1,28 @@
 import { Outlet, useNavigate } from 'react-router';
 import { observer } from '@rabjs/react';
 import { useUIService } from '@/services/ui.service';
+import { useVaultService } from '@/services/vault.service';
 import { LeftRail } from './left-rail';
 import { EditorTabs } from './editor-tabs';
 import { SidePanel } from './side-panel';
 import { VaultTree } from './explorer/VaultTree';
 import { SettingsModal } from './common/SettingsModal';
 import { StatusBar } from './common/StatusBar';
+import { ResizeHandle } from './common/ResizeHandle';
 import { Search, PanelLeftClose, PanelLeft } from 'lucide-react';
 
 export const Layout = observer(() => {
   const uiService = useUIService();
+  const vaultService = useVaultService();
   const navigate = useNavigate();
+
+  const handleSidebarResize = (deltaX: number) => {
+    uiService.setLeftSidebarWidth(uiService.leftSidebarWidth + deltaX);
+  };
+
+  const handleSidebarResizeEnd = () => {
+    vaultService.saveUISettings({ leftSidebarWidth: uiService.leftSidebarWidth });
+  };
 
   return (
     <div className="app-layout h-screen flex flex-col">
@@ -25,7 +36,7 @@ export const Layout = observer(() => {
               <>
                 <button
                   type="button"
-                  className="p-1.5 hover:bg-accent hover:text-white rounded text-sm"
+                  className="chrome-icon-button p-1.5 rounded text-sm"
                   title="搜索"
                   onClick={() => navigate('/search')}
                 >
@@ -33,7 +44,7 @@ export const Layout = observer(() => {
                 </button>
                 <button
                   type="button"
-                  className="p-1.5 hover:bg-accent hover:text-white rounded text-sm"
+                  className="chrome-icon-button p-1.5 rounded text-sm"
                   title="收起目录树"
                   onClick={() => uiService.toggleLeftSidebar()}
                 >
@@ -43,7 +54,7 @@ export const Layout = observer(() => {
             ) : (
               <button
                 type="button"
-                className="p-1.5 hover:bg-accent hover:text-white rounded text-sm"
+                className="chrome-icon-button p-1.5 rounded text-sm"
                 title="展开目录树"
                 onClick={() => uiService.toggleLeftSidebar()}
               >
@@ -59,9 +70,16 @@ export const Layout = observer(() => {
 
             {/* Left Sidebar (File Tree, Search, Tags, etc.) */}
             {uiService.leftSidebarOpen && (
-              <aside className="left-sidebar flex-1 flex flex-col bg-bg-secondary">
-                <VaultTree />
-              </aside>
+              <>
+                <aside className="left-sidebar flex flex-col" style={{ width: uiService.leftSidebarWidth }}>
+                  <VaultTree />
+                </aside>
+                <ResizeHandle
+                  onResize={handleSidebarResize}
+                  onResizeEnd={handleSidebarResizeEnd}
+                  side="right"
+                />
+              </>
             )}
           </div>
         </div>
@@ -69,14 +87,14 @@ export const Layout = observer(() => {
         {/* Right Column: Editor Tabs + Main Content */}
         <div className="right-column flex flex-col flex-1 overflow-hidden">
           {/* Editor Tabs */}
-          <div className="flex items-center px-2 py-1">
+          <div className="editor-tabs-shell">
             <EditorTabs />
           </div>
 
           {/* Main Content */}
           <main className="main-content flex-1 flex flex-col overflow-hidden">
             {/* Document Editor Container */}
-            <div className="editor-container flex-1 flex flex-col bg-bg-primary m-2 overflow-hidden">
+            <div className="editor-container editor-surface flex-1 flex flex-col overflow-hidden">
               <div className="page-content flex-1 overflow-hidden">
                 <Outlet />
               </div>

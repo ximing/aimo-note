@@ -19,8 +19,8 @@ export const EditorTabs = observer(() => {
           role="tab"
           aria-selected={uiService.activeTabId === tab.id}
           tabIndex={uiService.activeTabId === tab.id ? 0 : -1}
-          className={`editor-tab flex items-center gap-2 px-3 py-1 cursor-pointer hover:bg-bg-primary transition-colors ${
-            uiService.activeTabId === tab.id ? 'bg-bg-primary shadow-[inset_0_-2px_0_var(--accent)]' : ''
+          className={`editor-tab flex items-center gap-2 px-3 py-1 cursor-pointer transition-colors ${
+            uiService.activeTabId === tab.id ? 'active' : ''
           }`}
           onClick={() => uiService.setActiveTab(tab.id)}
           onKeyDown={(e) => {
@@ -34,7 +34,7 @@ export const EditorTabs = observer(() => {
           <button
             type="button"
             aria-label="Close tab"
-            className="p-0.5 hover:bg-accent hover:text-white rounded"
+            className="tab-close-button p-0.5 rounded"
             onClick={(e) => {
               e.stopPropagation();
               uiService.closeTab(tab.id);
