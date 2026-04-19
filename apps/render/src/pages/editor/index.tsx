@@ -8,6 +8,7 @@ import { useUIService } from '@/services/ui.service';
 import { ContextMenu } from '@/components/common/ContextMenu';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { PromptDialog } from '@/components/common/PromptDialog';
+import { vault } from '@/ipc/vault';
 import type { TreeNode } from '@/ipc/vault';
 
 const EditorPageContent = observer(() => {
@@ -21,6 +22,8 @@ const EditorPageContent = observer(() => {
   const [newFolderDialog, setNewFolderDialog] = useState(false);
   const [renameDialog, setRenameDialog] = useState<{ node: TreeNode } | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<{ node: TreeNode } | null>(null);
+  const [fileName, setFileName] = useState('');
+  const [isEditingFileName, setIsEditingFileName] = useState(false);
 
   useEffect(() => {
     // Initialize editor service - restores current note if path not provided
@@ -69,6 +72,69 @@ const EditorPageContent = observer(() => {
       service.openNote(activeTab.path);
     }
   }, [uiService.activeTabId, uiService.tabs, service]);
+
+  // Update file name when current note changes
+  useEffect(() => {
+    if (service.currentNote) {
+      const name = service.currentNote.path.split('/').pop() || '';
+      setFileName(name.replace(/\.md$/, ''));
+    }
+  }, [service.currentNote?.path]);
+
+  const handleFileNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setFileName(e.target.value);
+  }, []);
+
+  const handleFileNameBlur = useCallback(async () => {
+    setIsEditingFileName(false);
+    if (!service.currentNote || !fileName.trim()) return;
+
+    const oldPath = service.currentNote.path;
+    const oldName = oldPath.split('/').pop() || '';
+    const newName = fileName.trim().endsWith('.md') ? fileName.trim() : `${fileName.trim()}.md`;
+
+    if (newName === oldName) return;
+
+    const parentPath = oldPath.substring(0, oldPath.lastIndexOf('/'));
+    const newPath = `${parentPath}/${newName}`;
+
+    try {
+      await vault.rename(vaultService.path!, oldPath, newPath);
+      await vaultService.refreshTree();
+
+      // Update editor state with new path
+      service.currentNote = { ...service.currentNote, path: newPath };
+
+      // Update tab
+      const tab = uiService.tabs.find(t => t.path === oldPath);
+      if (tab) {
+        tab.path = newPath;
+        tab.title = newName;
+        uiService.tabs = [...uiService.tabs];
+        uiService.vaultService.saveTabs(uiService.tabs, uiService.activeTabId);
+      }
+
+      // Update URL
+      navigate(`/editor/${encodeURIComponent(newPath)}`, { replace: true });
+    } catch (error) {
+      console.error('Failed to rename file:', error);
+      // Restore old name on error
+      setFileName(oldName.replace(/\.md$/, ''));
+    }
+  }, [fileName, service, vaultService, uiService, navigate]);
+
+  const handleFileNameKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      (e.target as HTMLInputElement).blur();
+    } else if (e.key === 'Escape') {
+      setIsEditingFileName(false);
+      if (service.currentNote) {
+        const name = service.currentNote.path.split('/').pop() || '';
+        setFileName(name.replace(/\.md$/, ''));
+      }
+    }
+  }, [service.currentNote]);
 
   const handleChange = useCallback((markdown: string) => {
     service.updateContent(markdown);
@@ -134,6 +200,21 @@ const EditorPageContent = observer(() => {
 
   return (
     <div className="editor-page h-full flex flex-col">
+      {/* File Name Input */}
+      {service.currentNote && (
+        <div className="file-name-header">
+          <input
+            type="text"
+            value={fileName}
+            onChange={handleFileNameChange}
+            onFocus={() => setIsEditingFileName(true)}
+            onBlur={handleFileNameBlur}
+            onKeyDown={handleFileNameKeyDown}
+            className="file-name-input w-full font-semibold bg-transparent border-none outline-none"
+            placeholder="Untitled"
+          />
+        </div>
+      )}
       <div
         className="editor-content flex-1 overflow-auto"
         onContextMenu={handleContextMenu}

@@ -15,9 +15,16 @@ function debounce<Args extends unknown[], R>(fn: (...args: Args) => R, ms: numbe
 }
 
 const STORAGE_KEY_CURRENT_NOTE = 'aimo-note-current-note';
+const VAULT_CONFIG_PATH = '.aimo-note/config.json';
 
 export interface UIConfig {
   leftSidebarWidth?: number;
+  expandedPaths?: string[];
+}
+
+interface VaultConfig extends UIConfig {
+  openTabs?: TabConfig['openTabs'];
+  activeTabId?: string | null;
 }
 
 interface SavedState {
@@ -34,6 +41,8 @@ export class VaultService extends Service {
   expandedPaths: Set<string> = new Set();
 
   private _currentNotePath: string | null = null;
+  private _pendingVaultConfig: Partial<VaultConfig> = {};
+  private _pendingVaultConfigPath: string | null = null;
 
   get currentNotePath(): string | null {
     return this._currentNotePath;
@@ -68,39 +77,92 @@ export class VaultService extends Service {
     return null;
   }
 
+  private async loadVaultConfig(vaultPath: string | null = this.path): Promise<VaultConfig | null> {
+    if (!vaultPath) return null;
+    try {
+      const result = await vault.readNote(vaultPath, VAULT_CONFIG_PATH);
+      return JSON.parse(result.content) as VaultConfig;
+    } catch {
+      return null;
+    }
+  }
+
+  private queueVaultConfigUpdate(partial: Partial<VaultConfig>): void {
+    if (!this.path) return;
+
+    if (this._pendingVaultConfigPath && this._pendingVaultConfigPath !== this.path) {
+      this._pendingVaultConfig = {};
+    }
+
+    this._pendingVaultConfigPath = this.path;
+    this._pendingVaultConfig = {
+      ...this._pendingVaultConfig,
+      ...partial,
+    };
+    this.debouncedSaveVaultConfig();
+  }
+
+  private debouncedSaveVaultConfig = debounce(async () => {
+    const vaultPath = this._pendingVaultConfigPath;
+    const pending = this._pendingVaultConfig;
+
+    if (!vaultPath || Object.keys(pending).length === 0) {
+      return;
+    }
+
+    this._pendingVaultConfig = {};
+    this._pendingVaultConfigPath = null;
+
+    try {
+      const existing = await this.loadVaultConfig(vaultPath);
+      const merged: VaultConfig = { ...existing, ...pending };
+      await vault.writeNote(vaultPath, VAULT_CONFIG_PATH, JSON.stringify(merged, null, 2));
+    } catch {
+      this._pendingVaultConfig = {
+        ...pending,
+        ...this._pendingVaultConfig,
+      };
+      this._pendingVaultConfigPath = vaultPath;
+    }
+  }, 300);
+
+  private async restoreVaultConfig(): Promise<void> {
+    if (!this.path) return;
+
+    const vaultConfig = await this.loadVaultConfig();
+    const uiService = this.resolve(UIService);
+
+    if (vaultConfig?.openTabs?.length) {
+      uiService.restoreTabs(vaultConfig.openTabs, vaultConfig.activeTabId ?? null);
+    } else {
+      uiService.restoreTabs([], null);
+    }
+
+    if (typeof vaultConfig?.leftSidebarWidth === 'number') {
+      uiService.setLeftSidebarWidth(vaultConfig.leftSidebarWidth);
+    }
+
+    this.expandedPaths = new Set(vaultConfig?.expandedPaths ?? []);
+  }
+
   async loadRecentVaults(): Promise<void> {
     this.recentVaults = await config.getRecentVaults();
   }
 
   async initialize(): Promise<void> {
     await this.loadRecentVaults();
-    // Auto-open most recent vault if available
+
     if (!this.path && this.recentVaults.length > 0) {
       await this.openRecentVault(this.recentVaults[0].path);
     }
-    // Restore saved state
+
     const savedState = this.loadSavedState();
-    if (savedState?.currentNotePath) {
+    if (savedState?.vaultPath === this.path && savedState.currentNotePath) {
       this._currentNotePath = savedState.currentNotePath;
-      // Also restore activeFile for tree selection highlight
       this.activeFile = savedState.currentNotePath;
     }
-    // Restore open tabs from vault config
-    if (this.path) {
-      const tabsConfig = await this.loadTabs();
-      if (tabsConfig && tabsConfig.openTabs.length > 0) {
-        const uiService = this.resolve<UIService>('UIService');
-        uiService.restoreTabs(tabsConfig.openTabs, tabsConfig.activeTabId);
-      }
-      // Restore UI settings from vault config
-      const uiConfig = await this.loadUISettings();
-      if (uiConfig) {
-        const uiService = this.resolve<UIService>('UIService');
-        if (uiConfig.leftSidebarWidth) {
-          uiService.setLeftSidebarWidth(uiConfig.leftSidebarWidth);
-        }
-      }
-    }
+
+    await this.restoreVaultConfig();
   }
 
   async openVault(path: string): Promise<void> {
@@ -109,8 +171,9 @@ export class VaultService extends Service {
       const result = await vault.open(path);
       if (result) {
         this.path = result.path;
+        this.persistState();
         await this.refreshTree();
-        // Add to recent vaults
+        await this.restoreVaultConfig();
         this.recentVaults = await config.addRecentVault(path);
       }
     } finally {
@@ -138,14 +201,14 @@ export class VaultService extends Service {
       const result = await vault.open(vaultPath);
       if (result) {
         this.path = vaultPath;
+        this.persistState();
         await this.refreshTree();
-        // Update recent vaults
+        await this.restoreVaultConfig();
         this.recentVaults = await config.addRecentVault(vaultPath);
         return true;
       }
       return false;
     } catch {
-      // Remove from recent if cannot open
       this.recentVaults = await config.removeRecentVault(vaultPath);
       return false;
     } finally {
@@ -168,48 +231,34 @@ export class VaultService extends Service {
   }
 
   async loadTabs(): Promise<TabConfig | null> {
-    if (!this.path) return null;
-    try {
-      const result = await vault.readNote(this.path, '.aimo-note/config.json');
-      return JSON.parse(result.content) as TabConfig;
-    } catch {
-      return null; // config doesn't exist yet
-    }
+    const vaultConfig = await this.loadVaultConfig();
+    if (!vaultConfig?.openTabs) return null;
+
+    return {
+      openTabs: vaultConfig.openTabs,
+      activeTabId: vaultConfig.activeTabId ?? null,
+    };
   }
 
-  private debouncedSaveTabs = debounce(async (tabs: Array<{ id: string; path: string; title?: string }>, activeTabId: string | null) => {
-    if (!this.path) return;
-    const tabConfig: { openTabs: Array<{ id: string; path: string }>; activeTabId: string | null } = { openTabs: tabs, activeTabId };
-    await vault.writeNote(this.path, '.aimo-note/config.json', JSON.stringify(tabConfig, null, 2));
-  }, 300);
-
   saveTabs(tabs: Array<{ id: string; path: string }>, activeTabId: string | null): void {
-    this.debouncedSaveTabs(tabs, activeTabId);
+    this.queueVaultConfigUpdate({
+      openTabs: tabs,
+      activeTabId,
+    });
   }
 
   async loadUISettings(): Promise<UIConfig | null> {
-    if (!this.path) return null;
-    try {
-      const result = await vault.readNote(this.path, '.aimo-note/config.json');
-      return JSON.parse(result.content) as UIConfig;
-    } catch {
-      return null;
-    }
+    const vaultConfig = await this.loadVaultConfig();
+    if (!vaultConfig) return null;
+
+    return {
+      leftSidebarWidth: vaultConfig.leftSidebarWidth,
+      expandedPaths: vaultConfig.expandedPaths,
+    };
   }
 
-  private debouncedSaveUISettings = debounce(async (uiConfig: UIConfig) => {
-    if (!this.path) return;
-    try {
-      const existing = await this.loadUISettings();
-      const merged = { ...existing, ...uiConfig };
-      await vault.writeNote(this.path, '.aimo-note/config.json', JSON.stringify(merged, null, 2));
-    } catch {
-      // Ignore errors
-    }
-  }, 300);
-
   saveUISettings(settings: UIConfig): void {
-    this.debouncedSaveUISettings(settings);
+    this.queueVaultConfigUpdate(settings);
   }
 
   setActiveFile(path: string | null): void {
@@ -226,6 +275,7 @@ export class VaultService extends Service {
       next.add(nodePath);
     }
     this.expandedPaths = next;
+    this.saveUISettings({ expandedPaths: [...next] });
   }
 
   expandAll(): void {
@@ -242,10 +292,12 @@ export class VaultService extends Service {
     };
     collectPaths(this.tree);
     this.expandedPaths = allFolderPaths;
+    this.saveUISettings({ expandedPaths: [...allFolderPaths] });
   }
 
   collapseAll(): void {
     this.expandedPaths = new Set();
+    this.saveUISettings({ expandedPaths: [] });
   }
 
   get vaultPath(): string | null {

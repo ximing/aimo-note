@@ -49,10 +49,8 @@ export function ResizeHandle({ onResize, onResizeEnd, side = 'right' }: ResizeHa
 
   return (
     <div
-      className="resize-handle w-1 hover:w-1.5 cursor-col-resize flex-shrink-0 group relative"
+      className="resize-handle w-1 cursor-col-resize flex-shrink-0"
       onMouseDown={handleMouseDown}
-    >
-      <div className="absolute inset-y-0 w-0.5 bg-border group-hover:bg-accent group-hover:w-1 transition-all" />
-    </div>
+    />
   );
 }
