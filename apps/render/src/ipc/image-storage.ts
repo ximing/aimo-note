@@ -8,11 +8,7 @@ export interface ImageStorageAPI {
 
 export const imageStorage: ImageStorageAPI = {
   async upload(data: { arrayBuffer: ArrayBuffer; mimeType: string; vaultPath: string }): Promise<string> {
-    const result = await window.electronAPI!.imageStorage.upload({
-      arrayBuffer: data.arrayBuffer,
-      mimeType: data.mimeType,
-      vaultPath: data.vaultPath,
-    });
+    const result = await window.electronAPI!.imageStorage.upload(data);
     if (!result.success) {
       throw new Error(result.error || 'Upload failed');
     }

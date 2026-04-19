@@ -3,3 +3,4 @@ export * from './vault';
 export * from './graph';
 export * from './plugin';
 export * from './editor';
+export * from './image-storage';

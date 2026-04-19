@@ -23,7 +23,7 @@ const EditorPageContent = observer(() => {
   const [renameDialog, setRenameDialog] = useState<{ node: TreeNode } | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<{ node: TreeNode } | null>(null);
   const [fileName, setFileName] = useState('');
-  const [isEditingFileName, setIsEditingFileName] = useState(false);
+  const [, setIsEditingFileName] = useState(false);
 
   useEffect(() => {
     // Initialize editor service - restores current note if path not provided
@@ -79,7 +79,7 @@ const EditorPageContent = observer(() => {
       const name = service.currentNote.path.split('/').pop() || '';
       setFileName(name.replace(/\.md$/, ''));
     }
-  }, [service.currentNote?.path]);
+  }, [service.currentNote, service.currentNote?.path]);
 
   const handleFileNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setFileName(e.target.value);
