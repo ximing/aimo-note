@@ -15,10 +15,10 @@ export const SidePanel = observer(() => {
 
   return (
     <aside
-      className="side-panel border-l flex flex-col bg-bg-secondary"
+      className="side-panel flex flex-col bg-bg-secondary"
       style={{ width: uiService.sidePanelWidth }}
     >
-      <div className="side-panel-header flex items-center justify-between px-3 py-2 border-b">
+      <div className="side-panel-header flex items-center justify-between px-3 py-2 bg-bg-tertiary">
         <div className="flex items-center gap-1">
           {panelTabs.map((tab) => {
             const Icon = tab.icon;
