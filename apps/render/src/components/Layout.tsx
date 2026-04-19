@@ -16,15 +16,11 @@ export const Layout = observer(() => {
   return (
     <div className="app-layout h-screen flex flex-col">
       {/* Main Content Area */}
-      <div className="main-area flex flex-1 overflow-hidden">
-        {/* Left Rail */}
-        <LeftRail />
-
-        {/* Left Sidebar (File Tree, Search, Tags, etc.) */}
-        {uiService.leftSidebarOpen && (
-          <aside className="left-sidebar w-64 flex flex-col bg-bg-secondary">
-            {/* Left Sidebar Header - pl-12 avoids macOS traffic lights */}
-            <div className="left-sidebar-header flex items-center gap-1 pl-12 px-3 py-1 bg-bg-secondary">
+      <div className="main-area flex flex-1 flex-col overflow-hidden">
+        {/* Header Row - pl-12 avoids macOS traffic lights */}
+        <div className="header-row pl-12 flex items-center gap-1 px-3 py-1">
+          {uiService.leftSidebarOpen ? (
+            <>
               <button
                 type="button"
                 className="p-1.5 hover:bg-accent hover:text-white rounded text-sm"
@@ -41,10 +37,31 @@ export const Layout = observer(() => {
               >
                 <PanelLeftClose size={16} />
               </button>
-            </div>
-            <VaultTree />
-          </aside>
-        )}
+            </>
+          ) : (
+            <button
+              type="button"
+              className="p-1.5 hover:bg-accent hover:text-white rounded text-sm"
+              title="展开目录树"
+              onClick={() => uiService.toggleLeftSidebar()}
+            >
+              <PanelLeft size={16} />
+            </button>
+          )}
+        </div>
+
+        {/* Content Area */}
+        <div className="content-area flex flex-1 overflow-hidden">
+          {/* Left Rail */}
+          <LeftRail />
+
+          {/* Left Sidebar (File Tree, Search, Tags, etc.) */}
+          {uiService.leftSidebarOpen && (
+            <aside className="left-sidebar flex-1 flex flex-col bg-bg-secondary">
+              <VaultTree />
+            </aside>
+          )}
+        </div>
 
         {/* Main Content */}
         <main className="main-content flex-1 flex flex-col overflow-hidden">

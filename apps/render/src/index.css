@@ -167,12 +167,27 @@ body {
 }
 
 /* New Layout Regions */
+.header-row {
+  display: flex;
+  align-items: center;
+  padding: 4px 12px;
+  min-height: 40px;
+  background-color: var(--bg-secondary);
+}
+
+.content-area {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
 .left-rail {
   display: flex;
   flex-direction: column;
   width: 48px;
   height: 100%;
   background-color: var(--bg-tertiary);
+  padding-top: 0;
 }
 
 .left-sidebar {
