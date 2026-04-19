@@ -16,11 +16,15 @@ export const SettingsPage = observer(() => {
   const imageStorageService = useImageStorageService();
   const currentTheme = uiService.theme;
 
-  const handleStorageTypeChange = (type: 'local' | 's3') => {
-    const newConfig: ImageStorageConfig = type === 'local'
-      ? { type: 'local', local: { path: 'assets/images' } }
-      : { type: 's3', s3: { accessKey: '', secretKey: '', bucket: '', region: 'us-east-1', endpoint: '', keyPrefix: '' } };
-    imageStorageService.saveConfig(newConfig);
+  const handleStorageTypeChange = async (type: 'local' | 's3') => {
+    try {
+      const newConfig: ImageStorageConfig = type === 'local'
+        ? { type: 'local', local: { path: 'assets/images' } }
+        : { type: 's3', s3: { accessKey: '', secretKey: '', bucket: '', region: 'us-east-1', endpoint: '', keyPrefix: '' } };
+      await imageStorageService.saveConfig(newConfig);
+    } catch (error) {
+      console.error('Failed to save image storage config:', error);
+    }
   };
 
   const handleLocalPathChange = (path: string) => {
@@ -28,11 +32,10 @@ export const SettingsPage = observer(() => {
     imageStorageService.saveConfig({ type: 'local', local: { path } });
   };
 
-  const handleS3FieldChange = (field: string, value: string) => {
+  const handleS3FieldChange = (field: keyof typeof imageStorageService.config.s3, value: string) => {
     if (imageStorageService.config.type !== 's3') return;
     const currentS3 = { ...imageStorageService.config.s3 };
-    (currentS3 as Record<string, string>)[field] = value;
-    imageStorageService.saveConfig({ type: 's3', s3: currentS3 });
+    imageStorageService.saveConfig({ type: 's3', s3: { ...currentS3, [field]: value } });
   };
 
   return (
@@ -108,8 +111,9 @@ export const SettingsPage = observer(() => {
         {imageStorageService.config.type === 's3' && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2 text-text-secondary">Access Key</label>
+              <label className="block text-sm font-medium mb-2 text-text-secondary" htmlFor="s3-accessKey">Access Key</label>
               <input
+                id="s3-accessKey"
                 type="text"
                 value={imageStorageService.config.s3.accessKey}
                 onChange={(e) => handleS3FieldChange('accessKey', e.target.value)}
@@ -117,8 +121,9 @@ export const SettingsPage = observer(() => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2 text-text-secondary">Secret Key</label>
+              <label className="block text-sm font-medium mb-2 text-text-secondary" htmlFor="s3-secretKey">Secret Key</label>
               <input
+                id="s3-secretKey"
                 type="password"
                 value={imageStorageService.config.s3.secretKey}
                 onChange={(e) => handleS3FieldChange('secretKey', e.target.value)}
@@ -126,8 +131,9 @@ export const SettingsPage = observer(() => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2 text-text-secondary">Bucket</label>
+              <label className="block text-sm font-medium mb-2 text-text-secondary" htmlFor="s3-bucket">Bucket</label>
               <input
+                id="s3-bucket"
                 type="text"
                 value={imageStorageService.config.s3.bucket}
                 onChange={(e) => handleS3FieldChange('bucket', e.target.value)}
@@ -135,8 +141,9 @@ export const SettingsPage = observer(() => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2 text-text-secondary">Region</label>
+              <label className="block text-sm font-medium mb-2 text-text-secondary" htmlFor="s3-region">Region</label>
               <input
+                id="s3-region"
                 type="text"
                 value={imageStorageService.config.s3.region}
                 onChange={(e) => handleS3FieldChange('region', e.target.value)}
@@ -145,8 +152,9 @@ export const SettingsPage = observer(() => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2 text-text-secondary">Endpoint (optional)</label>
+              <label className="block text-sm font-medium mb-2 text-text-secondary" htmlFor="s3-endpoint">Endpoint (optional)</label>
               <input
+                id="s3-endpoint"
                 type="text"
                 value={imageStorageService.config.s3.endpoint}
                 onChange={(e) => handleS3FieldChange('endpoint', e.target.value)}
@@ -155,8 +163,9 @@ export const SettingsPage = observer(() => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-2 text-text-secondary">Key Prefix</label>
+              <label className="block text-sm font-medium mb-2 text-text-secondary" htmlFor="s3-keyPrefix">Key Prefix</label>
               <input
+                id="s3-keyPrefix"
                 type="text"
                 value={imageStorageService.config.s3.keyPrefix}
                 onChange={(e) => handleS3FieldChange('keyPrefix', e.target.value)}
