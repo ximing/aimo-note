@@ -56,7 +56,8 @@ apps/render         # React renderer
 
 export interface Graph {
   buildFromNotes(notes: { path: string; body: string }[]): GraphData;
-  getBacklinks(path: string): string[]; // 返回链接到 path 的笔记路径列表
+  getGraphData(): GraphData;             // 返回完整图数据（供 IPC 调用）
+  getBacklinks(path: string): string[];  // 返回链接到 path 的笔记路径列表
   getOutlinks(path: string): string[];   // 返回 path 中所有外链目标路径列表
 }
 
@@ -90,12 +91,12 @@ export interface GraphEdge {
 原正则 `/\[\[([^\]]+)\]\]/g` 会把 `[[笔记|别名]]` 整体作为一个字符串捕获。需要拆分 alias：
 
 ```typescript
-const WIKI_LINK_REGEX = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
+const WIKI_LINK_REGEX = /\[\[([^\]|]+)(?:\|([^\]|]+))?\]\]/g;
 // 捕获组1: target（链接目标，不含 | 和 ] 的部分）
-// 捕获组2: alias（可选，别名部分）
+// 捕获组2: alias（可选，不含 | 的别名部分，防止 `[[A|B|c]]` 误匹配）
 
 // 对于 ![[嵌入笔记]] 嵌入语法：
-const EMBED_REGEX = /!\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
+const EMBED_REGEX = /!\[\[([^\]|]+)(?:\|([^\]|]+))?\]\]/g;
 ```
 
 > ⚠️ 块引用 `[[笔记#block-id]]` 暂不支持，正则中的 `[^\]|]` 排除 `#` 字符，确保本版本不会误匹配。
@@ -109,22 +110,33 @@ export function resolveLink(
   linkText: string,      // wiki-link 中的 target 部分（不含 [[]] 和 alias）
   allNotePaths: string[]  // vault 中所有笔记的相对路径（不含 .md/.mdx 后缀）
 ): string | null {
-  const candidates = allNotePaths.map(p => p.replace(/\.mdx?$/, ''));
+  // 标准化：去掉扩展名，统一路径分隔符
+  const candidates = allNotePaths.map(p =>
+    p.replace(/\.mdx?$/, '').replace(/\\/g, '/')
+  );
+  // 标准化 linkText
+  const normalized = linkText.replace(/\\/g, '/');
 
   // Step 1: 精确匹配
-  const exact = candidates.find(c => c === linkText);
+  const exact = candidates.find(c => c === normalized);
   if (exact) return exact;
 
-  // Step 2: 模糊匹配（忽略大小写 + 忽略扩展名）
-  const lc = linkText.toLowerCase();
+  // Step 2: 模糊匹配（忽略大小写）
+  const lc = normalized.toLowerCase();
   const fuzzy = candidates.find(c => c.toLowerCase() === lc);
   if (fuzzy) return fuzzy;
 
-  // Step 3: 多结果时返回第一个（不稳定，后续可改进为评分排序）
-  const partial = candidates.filter(c => c.toLowerCase().includes(lc));
+  // Step 3: 部分匹配（最后一个路径段匹配，如 [[笔记]] 匹配 "子目录/笔记"）
+  const partial = candidates.filter(c => {
+    const lcFull = c.toLowerCase();
+    const lastSegment = lcFull.split('/').pop();
+    return lastSegment === lc || lcFull.includes(lc);
+  });
   return partial[0] ?? null; // null = 断链
 }
 ```
+
+> ⚠️ `[[子目录/笔记]]` 路径直接走精确匹配（支持嵌套路径）。
 
 ### 3.4 边缘情况处理
 
@@ -189,9 +201,9 @@ export function resolveLink(
 </div>
 ```
 
-**触发展开方式**：鼠标 hover（300ms debounce）或点击占位区域。展开后内容缓存，源笔记变化时自动刷新。键盘支持 Enter/Space 展开。
+**触发展开方式**：鼠标 hover（300ms debounce）或点击占位区域。键盘支持 Enter/Space 展开。
 
-> ⚠️ 嵌入内容**仅读取**（不编辑），编辑需跳转原笔记。
+> ⚠️ 嵌入内容**仅读取**（不编辑），编辑需跳转原笔记。刷新策略：嵌入笔记变化后，下次展开时重新拉取（不主动推送刷新，避免复杂度）。
 
 ### 5.4 插件注册顺序
 
@@ -216,18 +228,22 @@ commonmark → gfm → history → listener → slash → math
 ### 6.1 上下文片段提取算法
 
 1. 在源笔记中定位 `[[当前笔记]]` 出现位置（使用 `extractLinks` 结果）
-2. 取该位置前后各 **50 个字符**（不足则取到边界）作为上下文
+2. 取该位置前后各 **50 个字符**（字符级，非字节级，不切割多字节字符如中文）
 3. 高亮方式：将 `[[当前笔记]]` 文字本身用 `<mark>` 包裹
 4. 若同一笔记多次链接到当前笔记，每条单独展示一行
 
 ### 6.2 Vault Watcher 触发条件
 
 > ⚠️ Vault watcher 在 `packages/core/src/vault/index.ts` 中仅为接口（无实现）。增量图更新依赖 watcher 实现后生效。
->
-> 触发时序：
-> - **笔记保存** → 传入变化的 note `{ path, body }`，移除旧外链边，添加新边
-> - **笔记删除** → 传入 path，移除所有相关边
-> - **首次打开 vault** → 调用 `graph:build` 全量构建
+
+触发时序：
+
+| 事件 | 图更新行为 |
+|---|---|
+| **笔记保存** | 传入 `{ path, body }`，移除旧外链边，添加新边 |
+| **笔记删除** | 传入 path，移除所有相关边（入边 + 出边） |
+| **笔记移动/重命名** | 传入 `{ oldPath, newPath }`，更新所有指向 oldPath 的边 |
+| **首次打开 vault** | 调用 `graph:build` 全量构建 |
 
 ---
 
@@ -251,9 +267,10 @@ Milkdown onChange → debounce 300ms
     ↓
 editor.service → IPC: note:save
     ↓
-Vault watcher 检测变化 → 增量更新 graph
+Vault watcher 检测变化 → 增量更新 graph（增/删/改边）
     ↓
-Backlinks Panel 自动刷新（监听 currentNote 变化）
+Backlinks Panel 监听 currentNote 变化 → 重新拉取 backlinks
+Graph View 监听 graph 更新 → 重渲染图谱
     ↓
 点击 wiki-link → 跳转 / 打开嵌入 / 标记断链
 ```
