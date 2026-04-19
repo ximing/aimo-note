@@ -281,7 +281,7 @@ body {
   align-items: flex-end;
   min-height: 34px;
   padding: 6px 12px 0 8px;
-  background-color: var(--bg-secondary);
+  background-color: var(--bg-header);
 }
 
 .editor-tabs {
