@@ -1,62 +1,36 @@
 # Domain Logic - Core
 
-## 目录说明
-
-`packages/core` 是纯 Node.js 领域逻辑，不依赖 Electron。
+`packages/core` 是纯 Node.js 领域逻辑层，不依赖 Electron、React 或浏览器 API。
 
 ## 当前目录结构
 
-```
+```text
 src/
-├── vault/      # 笔记读写、frontmatter 解析
-├── graph/      # Wiki-links 和 #tags 提取，构建连接图
-├── search/     # 全文搜索（FlexSearch）
-├── plugins/    # 钩子式插件系统
-└── utils/      # 工具函数
+├── vault/      # 笔记读写、frontmatter 解析、目录级文件操作
+├── graph/      # Wiki-links / tags 提取与图关系基础构建
+├── search/     # 搜索契约与索引能力
+├── plugins/    # 插件契约与生命周期
+└── utils/      # 纯工具函数
 ```
 
-## 核心模块
+## 渐进式指引
 
-### Vault
+进入具体子模块时，优先读取更细一级的局部 `CLAUDE.md`：
 
-使用 `gray-matter` 解析 Markdown frontmatter：
+- `src/vault/CLAUDE.md` - 笔记内容、frontmatter、文件路径与写入规则
+- `src/graph/CLAUDE.md` - 内容提取、链接/标签解析、纯函数约束
+- `src/search/CLAUDE.md` - 搜索契约、索引抽象、结果稳定性
+- `src/plugins/CLAUDE.md` - 插件接口、生命周期和宿主边界
 
-```typescript
-import { vault } from '@aimo-note/core';
+## 核心原则
 
-const note = await vault.open('/path/to/vault');
-const files = note.list(); // → Array<{path, title, tags}>
-```
-
-### Graph
-
-从笔记内容提取 `[[wiki-links]]` 和 `#tags`：
-
-```typescript
-import { graph } from '@aimo-note/core';
-
-const nodes = graph.extractNodes(content);
-const links = graph.extractLinks(content);
-```
-
-### Search
-
-基于 FlexSearch 的全文搜索：
-
-```typescript
-import { search } from '@aimo-note/core';
-
-await search.index(files);
-const results = search.query('keyword');
-```
+- **纯 Node.js**：不引入 Electron、React 或 DOM 依赖。
+- **单职责**：每个子模块只关注一个领域边界。
+- **可测试**：优先纯函数、显式输入输出、可直接 import 测试。
+- **调用方无关**：core 不知道自己被 renderer、main process、CLI 还是测试调用。
 
 ## 约束
 
-- **纯 Node.js**：不依赖 Electron、React 或任何浏览器 API
-- **单职责**：每个子模块只专注一个领域
-- **无副作用**：核心模块应该是可测试的纯函数
-- **IPC 无关**：core 不知道谁在调用它（可以是 CLI、主进程、测试）
-
-## 测试
-
-Core 模块应该可以通过直接 import 进行单元测试。
+- 共享契约若需要跨层复用，应优先考虑放到 `packages/dto`。
+- 不要把 UI 行为、窗口状态、通知提示等上层概念混入 core。
+- 如果逻辑只是在某个应用层成立，不要为了复用想象提前下沉到 core。

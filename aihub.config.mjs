@@ -1,6 +1,7 @@
 export default {
   "setting": {
     "tools": [
+      "catpaw",
       "claude_code"
     ]
   },
@@ -45,6 +46,12 @@ export default {
       "name": "@github/issue",
       "version": "1.0.0",
       "path": ".claude/skills/github.issue",
+      "category": "skills"
+    },
+    {
+      "name": "@anthropics/skill-creator",
+      "version": "1.0.0",
+      "path": ".claude/skills/anthropics.skill-creator",
       "category": "skills"
     }
   ]

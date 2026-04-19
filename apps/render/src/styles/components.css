@@ -151,3 +151,83 @@
   background-color: var(--bg-primary);
   box-shadow: var(--shadow-md);
 }
+
+/* ============================================
+   Slash Command Menu
+   ============================================ */
+
+.slash-menu {
+  position: absolute;
+  background: var(--bg-primary);
+  border: 1px solid var(--bg-quaternary);
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  padding: 4px 0;
+  min-width: 220px;
+  max-height: 320px;
+  overflow-y: auto;
+  z-index: 1000;
+  font-size: 14px;
+}
+
+.slash-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: background-color 0.15s ease;
+}
+
+.slash-menu-item:hover,
+.slash-menu-item.is-selected {
+  background-color: var(--hover-soft);
+}
+
+.slash-menu-item-icon {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-soft);
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.slash-menu-item:hover .slash-menu-item-icon,
+.slash-menu-item.is-selected .slash-menu-item-icon {
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+
+.slash-menu-item-label {
+  flex: 1;
+  color: var(--text-primary);
+}
+
+.slash-menu-item-shortcut {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: 'Fira Code', monospace;
+}
+
+/* Slash menu group header */
+.slash-menu-group {
+  padding: 8px 12px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+/* Slash menu divider */
+.slash-menu-divider {
+  height: 1px;
+  margin: 4px 12px;
+  background-color: var(--bg-quaternary);
+}
