@@ -29,7 +29,7 @@ packages/core        # 纯 Node.js domain
   └── index.ts      # extractLinks() + resolveLink() 复用
 
 apps/client         # Electron main process
-  └── ipc/handlers  # graph:build / getBacklinks / getOutlinks / getGraphData
+  └── ipc/handlers  # graph:build / getBacklinks / getOutlinks / getGraphData / watch
 
 apps/render         # React renderer
   ├── components/
@@ -158,7 +158,7 @@ export function resolveLink(
 | `graph:build` | 接收所有笔记 `{ path, body }[]`，调用 core.graph.buildFromNotes()，返回空 `{}` |
 | `graph:getBacklinks` | 传入 noteId，返回 backlinks 路径数组 `string[]` |
 | `graph:getOutlinks` | 传入 noteId，返回 outlinks 路径数组 `string[]` |
-| `graph:getGraph` | 返回完整图数据 `{ nodes: GraphNode[], edges: GraphEdge[] }` |
+| `graph:getGraphData` | 返回完整图数据 `{ nodes: GraphNode[], edges: GraphEdge[] }` |
 
 ---
 
@@ -269,8 +269,8 @@ editor.service → IPC: note:save
     ↓
 Vault watcher 检测变化 → 增量更新 graph（增/删/改边）
     ↓
-Backlinks Panel 监听 currentNote 变化 → 重新拉取 backlinks
-Graph View 监听 graph 更新 → 重渲染图谱
+Backlinks Panel 监听 currentNote 变化 → IPC: graph:getBacklinks → 展示
+Graph View → IPC: graph:getGraphData → 重渲染图谱
     ↓
 点击 wiki-link → 跳转 / 打开嵌入 / 标记断链
 ```
