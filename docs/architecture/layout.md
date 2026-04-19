@@ -40,7 +40,7 @@ AIMO-Note uses a nested layout with the following hierarchy:
 俯视图 (Top-Down View):
 
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ ● ● ● header-row ← 与 macOS 红绿灯同一行 (pl-12 偏移约 70px)                  │
+│ ● ● ● header-row ← 与 macOS 红绿灯同一行 (pl-20 偏移约 80px)                  │
 ├────────┬─────────────────────────────────────────┬───────────────────────────┤
 │        │                                          │                           │
 │        │  content-area                            │  right-column             │
@@ -101,7 +101,7 @@ app-layout
 - **Left Rail Width**: 48px
 - **Left Sidebar Width**: 256px (w-64)
 - **Header Row Height**: ~40px (min-height: 40px)
-- **Traffic Light Offset**: `pl-12` (72px, accommodates ~70px for macOS traffic lights)
+- **Traffic Light Offset**: `pl-20` (80px, accommodates ~70px for macOS traffic lights)
 
 ## Key Design Decisions
 
