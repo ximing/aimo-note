@@ -11,6 +11,7 @@ import { UIService } from './services/ui.service';
 import { GraphService } from './services/graph.service';
 import { SearchService } from './services/search.service';
 import { PluginService } from './services/plugin.service';
+import { ImageStorageService } from './services/image-storage.service';
 
 // 注册顺序不能乱
 register(UIService);
@@ -18,6 +19,7 @@ register(VaultService);
 register(GraphService);
 register(SearchService);
 register(PluginService);
+register(ImageStorageService);
 
 // Initialize VaultService to auto-open last vault (awaited to prevent race conditions)
 resolve(VaultService).initialize().catch(console.error);
