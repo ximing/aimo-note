@@ -135,6 +135,8 @@ interface ImageNodeAttrs {
 }
 ```
 
+> **向后兼容性**：`width` 字段仅在用户主动拖拽时写入，已有文档中通过 CSS `max-width` 或百分比设置的图片不受影响。渲染时优先读取 `width` 属性，若无则以 CSS `max-width: 100%` 自然填充。
+
 ### Markdown / HTML 序列化
 
 - **`width`**：序列化为 `<img width="...">` HTML 属性
@@ -210,6 +212,8 @@ interface ImageNodeAttrs {
 
 ### 拖拽实现
 
+> **注意**：以下代码为示意伪代码，实现时需根据实际情况补充变量声明并完善边界判断逻辑。
+
 ```typescript
 const handleResize = (e: MouseEvent, handle: HandlePosition) => {
   e.preventDefault();
@@ -222,6 +226,7 @@ const handleResize = (e: MouseEvent, handle: HandlePosition) => {
   const origWidth = imageEl.naturalWidth;
   const origHeight = imageEl.naturalHeight;
   const styleWidth = parseInt(imageEl.style.width) || imageEl.offsetWidth;
+  const styleHeight = parseInt(imageEl.style.height) || imageEl.offsetHeight;
 
   const MIN_WIDTH = 40;
   const MAX_WIDTH = imageEl.parentElement?.offsetWidth || 800;
@@ -232,18 +237,28 @@ const handleResize = (e: MouseEvent, handle: HandlePosition) => {
 
     let newWidth: number;
 
+    let newWidth = styleWidth;
+
     switch (handle) {
       case 'se': // 右下角：自由缩放
         newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, styleWidth + dx));
+        if (moveEvent.shiftKey) {
+          const ratio = origWidth / origHeight;
+          imageEl.style.width = `${newWidth}px`;
+          imageEl.style.height = `${newWidth / ratio}px`;
+        } else {
+          imageEl.style.width = `${newWidth}px`;
+          imageEl.style.height = `${styleHeight + dy}px`;
+        }
         break;
       case 's': // 下边中点：仅改变高度
-        const newHeight = Math.max(MIN_HEIGHT, styleHeight + dy);
-        imageEl.style.height = `${newHeight}px`;
+        imageEl.style.height = `${Math.max(MIN_HEIGHT, styleHeight + dy)}px`;
         break;
       case 'e': // 右边中点：仅改变宽度
         newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, styleWidth + dx));
+        imageEl.style.width = `${newWidth}px`;
         break;
-      case 'sw': // 左下角：调整宽度 + 调整 left
+      case 'sw': // 左下角：调整宽度 + 调整 marginLeft
         newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, styleWidth - dx));
         imageEl.style.width = `${newWidth}px`;
         imageEl.style.marginLeft = `${parseInt(imageEl.style.marginLeft || '0') + dx}px`;
@@ -255,30 +270,36 @@ const handleResize = (e: MouseEvent, handle: HandlePosition) => {
         break;
       case 'nw': // 左上角：自由缩放 + 调整 marginLeft + 调整 marginTop
         newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, styleWidth - dx));
-        imageEl.style.width = `${newWidth}px`;
+        if (moveEvent.shiftKey) {
+          const ratio = origWidth / origHeight;
+          imageEl.style.width = `${newWidth}px`;
+          imageEl.style.height = `${newWidth / ratio}px`;
+        } else {
+          imageEl.style.width = `${newWidth}px`;
+          imageEl.style.height = `${Math.max(MIN_HEIGHT, styleHeight - dy)}px`;
+        }
         imageEl.style.marginLeft = `${parseInt(imageEl.style.marginLeft || '0') + dx}px`;
         imageEl.style.marginTop = `${parseInt(imageEl.style.marginTop || '0') + dy}px`;
         break;
       case 'n': // 上边中点：调整高度 + 调整 marginTop
-        const newHeightN = Math.max(MIN_HEIGHT, styleHeight - dy);
-        imageEl.style.height = `${newHeightN}px`;
+        imageEl.style.height = `${Math.max(MIN_HEIGHT, styleHeight - dy)}px`;
         imageEl.style.marginTop = `${parseInt(imageEl.style.marginTop || '0') + dy}px`;
         break;
       case 'ne': // 右上角：自由缩放 + 调整 marginTop
         newWidth = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, styleWidth + dx));
-        imageEl.style.width = `${newWidth}px`;
+        if (moveEvent.shiftKey) {
+          const ratio = origWidth / origHeight;
+          imageEl.style.width = `${newWidth}px`;
+          imageEl.style.height = `${newWidth / ratio}px`;
+        } else {
+          imageEl.style.width = `${newWidth}px`;
+          imageEl.style.height = `${Math.max(MIN_HEIGHT, styleHeight - dy)}px`;
+        }
         imageEl.style.marginTop = `${parseInt(imageEl.style.marginTop || '0') + dy}px`;
         break;
     }
 
-    if (moveEvent.shiftKey) {
-      // 等比缩放
-      const ratio = origWidth / origHeight;
-      imageEl.style.width = `${newWidth}px`;
-      imageEl.style.height = `${newWidth / ratio}px`;
-    } else {
-      imageEl.style.width = `${newWidth}px`;
-    }
+    onResize(imageEl.offsetWidth, imageEl.offsetHeight);
 
     onResize(imageEl.offsetWidth, imageEl.offsetHeight);
   };
