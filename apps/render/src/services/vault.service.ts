@@ -1,5 +1,6 @@
 import { Service, resolve } from '@rabjs/react';
 import { vault } from '@/ipc/vault';
+import type { TabConfig } from '@/ipc/vault';
 import { config } from '@/ipc/config';
 import type { TreeNode } from '@/ipc/vault';
 import type { RecentVault } from '@/ipc/config';
@@ -144,11 +145,11 @@ export class VaultService extends Service {
     this.recentVaults = await config.removeRecentVault(vaultPath);
   }
 
-  async loadTabs(): Promise<{ openTabs: Array<{ id: string; path: string }>; activeTabId: string | null } | null> {
+  async loadTabs(): Promise<TabConfig | null> {
     if (!this.path) return null;
     try {
       const result = await vault.readNote(this.path, '.aimo-note/config.json');
-      return JSON.parse(result.content);
+      return JSON.parse(result.content) as TabConfig;
     } catch {
       return null; // config doesn't exist yet
     }
@@ -156,8 +157,8 @@ export class VaultService extends Service {
 
   private debouncedSaveTabs = debounce(async (tabs: Array<{ id: string; path: string }>, activeTabId: string | null) => {
     if (!this.path) return;
-    const config: { openTabs: Array<{ id: string; path: string }>; activeTabId: string | null } = { openTabs: tabs, activeTabId };
-    await vault.writeNote(this.path, '.aimo-note/config.json', JSON.stringify(config, null, 2));
+    const tabConfig: { openTabs: Array<{ id: string; path: string }>; activeTabId: string | null } = { openTabs: tabs, activeTabId };
+    await vault.writeNote(this.path, '.aimo-note/config.json', JSON.stringify(tabConfig, null, 2));
   }, 300);
 
   saveTabs(tabs: Array<{ id: string; path: string }>, activeTabId: string | null): void {
