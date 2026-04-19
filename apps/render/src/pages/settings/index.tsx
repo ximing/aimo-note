@@ -96,8 +96,9 @@ export const SettingsPage = observer(() => {
         {/* Local Path */}
         {imageStorageService.config.type === 'local' && (
           <div className="mb-4">
-            <label className="block text-sm font-medium mb-2 text-text-secondary">Local Path</label>
+            <label className="block text-sm font-medium mb-2 text-text-secondary" htmlFor="local-path">Local Path</label>
             <input
+              id="local-path"
               type="text"
               value={imageStorageService.config.local.path}
               onChange={(e) => handleLocalPathChange(e.target.value)}
