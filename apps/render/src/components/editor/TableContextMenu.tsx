@@ -89,20 +89,31 @@ export function TableContextMenu({
     { label: '删除当前行', icon: <Trash2 size={14} />, onClick: onDeleteRow, disabled: !canDeleteRow },
   ];
 
+  const handleInsertClick = (onClick: () => void) => {
+    onClick();
+    onClose();
+  };
+
+  const handleDeleteClick = (onClick: () => void, disabled?: boolean) => {
+    if (!disabled) {
+      onClick();
+      onClose();
+    }
+  };
+
   return (
     <div
       ref={menuRef}
+      role="menu"
       className="context-menu absolute z-50 min-w-[180px] bg-bg-primary border border-border rounded-lg shadow-[0_4px_16px_rgba(0,0,0,0.2)] py-1"
       style={{ left: adjustedX, top: adjustedY }}
     >
       {insertItems.map((item, index) => (
         <button
           key={index}
+          role="menuitem"
           type="button"
-          onClick={() => {
-            item.onClick();
-            onClose();
-          }}
+          onClick={() => handleInsertClick(item.onClick)}
           className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left text-text-primary hover:bg-accent hover:text-white"
         >
           <span className="w-4">{item.icon}</span>
@@ -115,13 +126,9 @@ export function TableContextMenu({
       {deleteItems.map((item, index) => (
         <button
           key={index}
+          role="menuitem"
           type="button"
-          onClick={() => {
-            if (!item.disabled) {
-              item.onClick();
-              onClose();
-            }
-          }}
+          onClick={() => handleDeleteClick(item.onClick, item.disabled)}
           disabled={item.disabled}
           className={`flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-accent hover:text-white ${
             item.disabled ? 'opacity-50 cursor-not-allowed' : 'text-destructive'
