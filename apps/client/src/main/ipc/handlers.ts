@@ -1,9 +1,26 @@
-import { app, ipcMain, safeStorage, dialog } from 'electron';
+import { app, ipcMain, safeStorage, dialog, clipboard } from 'electron';
 import Store from 'electron-store';
 import fs from 'fs/promises';
 import path from 'path';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { randomUUID } from 'crypto';
 
 import { checkForUpdates, downloadUpdate, installUpdate } from '../updater';
+
+// Image storage config type (duplicated from render types to avoid cross-package dependency)
+type ImageStorageConfig =
+  | { type: 'local'; local: { path: string } }
+  | {
+      type: 's3';
+      s3: {
+        accessKey: string;
+        secretKey: string;
+        bucket: string;
+        region: string;
+        endpoint?: string;
+        keyPrefix?: string;
+      };
+    };
 
 interface TreeNode {
   name: string;
@@ -310,5 +327,143 @@ export function registerIpcHandlers(): void {
     throw new Error('Not implemented');
   });
 
-  console.log('[IPC] Vault/Graph/Search handlers registered');
+  // Clipboard handlers
+  ipcMain.handle('clipboard:read-image', async () => {
+    try {
+      const image = clipboard.readImage();
+      if (image.isEmpty()) {
+        return { success: true, data: null };
+      }
+
+      const buffer = image.toPNG();
+      const arrayBuffer = buffer.buffer.slice(
+        buffer.byteOffset,
+        buffer.byteOffset + buffer.byteLength
+      );
+
+      return {
+        success: true,
+        data: {
+          arrayBuffer,
+          mimeType: 'image/png',
+        },
+      };
+    } catch (error) {
+      console.error('[IPC] clipboard:read-image error:', error);
+      return { success: false, error: String(error), data: null };
+    }
+  });
+
+  // Image storage handlers
+  ipcMain.handle('image-storage:upload', async (_event, data: { arrayBuffer: ArrayBuffer; mimeType: string; vaultPath: string }) => {
+    const { arrayBuffer, mimeType, vaultPath } = data;
+
+    try {
+      // Get image storage config
+      const configPath = path.join(vaultPath, '.aimo-note/config.json');
+      let config: ImageStorageConfig;
+      try {
+        const content = await fs.readFile(configPath, 'utf-8');
+        const parsed = JSON.parse(content);
+        config = parsed.imageStorage || { type: 'local', local: { path: 'assets/images' } };
+      } catch {
+        config = { type: 'local', local: { path: 'assets/images' } };
+      }
+
+      if (config.type === 'local') {
+        // Local storage
+        const { local } = config;
+        const uuid = randomUUID();
+        const ext = mimeType.split('/')[1] || 'png';
+        const fileName = `${uuid}.${ext}`;
+        const relativePath = path.join(local.path, fileName);
+        const fullPath = path.join(vaultPath, relativePath);
+
+        // Validate path is within vault (prevent path traversal)
+        const normalizedFull = path.normalize(fullPath);
+        const normalizedVault = path.normalize(vaultPath);
+        if (!normalizedFull.startsWith(normalizedVault)) {
+          return { success: false, error: 'Invalid path: traversal detected' };
+        }
+
+        // Ensure directory exists
+        await fs.mkdir(path.dirname(fullPath), { recursive: true });
+
+        // Write file
+        const buffer = Buffer.from(arrayBuffer);
+        await fs.writeFile(fullPath, buffer);
+
+        return { success: true, url: relativePath.replace(/\\/g, '/') };
+      } else {
+        // S3 storage
+        const { s3 } = config;
+        const uuid = randomUUID();
+        const ext = mimeType.split('/')[1] || 'png';
+        const key = `${s3.keyPrefix || ''}${uuid}.${ext}`;
+
+        const s3Client = new S3Client({
+          region: s3.region,
+          credentials: {
+            accessKeyId: s3.accessKey,
+            secretAccessKey: s3.secretKey,
+          },
+          ...(s3.endpoint ? { endpoint: s3.endpoint, forcePathStyle: true } : {}),
+        });
+
+        const command = new PutObjectCommand({
+          Bucket: s3.bucket,
+          Key: key,
+          Body: Buffer.from(arrayBuffer),
+          ContentType: mimeType,
+        });
+
+        await s3Client.send(command);
+
+        const url = s3.endpoint
+          ? `${s3.endpoint}/${s3.bucket}/${key}`
+          : `https://${s3.bucket}.s3.${s3.region}.amazonaws.com/${key}`;
+
+        return { success: true, url };
+      }
+    } catch (error) {
+      console.error('[IPC] image-storage:upload error:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  ipcMain.handle('image-storage:get-config', async (_event, vaultPath: string) => {
+    try {
+      const configPath = path.join(vaultPath, '.aimo-note/config.json');
+      const content = await fs.readFile(configPath, 'utf-8');
+      const config = JSON.parse(content);
+      return { success: true, config: config.imageStorage || null };
+    } catch {
+      return {
+        success: true,
+        config: { type: 'local', local: { path: 'assets/images' } },
+      };
+    }
+  });
+
+  ipcMain.handle('image-storage:set-config', async (_event, vaultPath: string, config: ImageStorageConfig) => {
+    try {
+      const configPath = path.join(vaultPath, '.aimo-note/config.json');
+      let existingConfig: Record<string, unknown> = {};
+      try {
+        const content = await fs.readFile(configPath, 'utf-8');
+        existingConfig = JSON.parse(content);
+      } catch {
+        // File doesn't exist, will be created
+      }
+      existingConfig.imageStorage = config;
+      await fs.mkdir(path.dirname(configPath), { recursive: true });
+      await fs.writeFile(configPath, JSON.stringify(existingConfig, null, 2), 'utf-8');
+      return { success: true };
+    } catch (error) {
+      console.error('[IPC] image-storage:set-config error:', error);
+      return { success: false, error: String(error) };
+    }
+  });
+
+  console.log('[IPC] Vault/Graph/Search/ImageStorage handlers registered');
 }

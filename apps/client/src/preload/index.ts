@@ -15,6 +15,35 @@ export interface UpdateStatus {
   error?: string;
 }
 
+// Image storage types
+export type ImageStorageType = 'local' | 's3';
+
+export interface LocalImageStorageConfig {
+  type: 'local';
+  local: {
+    path: string;
+  };
+}
+
+export interface S3ImageStorageConfig {
+  type: 's3';
+  s3: {
+    accessKey: string;
+    secretKey: string;
+    bucket: string;
+    region: string;
+    endpoint?: string;
+    keyPrefix?: string;
+  };
+}
+
+export type ImageStorageConfig = LocalImageStorageConfig | S3ImageStorageConfig;
+
+export interface ClipboardImageData {
+  arrayBuffer: ArrayBuffer;
+  mimeType: string;
+}
+
 // Update info type
 export interface UpdateInfo {
   version: string;
@@ -161,6 +190,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
     removeRecentVault: (vaultPath: string) =>
       ipcRenderer.invoke('config:removeRecentVault', vaultPath),
   },
+
+  // Clipboard operations
+  clipboard: {
+    readImage: () => ipcRenderer.invoke('clipboard:read-image'),
+  },
+
+  // Image storage operations
+  imageStorage: {
+    upload: (data: { arrayBuffer: ArrayBuffer; mimeType: string; vaultPath: string }) =>
+      ipcRenderer.invoke('image-storage:upload', data),
+    getConfig: () => ipcRenderer.invoke('image-storage:get-config'),
+    setConfig: (config: ImageStorageConfig) =>
+      ipcRenderer.invoke('image-storage:set-config', config),
+  },
 });
 
 // --------- Type definitions for Renderer process ---------
@@ -206,6 +249,17 @@ declare global {
         getRecentVaults: () => Promise<RecentVault[]>;
         addRecentVault: (vaultPath: string) => Promise<{ success: boolean; recentVaults: RecentVault[] }>;
         removeRecentVault: (vaultPath: string) => Promise<{ success: boolean; recentVaults: RecentVault[] }>;
+      };
+      // Clipboard operations
+      clipboard: {
+        readImage: () => Promise<{ success: boolean; data: ClipboardImageData | null; error?: string }>;
+      };
+      // Image storage operations
+      imageStorage: {
+        upload: (data: { arrayBuffer: ArrayBuffer; mimeType: string; vaultPath: string }) =>
+          Promise<{ success: boolean; url?: string; error?: string }>;
+        getConfig: () => Promise<{ success: boolean; config: ImageStorageConfig | null }>;
+        setConfig: (config: ImageStorageConfig) => Promise<{ success: boolean; error?: string }>;
       };
     };
   }
