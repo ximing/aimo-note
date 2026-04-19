@@ -37,6 +37,11 @@
   --radius-lg: 6px;
   --radius-full: 50%;
 
+  /* Layout layer colors (outer → inner, dark → light) */
+  --bg-header: #e2dfd8;
+  --bg-rail: #e8e6e0;
+  --bg-sidebar: #f2f1ed;
+
   font-family: Menlo, 'Meslo LG', 'Helvetica Neue', Helvetica, Arial, sans-serif, '微软雅黑', monospace, system-ui, -apple-system, 'Segoe UI', Roboto;
   line-height: 1.5;
   font-weight: 400;
@@ -68,6 +73,12 @@ html.dark {
   --selection-soft: rgba(95, 196, 149, 0.14);
   --shadow: rgba(0, 0, 0, 0.28);
   --shadow-lg: rgba(0, 0, 0, 0.38);
+
+  /* Layout layer colors (outer → inner, dark → light) */
+  --bg-header: #2f2f2f;
+  --bg-rail: #2a2a2a;
+  --bg-sidebar: #1e1e1e;
+
   color: var(--text-primary);
   background-color: var(--bg-secondary);
 }
