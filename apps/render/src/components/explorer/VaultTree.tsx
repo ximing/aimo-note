@@ -105,8 +105,10 @@ export const VaultTree = observer(() => {
     );
   }
 
-  // Sort tree
-  const sortedTree = [...tree].sort((a, b) => {
+  // Sort tree, filtering out .aimo-note config directory
+  const sortedTree = [...tree]
+    .filter(node => node.name !== '.aimo-note')
+    .sort((a, b) => {
     // Folders always first
     if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
 
