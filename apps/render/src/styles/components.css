@@ -1,0 +1,153 @@
+/* ============================================
+   UI Components Styles
+   ============================================ */
+
+/* ============================================
+   Icon Buttons
+   ============================================ */
+
+.chrome-icon-button,
+.rail-nav-button,
+.tab-close-button {
+  color: var(--text-secondary);
+  background-color: transparent;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.chrome-icon-button:hover,
+.rail-nav-button:hover,
+.tab-close-button:hover {
+  color: var(--text-primary);
+  background-color: var(--hover-soft);
+}
+
+/* ============================================
+   Titlebar Actions
+   ============================================ */
+
+.titlebar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ============================================
+   Editor Tabs
+   ============================================ */
+
+.editor-tabs-shell {
+  display: flex;
+  align-items: flex-end;
+  min-height: 40px;
+  padding: 6px 12px 0 8px;
+  background-color: var(--bg-header);
+}
+
+.editor-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  min-height: 32px;
+  padding: 2px 0 0;
+  background-color: transparent;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.editor-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 6px 6px 0 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+}
+
+.editor-tab:hover {
+  color: var(--text-primary);
+  background-color: var(--hover-soft);
+}
+
+.editor-tab.active {
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.editor-tab .tab-close-button {
+  opacity: 0;
+}
+
+.editor-tab:hover .tab-close-button,
+.editor-tab.active .tab-close-button {
+  opacity: 1;
+}
+
+/* ============================================
+   Editor Surface
+   ============================================ */
+
+.editor-surface {
+  margin: 0 12px 12px 8px;
+  padding: 32px 48px;
+  border-radius: 0 8px 8px 8px;
+  background-color: transparent;
+}
+
+/* ============================================
+   File Name Header
+   ============================================ */
+
+.file-name-header {
+  margin-bottom: 20px;
+}
+
+.file-name-input {
+  color: var(--text-primary);
+  padding: 6px 0px;
+  font-size: 24px;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+}
+
+.file-name-input::placeholder {
+  color: var(--text-muted);
+}
+
+.file-name-input:focus {
+  background-color: var(--surface-soft);
+}
+
+/* ============================================
+   Tree Node
+   ============================================ */
+
+.tree-node-button {
+  color: var(--text-secondary);
+}
+
+.tree-node-button:hover {
+  color: var(--text-primary);
+  background-color: var(--hover-soft);
+}
+
+.tree-node-button.is-selected {
+  color: var(--text-primary);
+  background-color: var(--selection-soft);
+}
+
+/* ============================================
+   Sidebar Menu
+   ============================================ */
+
+.sidebar-menu {
+  background-color: var(--bg-primary);
+  box-shadow: var(--shadow-md);
+}

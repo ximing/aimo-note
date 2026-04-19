@@ -1,6 +1,9 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+// Tailwind styles (includes CSS reset)
 import './index.css';
+// Custom styles
+import './styles/index.css';
 import { App } from './app';
 import { register, resolve } from '@rabjs/react';
 import { VaultService } from './services/vault.service';

@@ -1,0 +1,66 @@
+/* ============================================
+   Syntax Highlighting for Code Blocks
+   Using a simple theme that works in both light and dark
+   ============================================ */
+
+/* Keywords */
+.ProseMirror pre .token.keyword,
+.ProseMirror pre .token.tag {
+  color: #d73a49;
+}
+
+html.dark .ProseMirror pre .token.keyword,
+html.dark .ProseMirror pre .token.tag {
+  color: #f97583;
+}
+
+/* Strings */
+.ProseMirror pre .token.string {
+  color: #032f62;
+}
+
+html.dark .ProseMirror pre .token.string {
+  color: #9ecbff;
+}
+
+/* Comments */
+.ProseMirror pre .token.comment {
+  color: #6a737d;
+  font-style: italic;
+}
+
+html.dark .ProseMirror pre .token.comment {
+  color: #6a737d;
+}
+
+/* Functions */
+.ProseMirror pre .token.function {
+  color: #6f42c1;
+}
+
+html.dark .ProseMirror pre .token.function {
+  color: #b392f0;
+}
+
+/* Numbers */
+.ProseMirror pre .token.number {
+  color: #005cc5;
+}
+
+html.dark .ProseMirror pre .token.number {
+  color: #79b8ff;
+}
+
+/* Operators */
+.ProseMirror pre .token.operator {
+  color: #d73a49;
+}
+
+html.dark .ProseMirror pre .token.operator {
+  color: #f97583;
+}
+
+/* Punctuation */
+.ProseMirror pre .token.punctuation {
+  color: var(--text-secondary);
+}
