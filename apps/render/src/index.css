@@ -173,7 +173,6 @@ body {
   width: 48px;
   height: 100%;
   background-color: var(--bg-tertiary);
-  border-right: 1px solid var(--border);
 }
 
 .explorer {
@@ -189,7 +188,6 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
   min-height: 40px;
 }
 
@@ -212,7 +210,6 @@ body {
   height: 36px;
   padding: 0 8px;
   background-color: var(--bg-tertiary);
-  border-bottom: 1px solid var(--border);
   overflow-x: auto;
   overflow-y: hidden;
 }
@@ -247,7 +244,6 @@ body {
   flex-direction: column;
   height: 100%;
   background-color: var(--bg-primary);
-  border-left: 1px solid var(--border);
   overflow: hidden;
 }
 
@@ -256,7 +252,6 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
   min-height: 40px;
 }
 
