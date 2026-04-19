@@ -1,6 +1,6 @@
 import { useEditor, useInstance } from '@milkdown/react';
 import { Editor, rootCtx, defaultValueCtx, commandsCtx, editorViewCtx } from '@milkdown/kit/core';
-import { commonmark } from '@milkdown/kit/preset/commonmark';
+import { commonmark, imageAttr } from '@milkdown/kit/preset/commonmark';
 import { gfm, insertTableCommand } from '@milkdown/kit/preset/gfm';
 import { history } from '@milkdown/kit/plugin/history';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
@@ -601,6 +601,17 @@ export function MilkdownEditorInner({
       .config((ctx) => {
         ctx.set(rootCtx, root);
         ctx.set(defaultValueCtx, defaultValueRef.current);
+
+        // Configure image attributes (align and width) for DOM rendering
+        ctx.set(imageAttr.key, (node) => {
+          const align = node.attrs.align as 'left' | 'center' | 'right' | undefined;
+          const width = node.attrs.width as number | undefined;
+          return {
+            class: align ? `align-${align}` : undefined,
+            'data-align': align || 'center',
+            width: width || undefined,
+          };
+        });
 
         // Configure image upload
         ctx.update(imageBlockConfig.key, (prev) => ({
