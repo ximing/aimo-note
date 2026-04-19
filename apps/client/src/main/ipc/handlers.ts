@@ -5,7 +5,7 @@ import path from 'path';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { randomUUID } from 'crypto';
 import { spawn } from 'child_process';
-import { rgPath } from 'vscode-ripgrep';
+import { rgPath } from '@vscode/ripgrep';
 
 /**
  * High-level wrapper around ripgrep spawn that returns stdout as a Promise.
@@ -353,7 +353,7 @@ export function registerIpcHandlers(): void {
     caseSensitive: boolean;
     isRegex: boolean;
   }) => {
-    const { query, rootPath, caseSensitive } = options;
+    const { query, rootPath, caseSensitive, isRegex } = options;
 
     if (!query || !rootPath) {
       return { success: true, results: [] };
@@ -372,6 +372,10 @@ export function registerIpcHandlers(): void {
 
       if (!caseSensitive) {
         args.push('--ignore-case');
+      }
+
+      if (!isRegex) {
+        args.push('--fixed-strings');
       }
 
       // Use high-level rgFiles API from vscode-ripgrep wrapper

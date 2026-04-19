@@ -1,4 +1,5 @@
 import { ipcRenderer, contextBridge, IpcRendererEvent, app } from 'electron';
+import type { SearchResult } from '@aimo-note/dto';
 
 type MessageCallback = (message: string) => void;
 type FileDropCallback = (filePaths: string[]) => void;
@@ -74,28 +75,7 @@ export interface VaultResult {
   error?: string;
 }
 
-// Search types
-export interface SearchMatch {
-  path: string;
-  line: number;
-  text: string;
-  matchStart: number;
-  matchEnd: number;
-}
-
-export interface SearchResult {
-  path: string;
-  line: number;
-  text: string;
-  matchStart: number;
-  matchEnd: number;
-}
-
-export interface SearchResponse {
-  success: boolean;
-  results: SearchResult[];
-  error?: string;
-}
+// Search types are imported from @aimo-note/dto
 
 // Store wrapped callbacks to allow proper removal
 const messageCallbackMap = new Map<
