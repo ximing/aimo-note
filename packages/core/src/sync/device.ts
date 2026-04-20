@@ -2,10 +2,20 @@ import Database from 'better-sqlite3';
 import type { SyncDevice } from '@aimo-note/dto';
 import { randomUUID } from 'crypto';
 
+interface SyncDeviceRow {
+  id: string;
+  name: string;
+  last_seen: string;
+  created_at: string;
+}
+
 export class DeviceManager {
   constructor(private db: InstanceType<typeof Database>) {}
 
   register(id: string, name: string): SyncDevice {
+    if (!id || !name) {
+      throw new Error('Device id and name must be non-empty strings');
+    }
     const now = new Date().toISOString();
 
     const stmt = this.db.prepare(`
@@ -20,7 +30,7 @@ export class DeviceManager {
   getDevice(id: string): SyncDevice | null {
     const row = this.db
       .prepare('SELECT * FROM sync_devices WHERE id = ?')
-      .get(id) as any;
+      .get(id) as SyncDeviceRow | undefined;
 
     if (!row) return null;
 
@@ -35,7 +45,7 @@ export class DeviceManager {
   getAllDevices(): SyncDevice[] {
     const rows = this.db
       .prepare('SELECT * FROM sync_devices ORDER BY last_seen DESC')
-      .all() as any[];
+      .all() as SyncDeviceRow[];
 
     return rows.map(row => ({
       id: row.id,
@@ -45,11 +55,12 @@ export class DeviceManager {
     }));
   }
 
-  touch(id: string): void {
+  touch(id: string): boolean {
     const now = new Date().toISOString();
-    this.db
+    const result = this.db
       .prepare('UPDATE sync_devices SET last_seen = ? WHERE id = ?')
       .run(now, id);
+    return result.changes > 0;
   }
 
   generateDeviceId(): string {
