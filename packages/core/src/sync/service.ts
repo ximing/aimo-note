@@ -7,6 +7,8 @@ import { Watcher } from './file_watcher';
 import { S3Adapter } from './adapter';
 import { ManifestManager } from './manifest';
 import { SyncEngine } from './engine';
+import { ConflictManager } from './conflicts';
+import { VersionRollback } from './rollback';
 
 export interface SyncServiceConfig {
   vaultPath: string;
@@ -28,6 +30,8 @@ export class SyncService {
   private adapter: S3Adapter | null = null;
   private syncEngine: SyncEngine | null = null;
   private manifestManager: ManifestManager | null = null;
+  private conflictManager: ConflictManager;
+  private rollback: VersionRollback;
 
   constructor(
     config: SyncServiceConfig,
@@ -61,6 +65,14 @@ export class SyncService {
     // Register this device
     this.deviceManager.register(config.deviceId, config.deviceName);
 
+    // Initialize ConflictManager and VersionRollback
+    this.conflictManager = new ConflictManager(db);
+    this.rollback = new VersionRollback(
+      this.versionManager,
+      this.adapter,  // S3Adapter (null if sync not configured)
+      config.vaultPath
+    );
+
     // Phase 2: Initialize S3 if config provided
     if (config.s3) {
       this.s3Config = config.s3;
@@ -70,7 +82,9 @@ export class SyncService {
         this.adapter,
         this.versionManager,
         this.changeLogger,
-        config.deviceId
+        config.deviceId,
+        this.conflictManager,  // NEW
+        config.vaultPath        // NEW
       );
     }
   }

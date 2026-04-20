@@ -68,11 +68,15 @@ describe('SyncEngine', () => {
         hash: 'sha256:local',
         version: 'v1',
       });
+      mockVersionManager.getVersionContent.mockReturnValue('local content');
 
       const result = await engine.sync();
 
       expect(result.conflicts).toContain('note1.md');
-      expect(mockAdapter.putObject).not.toHaveBeenCalled();
+      // With ConflictManager wired in, the local version IS uploaded during conflict
+      // so both versions exist remotely (local at original path, remote at conflict file)
+      expect(mockAdapter.putObject).toHaveBeenCalled();
+      expect(result.uploaded).toContain('note1.md');
     });
 
     it('should upload local-only files', async () => {
