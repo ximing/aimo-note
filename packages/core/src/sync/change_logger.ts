@@ -1,6 +1,17 @@
 import Database from 'better-sqlite3';
 import type { SyncChangeLogEntry, SyncOperation } from '@aimo-note/dto';
 
+interface SyncChangeLogRow {
+  id: number;
+  operation: string;
+  file_path: string;
+  version: string;
+  hash: string | null;
+  created_at: string;
+  device_id: string;
+  synced: number;
+}
+
 export class ChangeLogger {
   constructor(
     private db: InstanceType<typeof Database>,
@@ -45,7 +56,7 @@ export class ChangeLogger {
   getUnsyncedEntries(): SyncChangeLogEntry[] {
     const rows = this.db
       .prepare('SELECT * FROM sync_change_log WHERE synced = 0 ORDER BY created_at ASC')
-      .all() as any[];
+      .all() as SyncChangeLogRow[];
 
     return rows.map(this.mapRow);
   }
@@ -53,7 +64,7 @@ export class ChangeLogger {
   getEntriesSince(since: string): SyncChangeLogEntry[] {
     const rows = this.db
       .prepare('SELECT * FROM sync_change_log WHERE created_at > ? ORDER BY created_at ASC')
-      .all(since) as any[];
+      .all(since) as SyncChangeLogRow[];
 
     return rows.map(this.mapRow);
   }
@@ -61,7 +72,7 @@ export class ChangeLogger {
   getEntriesForFile(filePath: string): SyncChangeLogEntry[] {
     const rows = this.db
       .prepare('SELECT * FROM sync_change_log WHERE file_path = ? ORDER BY created_at ASC')
-      .all(filePath) as any[];
+      .all(filePath) as SyncChangeLogRow[];
 
     return rows.map(this.mapRow);
   }
@@ -69,13 +80,18 @@ export class ChangeLogger {
   markSynced(ids: number[]): void {
     if (ids.length === 0) return;
 
+    const invalidId = ids.find((id) => typeof id !== 'number' || Number.isNaN(id));
+    if (invalidId !== undefined) {
+      throw new Error(`markSynced expects an array of valid numbers, got: ${ids}`);
+    }
+
     const placeholders = ids.map(() => '?').join(',');
     this.db
       .prepare(`UPDATE sync_change_log SET synced = 1 WHERE id IN (${placeholders})`)
       .run(...ids);
   }
 
-  private mapRow(row: any): SyncChangeLogEntry {
+  private mapRow(row: SyncChangeLogRow): SyncChangeLogEntry {
     return {
       id: row.id,
       operation: row.operation as SyncOperation,
