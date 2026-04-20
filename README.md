@@ -60,13 +60,13 @@ AIMO Note 直接使用本地 Markdown 文件，无需特殊导出步骤；复制
 
 你可以在项目 Releases 页面获取安装包和版本更新：
 
-- https://github.com/ximing/aimo/releases
+- https://github.com/ximing/aimo-note/releases
 
 ## 反馈与建议
 
 欢迎通过 GitHub Issues 提交问题或建议：
 
-- https://github.com/ximing/aimo/issues
+- https://github.com/ximing/aimo-note/issues
 
 ---
 

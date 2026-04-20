@@ -101,7 +101,7 @@ export function createApplicationMenu(): void {
         {
           label: '访问 GitHub',
           click: () => {
-            shell.openExternal('https://github.com/ximing/aimo');
+            shell.openExternal('https://github.com/ximing/aimo-note');
           },
         },
       ],
