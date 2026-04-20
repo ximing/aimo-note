@@ -1,5 +1,5 @@
 import type { Database } from 'better-sqlite3';
-import type { SyncDevice, S3Config } from '@aimo-note/dto';
+import type { SyncDevice, S3Config, SyncConflictRecord, RollbackResult } from '@aimo-note/dto';
 import { DeviceManager } from './device';
 import { ChangeLogger } from './change_logger';
 import { VersionManager } from './version_manager';
@@ -31,7 +31,7 @@ export class SyncService {
   private syncEngine: SyncEngine | null = null;
   private manifestManager: ManifestManager | null = null;
   private conflictManager: ConflictManager;
-  private rollback: VersionRollback;
+  private versionRollback: VersionRollback;
 
   constructor(
     config: SyncServiceConfig,
@@ -67,7 +67,7 @@ export class SyncService {
 
     // Initialize ConflictManager and VersionRollback
     this.conflictManager = new ConflictManager(db);
-    this.rollback = new VersionRollback(
+    this.versionRollback = new VersionRollback(
       this.versionManager,
       this.adapter,  // S3Adapter (null if sync not configured)
       config.vaultPath
@@ -144,6 +144,37 @@ export class SyncService {
 
   getManifestManager(): ManifestManager | null {
     return this.manifestManager;
+  }
+
+  // Phase 3 methods:
+
+  /**
+   * Get all unresolved conflicts.
+   */
+  getConflicts(): SyncConflictRecord[] {
+    return this.conflictManager.getUnresolved();
+  }
+
+  /**
+   * Get unresolved conflicts for a specific file.
+   */
+  getConflictsForFile(filePath: string): SyncConflictRecord[] {
+    return this.conflictManager.getUnresolvedForFile(filePath);
+  }
+
+  /**
+   * Mark a conflict as resolved.
+   */
+  resolveConflict(conflictId: number, resolutionPath: string): void {
+    this.conflictManager.resolve(conflictId, resolutionPath);
+  }
+
+  /**
+   * Rollback a file to a specific version.
+   * Non-destructive: creates a new version entry.
+   */
+  async rollback(filePath: string, targetVersion: string): Promise<RollbackResult> {
+    return this.versionRollback.rollback(filePath, targetVersion);
   }
 
   // Start watching for file changes

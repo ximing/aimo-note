@@ -8,3 +8,5 @@ export * from './service.js';
 export * from './adapter.js';    // NEW
 export * from './manifest.js';   // NEW
 export * from './engine.js';     // NEW
+export * from './conflicts.js';  // Phase 3
+export * from './rollback.js';   // Phase 3
