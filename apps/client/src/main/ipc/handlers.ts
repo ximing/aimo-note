@@ -7,6 +7,10 @@ import { randomUUID } from 'crypto';
 import { spawn } from 'child_process';
 import { rgPath } from '@vscode/ripgrep';
 import type { SearchResult } from '@aimo-note/dto';
+import matter from 'gray-matter';
+
+const TEMPLATES_DIR = '.aimo-note/templates';
+const TEMPLATE_EXT = '.md';
 
 /**
  * High-level wrapper around ripgrep spawn that returns stdout as a Promise.
@@ -638,6 +642,89 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('clipboard:writeText', async (_event, text: string) => {
     try {
       clipboard.writeText(text);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Template handlers
+  ipcMain.handle('template:list', async (_event, vaultPath: string) => {
+    try {
+      const templatesDir = path.join(vaultPath, TEMPLATES_DIR);
+      const entries = await fs.readdir(templatesDir).catch(() => []);
+      const templateFiles = entries.filter((f: string) => f.endsWith(TEMPLATE_EXT));
+
+      const templates: Array<{ fileName: string; fieldCount: number; preview: string }> = [];
+      for (const file of templateFiles) {
+        const fullPath = path.join(templatesDir, file);
+        const content = await fs.readFile(fullPath, 'utf-8');
+        const { data, content: body } = matter(content);
+        const fieldCount = Object.keys(data).length;
+        const preview = body.split('\n').slice(0, 2).join(' ').substring(0, 50);
+        templates.push({ fileName: file, fieldCount, preview });
+      }
+
+      return { success: true, templates };
+    } catch (error) {
+      return { success: false, error: String(error), templates: [] };
+    }
+  });
+
+  ipcMain.handle('template:read', async (_event, vaultPath: string, fileName: string) => {
+    try {
+      const fullPath = path.join(vaultPath, TEMPLATES_DIR, fileName);
+      const content = await fs.readFile(fullPath, 'utf-8');
+      return { success: true, content };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  ipcMain.handle('template:write', async (_event, vaultPath: string, fileName: string, content: string) => {
+    try {
+      const templatesDir = path.join(vaultPath, TEMPLATES_DIR);
+      await fs.mkdir(templatesDir, { recursive: true });
+      const fullPath = path.join(templatesDir, fileName);
+      await fs.writeFile(fullPath, content, 'utf-8');
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  ipcMain.handle('template:delete', async (_event, vaultPath: string, fileName: string) => {
+    try {
+      const fullPath = path.join(vaultPath, TEMPLATES_DIR, fileName);
+      await fs.rm(fullPath);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  ipcMain.handle('template:getMappings', async (_event, vaultPath: string) => {
+    try {
+      const configPath = path.join(vaultPath, '.aimo-note/config.json');
+      const content = await fs.readFile(configPath, 'utf-8');
+      const config = JSON.parse(content);
+      return { success: true, mappings: config.templateMappings ?? {} };
+    } catch {
+      return { success: true, mappings: {} };
+    }
+  });
+
+  ipcMain.handle('template:setMappings', async (_event, vaultPath: string, mappings: Record<string, string>) => {
+    try {
+      const configPath = path.join(vaultPath, '.aimo-note/config.json');
+      let existingConfig: Record<string, unknown> = {};
+      try {
+        const content = await fs.readFile(configPath, 'utf-8');
+        existingConfig = JSON.parse(content);
+      } catch { /* ignore */ }
+      existingConfig.templateMappings = mappings;
+      await fs.mkdir(path.dirname(configPath), { recursive: true });
+      await fs.writeFile(configPath, JSON.stringify(existingConfig, null, 2), 'utf-8');
       return { success: true };
     } catch (error) {
       return { success: false, error: String(error) };
