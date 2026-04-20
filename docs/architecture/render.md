@@ -58,11 +58,12 @@ apps/render/src/
 Base UI primitives that are framework-agnostic and highly reusable.
 
 **Responsibilities:**
-- Provide fundamental UI building blocks (Button, Input, Modal, Dropdown, Select, Tabs, etc.)
--封装 Tailwind CSS 样式和交互状态
+
+- Provide fundamental UI building blocks (Button, Input, Modal, Dropdown, Select, Tabs, etc.) -封装 Tailwind CSS 样式和交互状态
 - Maintain consistent design language across the app
 
 **Public API:**
+
 ```typescript
 // Example exports
 export { Button } from './Button';
@@ -77,6 +78,7 @@ export type { ButtonProps } from './Button';
 Milkdown v7 WYSIWYG markdown editor components.
 
 **Tech Stack:**
+
 - `@milkdown/react` - React integration
 - `@milkdown/kit/core` - Core editor
 - `@milkdown/kit/preset/commonmark` - CommonMark support
@@ -87,6 +89,7 @@ Milkdown v7 WYSIWYG markdown editor components.
 - `@milkdown/kit/plugin/indent` - List indentation
 
 **Responsibilities:**
+
 - `MilkdownEditor.tsx` - Core editor wrapper with MilkdownProvider
 - `EditorToolbar.tsx` - Formatting toolbar (bold, italic, headings, etc.)
 - `SuggestionPopup.tsx` - Autocomplete for `[[wiki-links]]` and `#tags`
@@ -94,6 +97,7 @@ Milkdown v7 WYSIWYG markdown editor components.
 - `EditorStatus.tsx` - Word count, cursor position
 
 **Public API:**
+
 ```typescript
 export { MilkdownEditor } from './MilkdownEditor';
 export { EditorToolbar } from './EditorToolbar';
@@ -103,6 +107,7 @@ export { EditorStatus } from './EditorStatus';
 ```
 
 **MilkdownEditor Usage:**
+
 ```tsx
 import { Milkdown, MilkdownProvider, useEditor, useInstance } from '@milkdown/react';
 import { Editor, rootCtx, defaultValueCtx } from '@milkdown/kit/core';
@@ -111,22 +116,31 @@ import { history } from '@milkdown/kit/plugin/history';
 import { listener, listenerCtx } from '@milkdown/kit/plugin/listener';
 import { getMarkdown } from '@milkdown/kit/utils';
 
-function MilkdownEditor({ onChange, defaultValue }: { onChange?: (md: string) => void; defaultValue?: string }) {
-  const { loading, get } = useEditor((root) => {
-    return Editor.make()
-      .config((ctx) => {
-        ctx.set(rootCtx, root);
-        ctx.set(defaultValueCtx, defaultValue || '# New Note');
-        if (onChange) {
-          ctx.get(listenerCtx).markdownUpdated((ctx, markdown) => {
-            onChange(markdown);
-          });
-        }
-      })
-      .use(commonmark)
-      .use(history)
-      .use(listener);
-  }, [onChange, defaultValue]);
+function MilkdownEditor({
+  onChange,
+  defaultValue,
+}: {
+  onChange?: (md: string) => void;
+  defaultValue?: string;
+}) {
+  const { loading, get } = useEditor(
+    (root) => {
+      return Editor.make()
+        .config((ctx) => {
+          ctx.set(rootCtx, root);
+          ctx.set(defaultValueCtx, defaultValue || '# New Note');
+          if (onChange) {
+            ctx.get(listenerCtx).markdownUpdated((ctx, markdown) => {
+              onChange(markdown);
+            });
+          }
+        })
+        .use(commonmark)
+        .use(history)
+        .use(listener);
+    },
+    [onChange, defaultValue]
+  );
 
   return (
     <div className="milkdown-editor">
@@ -139,6 +153,7 @@ function MilkdownEditor({ onChange, defaultValue }: { onChange?: (md: string) =>
 
 **Wiki-link and Tag Support:**
 Custom plugins extend Milkdown for `[[note-link]]` and `#tag` syntax:
+
 - `useWikiLinkPlugin()` - Creates `[[link]]` from typing `[[`
 - `useTagPlugin()` - Creates `#tag` from typing `#`
 
@@ -147,11 +162,13 @@ Custom plugins extend Milkdown for `[[note-link]]` and `#tag` syntax:
 Graph visualization components using D3.js.
 
 **Responsibilities:**
+
 - `GraphView.tsx` - Main graph canvas with zoom/pan
 - `GraphNode.tsx` - Individual node rendering
 - `GraphControls.tsx` - Zoom, filter, layout controls
 
 **Public API:**
+
 ```typescript
 export { GraphView } from './GraphView';
 export { GraphNode } from './GraphNode';
@@ -163,11 +180,13 @@ export { GraphControls } from './GraphControls';
 App-level layout components.
 
 **Responsibilities:**
+
 - `Sidebar.tsx` - Navigation sidebar with vault explorer
 - `TitleBar.tsx` - Custom title bar for Electron (window controls)
 - `StatusBar.tsx` - Bottom status bar (sync status, word count, etc.)
 
 **Public API:**
+
 ```typescript
 export { Sidebar } from './Sidebar';
 export { TitleBar } from './TitleBar';
@@ -179,11 +198,13 @@ export { StatusBar } from './StatusBar';
 File explorer and vault navigation components.
 
 **Responsibilities:**
+
 - `VaultTree.tsx` - Hierarchical file/folder tree
 - `TreeNode.tsx` - Individual tree node (file or folder)
 - `QuickSwitcher.tsx` - Command palette for quick file switching (Cmd+P)
 
 **Public API:**
+
 ```typescript
 export { VaultTree } from './VaultTree';
 export { TreeNode } from './TreeNode';
@@ -195,10 +216,12 @@ export { QuickSwitcher } from './QuickSwitcher';
 Shared components not fitting other categories.
 
 **Responsibilities:**
+
 - `CommandPalette.tsx` - Global command palette (actions, navigation)
 - `ContextMenu.tsx` - Right-click context menus
 
 **Public API:**
+
 ```typescript
 export { CommandPalette } from './CommandPalette';
 export { ContextMenu } from './ContextMenu';
@@ -209,6 +232,7 @@ export { ContextMenu } from './ContextMenu';
 Route-level page components that compose components and connect to stores.
 
 **Responsibilities:**
+
 - `home/HomePage.tsx` - Vault overview, recent files, daily notes
 - `editor/EditorPage.tsx` - Note editing (core page)
 - `graph/GraphPage.tsx` - Full graph view
@@ -225,6 +249,7 @@ Each page exports a default React component. Pages receive route parameters via 
 **Responsibilities:**
 
 **vault.service.ts**
+
 ```typescript
 interface VaultState {
   path: string | null;
@@ -240,6 +265,7 @@ export function refreshVault(): Promise<void>;
 ```
 
 **editor.service.ts**
+
 ```typescript
 interface EditorState {
   currentNote: Note | null;
@@ -256,6 +282,7 @@ export function saveNote(): Promise<void>;
 ```
 
 **graph.service.ts**
+
 ```typescript
 interface GraphState {
   nodes: GraphNode[];
@@ -269,6 +296,7 @@ export function useGraphService();
 ```
 
 **search.service.ts**
+
 ```typescript
 interface SearchState {
   query: string;
@@ -283,6 +311,7 @@ export function search(query: string): Promise<void>;
 ```
 
 **ui.service.ts**
+
 ```typescript
 interface UIState {
   sidebarOpen: boolean;
@@ -296,6 +325,7 @@ export function useUIService();
 ```
 
 **plugin.service.ts**
+
 ```typescript
 interface PluginState {
   plugins: Map<string, Plugin>;
@@ -315,6 +345,7 @@ IPC communication layer with Electron main process. Each module wraps typed IPC 
 **Responsibilities:** Abstract IPC calls into modules. Each module handles a domain and provides typed methods.
 
 **vault.ts**
+
 ```typescript
 export interface Vault {
   open(path: string): Promise<VaultInfo>;
@@ -329,6 +360,7 @@ export const vault: Vault;
 ```
 
 **graph.ts**
+
 ```typescript
 export interface Graph {
   getGraphData(options?: GraphOptions): Promise<GraphData>;
@@ -339,6 +371,7 @@ export const graph: Graph;
 ```
 
 **search.ts**
+
 ```typescript
 export interface Search {
   search(query: string, options?: SearchOptions): Promise<SearchResult[]>;
@@ -349,6 +382,7 @@ export const search: Search;
 ```
 
 **plugin.ts**
+
 ```typescript
 export interface Plugin {
   loadPlugin(pluginPath: string): Promise<PluginManifest>;
@@ -361,6 +395,7 @@ export const plugin: Plugin;
 ```
 
 **fs.ts**
+
 ```typescript
 export interface FS {
   selectVault(): Promise<string | null>;
@@ -373,6 +408,7 @@ export const fs: FS;
 ```
 
 **window.ts**
+
 ```typescript
 export interface Window {
   minimize(): void;
@@ -390,6 +426,7 @@ export const window: Window;
 TypeScript type definitions shared across the app.
 
 **note.ts**
+
 ```typescript
 export interface Note {
   path: string;
@@ -409,6 +446,7 @@ export interface NoteMetadata {
 ```
 
 **vault.ts**
+
 ```typescript
 export interface VaultInfo {
   path: string;
@@ -426,6 +464,7 @@ export interface VaultFile {
 ```
 
 **graph.ts**
+
 ```typescript
 export interface GraphNode {
   id: string;
@@ -449,6 +488,7 @@ export interface GraphData {
 ```
 
 **plugin.ts**
+
 ```typescript
 export interface Plugin {
   id: string;
@@ -475,6 +515,7 @@ export interface PluginManifest {
 ```
 
 **editor.ts**
+
 ```typescript
 export interface Position {
   line: number;
@@ -496,6 +537,7 @@ export interface EditorMode {
 Utility functions.
 
 **markdown.ts**
+
 ```typescript
 export function parseLinks(content: string): string[];
 export function parseTags(content: string): string[];
@@ -504,6 +546,7 @@ export function renderMarkdown(content: string): string;
 ```
 
 **path.ts**
+
 ```typescript
 export function joinPath(...parts: string[]): string;
 export function dirname(path: string): string;
@@ -513,6 +556,7 @@ export function normalizePath(path: string): string;
 ```
 
 **date.ts**
+
 ```typescript
 export function formatDate(date: Date): string;
 export function formatRelativeDate(date: Date): string;
@@ -521,6 +565,7 @@ export function isYesterday(date: Date): boolean;
 ```
 
 **debounce.ts**
+
 ```typescript
 export function debounce<T extends (...args: unknown[]) => unknown>(
   fn: T,
@@ -534,6 +579,7 @@ export function throttle<T extends (...args: unknown[]) => unknown>(
 ```
 
 **classNames.ts**
+
 ```typescript
 export function classNames(...classes: (string | boolean | undefined | null)[]): string;
 ```
@@ -543,6 +589,7 @@ export function classNames(...classes: (string | boolean | undefined | null)[]):
 ### 1. Service Layer as IPC Abstraction
 
 IPC calls are encapsulated in service modules rather than called directly from components or stores. This provides:
+
 - **Testability**: Services can be mocked without actual Electron IPC
 - **Type Safety**: Services provide typed interfaces for all IPC operations
 - **Refactorability**: Changing IPC channels doesn't break component code
@@ -550,6 +597,7 @@ IPC calls are encapsulated in service modules rather than called directly from c
 ### 2. Store Pattern with @rabjs/react
 
 Using @rabjs/react stores for global state provides:
+
 - **Reactivity**: Automatic re-renders on state changes
 - **Persistence**: Built-in support for persisting state to localStorage
 - **DevTools**: Good debugging experience with state inspection
@@ -561,6 +609,7 @@ Custom hooks (`useNote`, `useEditor`, etc.) bridge services/ipc to components. T
 ### 4. Component Hierarchy
 
 Components are organized by domain, not by type:
+
 ```
 components/editor/   # Editor-specific components
 components/graph/    # Graph components
@@ -576,6 +625,7 @@ All types are defined in `types/` and exported through `index.ts` files in each 
 ### 6. IPC Channel Naming Convention
 
 IPC channels follow the pattern: `domain:action`
+
 ```
 vault:open
 vault:readNote
@@ -619,6 +669,7 @@ The `plugin.service.ts` and `ipc/plugin.ts` provide a foundation for extensibili
 4. Plugin state is isolated and can be enabled/disabled without restart
 
 **Plugin API Surface:**
+
 ```typescript
 interface PluginAPI {
   app: {
@@ -640,6 +691,7 @@ interface PluginAPI {
 ### Hot Module Replacement
 
 Vite's HMR is configured for:
+
 - Component changes: Instant UI update preserving state
 - Store changes: State is preserved, subscribers re-render
 - Service changes: May require page refresh for new implementations

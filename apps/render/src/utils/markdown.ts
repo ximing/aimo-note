@@ -18,7 +18,10 @@ export function parseTags(content: string): string[] {
   return tags;
 }
 
-export function extractFrontmatter(content: string): { data: Record<string, unknown>; content: string } {
+export function extractFrontmatter(content: string): {
+  data: Record<string, unknown>;
+  content: string;
+} {
   // Simple frontmatter extraction - use gray-matter in core
   const match = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
   if (!match) return { data: {}, content };

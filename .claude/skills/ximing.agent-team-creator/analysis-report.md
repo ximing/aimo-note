@@ -3,6 +3,7 @@
 ## Files to DELETE
 
 ### Old Page Components (apps/render/src/pages/)
+
 - `apps/render/src/pages/ai-explore/` - AI exploration page (old cloud feature)
 - `apps/render/src/pages/auth/` - Authentication pages (login/register)
 - `apps/render/src/pages/gallery/` - Media gallery page (old cloud feature)
@@ -15,6 +16,7 @@
 - `apps/render/src/pages/trash/` - Trash page (old app feature)
 
 ### Old API Services (apps/render/src/api/)
+
 - `apps/render/src/api/ai.ts`
 - `apps/render/src/api/attachment.ts`
 - `apps/render/src/api/auth.ts`
@@ -36,6 +38,7 @@
 - `apps/render/src/api/user.ts`
 
 ### Old Services (apps/render/src/services/)
+
 - `apps/render/src/services/ai-tools.service.ts`
 - `apps/render/src/services/attachment.service.ts`
 - `apps/render/src/services/auth.service.ts`
@@ -54,6 +57,7 @@
 - `apps/render/src/services/user-model.service.ts`
 
 ### Old Components (apps/render/src/components/)
+
 - `apps/render/src/components/ai/` - AI-related modals
 - `apps/render/src/components/attachment-preview-modal.tsx`
 - `apps/render/src/components/attachment-uploader.tsx`
@@ -66,6 +70,7 @@
 - `apps/render/src/components/toast/` - Toast notification system
 
 ### Old Assets (apps/render/src/assets/)
+
 - `apps/render/src/assets/icons/` - Audio/pdf/video icons
 - `apps/render/src/assets/landing/` - Landing page images
 - `apps/render/src/assets/logo-dark.png`
@@ -74,6 +79,7 @@
 - `apps/render/src/assets/react.svg`
 
 ### Old DTOs (packages/dto/src/)
+
 - `packages/dto/src/ai.ts`
 - `packages/dto/src/asr.ts`
 - `packages/dto/src/attachment.ts`
@@ -91,9 +97,11 @@
 - `packages/dto/dist/` - All compiled output
 
 ### Scripts Directory
+
 - `scripts/` - Entire directory (deploy.sh, export_memos.py, ralph/, release-tag.sh, test-asr.sh, verify-production.sh)
 
 ### CI/CD Workflows (.github/workflows/)
+
 - `.github/workflows/ci.yml` - References old apps/server, apps/web
 - `.github/workflows/build-electron.yml` - References old @aimo-note/web
 - `.github/workflows/docker-build.yml` - For old Docker setup
@@ -101,15 +109,18 @@
 - `.github/workflows/README.md`
 
 ### Docker/Infrastructure Files
+
 - `docker-compose.yml` - References MySQL, LanceDB, old app service
 - `Dockerfile` - For old app
 - `.dockerignore`
 
 ### Config Files to DELETE
+
 - `config/config-typescript/nextjs.json` - Next.js specific
 - `config/jest-presets/` - Jest configs (not using Jest)
 
 ### Other
+
 - `aihub.config.mjs` - References old catpaw skills
 - `packages/dto/.turbo/` - Turbo build logs
 - `packages/logger/coverage/` - Test coverage reports
@@ -121,6 +132,7 @@
 ## Files to KEEP
 
 ### Core Infrastructure
+
 - `package.json` - Root package.json
 - `pnpm-workspace.yaml` - pnpm workspace config
 - `pnpm-lock.yaml` - Lock file
@@ -128,6 +140,7 @@
 - `tsconfig.json` - Root TypeScript config
 
 ### Config Files
+
 - `config/config-typescript/base.json` - Base TypeScript config
 - `config/config-typescript/react-app.json` - React app TypeScript config
 - `config/config-typescript/react-library.json` - React library TypeScript config
@@ -140,6 +153,7 @@
 - `config/rollup-config/package.json` - Rollup config package
 
 ### Tooling Configs
+
 - `.eslintrc.js` - ESLint config
 - `.prettierignore` - Prettier ignore
 - `prettier.config.mjs` - Prettier config
@@ -149,9 +163,11 @@
 - `.gitignore` - Git ignore
 
 ### Git Hooks
+
 - `.husky/` - Husky git hooks directory
 
 ### Apps Structure (to be refactored)
+
 - `apps/client/` - Electron desktop shell (main process code)
   - `apps/client/src/main/` - Electron main process
   - `apps/client/src/preload/` - Preload scripts
@@ -176,6 +192,7 @@
   - `apps/render/src/electron/` - Electron detection
 
 ### Packages
+
 - `packages/dto/` - DTO package (need to rewrite contents)
   - `packages/dto/package.json`
   - `packages/dto/tsconfig.json`

@@ -25,18 +25,18 @@
 
 ```markdown
 ---
-title: ""
+title: ''
 tags: []
 created: true
 modified: true
-custom_field: ""
+custom_field: ''
 ---
 
 # {{title}}
-
 ```
 
 **frontmatter 字段类型**:
+
 - `text` — 文本输入
 - `date` — 日期选择
 - `tags` — 标签输入
@@ -61,6 +61,7 @@ custom_field: ""
 ### 1.4 模板查找逻辑
 
 创建笔记时给定目标目录，按以下顺序查找模板:
+
 1. 精确匹配: `目标目录` → `templates/映射值.md`
 2. 递归向上: 逐级取父目录，重复步骤 1
 3. 根目录: `""` 的映射作为默认模板
@@ -142,30 +143,30 @@ Edit Template: meeting.md
 
 ### 4.1 Core 层 — `packages/core/src/vault/`
 
-| 文件 | 职责 |
-|------|------|
+| 文件          | 职责                                       |
+| ------------- | ------------------------------------------ |
 | `template.ts` | 模板读取、写入、frontmatter 解析、变量替换 |
 
 ### 4.2 DTO 层 — `packages/dto/src/`
 
-| 文件 | 职责 |
-|------|------|
+| 文件          | 职责                                                                 |
+| ------------- | -------------------------------------------------------------------- |
 | `template.ts` | 模板相关类型定义 (`Template`, `TemplateMapping`, `TemplateField` 等) |
 
 ### 4.3 Client 层 — `apps/client/`
 
-| 变更 | 职责 |
-|------|------|
+| 变更         | 职责                                                                                                                                  |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
 | IPC handlers | 新增模板 CRUD（createTemplate, readTemplate, updateTemplate, deleteTemplate, listTemplates, getTemplateMappings, setTemplateMapping） |
 
 ### 4.4 Renderer 层
 
-| 文件 | 职责 |
-|------|------|
-| `services/template.service.ts` | 全局模板状态管理 |
-| `pages/settings/components/TemplateSettings.tsx` | 设置页模板管理 Tab |
-| `components/template/TemplateEditor.tsx` | 模板编辑器（frontmatter 表单 + body 编辑） |
-| `services/vault.service.ts` | `createNote()` 集成模板查找和应用逻辑 |
+| 文件                                             | 职责                                       |
+| ------------------------------------------------ | ------------------------------------------ |
+| `services/template.service.ts`                   | 全局模板状态管理                           |
+| `pages/settings/components/TemplateSettings.tsx` | 设置页模板管理 Tab                         |
+| `components/template/TemplateEditor.tsx`         | 模板编辑器（frontmatter 表单 + body 编辑） |
+| `services/vault.service.ts`                      | `createNote()` 集成模板查找和应用逻辑      |
 
 ---
 

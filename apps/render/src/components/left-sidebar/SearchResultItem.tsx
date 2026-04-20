@@ -10,13 +10,18 @@ interface SearchResultItemProps {
 function highlightMatch(text: string, charStart: number, charEnd: number, matchedText: string) {
   const safeStart = Math.max(0, Math.min(charStart, text.length));
   const normalizedMatchedText = matchedText || text.slice(safeStart, charEnd);
-  const safeEnd = Math.max(safeStart, Math.min(text.length, safeStart + normalizedMatchedText.length));
+  const safeEnd = Math.max(
+    safeStart,
+    Math.min(text.length, safeStart + normalizedMatchedText.length)
+  );
   const contextLength = 24;
   const snippetStart = Math.max(0, safeStart - contextLength);
   const snippetEnd = Math.min(text.length, safeEnd + contextLength);
-  const prefix = snippetStart > 0 ? `...${text.slice(snippetStart, safeStart)}` : text.slice(0, safeStart);
+  const prefix =
+    snippetStart > 0 ? `...${text.slice(snippetStart, safeStart)}` : text.slice(0, safeStart);
   const highlightText = text.slice(safeStart, safeEnd);
-  const suffix = snippetEnd < text.length ? `${text.slice(safeEnd, snippetEnd)}...` : text.slice(safeEnd);
+  const suffix =
+    snippetEnd < text.length ? `${text.slice(safeEnd, snippetEnd)}...` : text.slice(safeEnd);
 
   return (
     <>

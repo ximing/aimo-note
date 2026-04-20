@@ -7,25 +7,49 @@ description: Review and fix completed implementation against both a spec and an 
 
 ## What this skill does
 
-This skill is for **post-implementation acceptance work**, not just review.
+This skill is for **post-implementation acceptance**, not a generic code review.
 
-It treats the **spec** and the **plan** as dual sources of truth, uses an **Agent Team** to inspect the work from different angles, and then **directly fixes clear problems** instead of stopping at a review-only report.
+Its job is to use an **Agent Team** to answer four questions in order:
 
-Use it when the user's real intent is:
-- "plan 做完了，帮我验收"
-- "按 spec + plan 检查一下"
-- "如果有问题直接改掉"
-- "用多 agent 看看有没有偏离设计和实施计划"
+1. what did the **spec** require?
+2. what did the **plan** promise to implement and verify?
+3. what does the **code and diff** actually do today?
+4. what must be fixed so the implementation is truly landed, not just documented?
+
+The core idea is simple:
+
+- do **not** assume that a finished plan means the feature exists in code
+- do **not** assume that matching code names means the behavior matches the spec
+- do **not** stop at a review report when the mismatch is clear and fixable
+
+This skill therefore runs in two phases:
+
+1. **Validation phase** - an Agent Team checks whether spec and plan are real in code
+2. **Repair phase** - the lead turns validated findings into a fix backlog and hands them to a **Fixer Mate** or small fixer group
 
 The default behavior is:
-1. infer or gather spec / plan / code scope
-2. design a small agent team with clear role boundaries
-3. run the review workstreams in parallel when that actually helps
-4. synthesize a fix backlog from the findings
-5. fix the clear, actionable issues immediately
-6. verify the touched files and report residual risk
 
-Do **not** route through a separate human review page. The point of this skill is to shorten the loop from "发现问题" to "修完问题".
+1. identify the spec, plan, and implementation scope
+2. design a review team with tight role boundaries
+3. verify in parallel whether required behavior and planned work really landed in code
+4. synthesize only the validated findings into a fix backlog
+5. hand the backlog to a fixer mate or integrator for repair
+6. verify the repaired result against the original findings
+7. report what is fixed, what remains, and what is still unverified
+
+The point of this skill is to shorten the loop from "设计/计划" -> "代码落地" -> "发现偏差" -> "立即修复".
+
+## Success criteria
+
+This skill succeeds only when the lead can answer all of these clearly:
+
+- which spec and plan were treated as sources of truth
+- which parts of those docs are visibly implemented in code
+- which parts are missing, partial, incorrect, or unverified
+- which issues were fixed immediately
+- which issues were intentionally left open because of ambiguity or risk
+
+If you cannot map a claim from spec or plan to real code, real behavior, or a deliberate omission, treat that as an acceptance gap to investigate.
 
 ## When to use this skill
 
@@ -33,141 +57,195 @@ Use this skill when most of these are true:
 
 - implementation already exists, or a plan chunk has just been completed
 - there is at least one spec, one plan, or an equivalent design / task doc
-- the user wants review, acceptance, gap analysis, regression checking, or direct follow-up fixes
-- the task is non-trivial enough that multiple independent review angles increase signal
+- the user wants acceptance, review, gap analysis, or direct fixes
+- the work is large enough that multiple independent review lanes increase signal
 
-Do **not** force a team for tiny cosmetic changes. For a small text tweak or a one-file low-risk fix, do a lightweight review-and-fix pass directly.
+Typical trigger intents:
+
+- "plan 做完了，帮我验收"
+- "按 spec + plan 检查一下代码是不是已经真实落地了"
+- "如果有问题直接改掉"
+- "用 Agent Team 看看有没有偏离 spec 和 implementation plan"
+
+Do **not** force a team for tiny edits. For a one-file low-risk change, do a lightweight read -> validate -> fix pass directly.
+
+## Core principle: prove reality, not paper compliance
+
+The team is not checking whether the docs look reasonable. The team is checking whether the implementation can be **proven** from code and targeted verification.
+
+For every important requirement or plan item, try to place it into one bucket:
+
+- **landed** - clearly implemented in code and supported by evidence
+- **partial** - some code exists, but important behavior, wiring, or verification is missing
+- **missing** - the spec or plan claims it, but the implementation does not exist where it should
+- **unclear** - evidence is too weak; requires product clarification or broader testing
+
+That evidence can come from:
+
+- changed files or target modules
+- code paths and symbol wiring
+- relevant tests or absence of required tests
+- targeted runtime or lint verification when practical
+- doc/code mismatches that show planned work never actually landed
 
 ## Agent Team architecture
 
 Follow the spirit of `ximing.agent-team-creator`: clear workstreams, explicit scope boundaries, explicit dependencies, and lead-side synthesis.
 
 | Role | Goal | Scope boundary | Output |
-|------|------|----------------|--------|
-| **Team Lead** | Choose docs, design the team, synthesize findings, decide fix plan, verify final result | Does not duplicate all detailed review work | Consolidated issue list, fix plan, final report |
-| **Spec Reviewer** | Check whether user-visible behavior matches the spec | Focus on behavior, UI, interactions, naming, constraints | Findings classified as `spec-gap` or `risk` |
-| **Plan Reviewer** | Check whether implementation follows the intended plan and architecture | Focus on chunk intent, layering, required verification, scope drift | Findings classified as `plan-gap` or `risk` |
-| **Risk Reviewer** | Check correctness, regressions, lifecycle/state/data-flow risks not fully covered by docs | Avoid re-litigating obvious spec text unless needed for evidence | Findings classified as `risk` |
-| **Fixer / Integrator** | Apply agreed fixes and keep changes coherent | Only executes the synthesized fix backlog, not independent review | Code changes + short fix notes |
+| --- | --- | --- | --- |
+| **Team Lead** | Choose inputs, design the team, synthesize evidence, build the fix backlog, verify the final result | Does not duplicate every detailed review lane | Acceptance checklist, fix backlog, final report |
+| **Spec Reality Checker** | Verify whether user-visible behavior, constraints, and states required by the spec truly exist in code | Focus on behavior, UI, interactions, naming, contract semantics | Findings tagged `spec-gap`, `partial`, or `risk` |
+| **Plan Reality Checker** | Verify whether promised implementation steps, architecture boundaries, and planned verification actually landed | Focus on layering, module placement, missing wiring, skipped verification, scope drift | Findings tagged `plan-gap`, `partial`, or `risk` |
+| **Code Risk Checker** | Look for correctness, regression, lifecycle, state, async, data-flow, and integration risks not fully covered by docs | Avoid redoing the same spec/plan reading unless needed for evidence | Findings tagged `risk` |
+| **Fixer Mate / Integrator** | Take the synthesized backlog and repair validated issues coherently | Does not independently redefine requirements; follows the lead's fix backlog | Code changes, verification notes, unresolved items |
 
-If findings break into independent clusters, the lead may spawn **multiple fixers in parallel**. If changes are tightly coupled, use **one integrator** instead.
+If the fix backlog splits cleanly by module, the lead may use multiple fixers. If the changes are coupled, use one integrator.
 
 ## Dependency model
 
-Use explicit dependencies rather than vague teamwork:
+Use explicit dependencies instead of vague collaboration:
 
-- `Spec Reviewer`, `Plan Reviewer`, and `Risk Reviewer` can start in parallel.
-- `Fixer / Integrator` depends on the lead's synthesized fix backlog.
-- Additional fixers only start after the lead has split work into non-overlapping modules or file groups.
-- Final verification depends on all fix tasks being complete.
+- `Spec Reality Checker`, `Plan Reality Checker`, and `Code Risk Checker` can start in parallel
+- the lead waits for reviewer outputs, merges duplicates, and writes a single validated backlog
+- `Fixer Mate / Integrator` starts only after backlog synthesis
+- additional fixers start only when file ownership and edit boundaries are clearly non-overlapping
+- final verification starts only after all fix tasks finish
 
-This keeps the team useful instead of chaotic.
+This keeps the team parallel where it helps, and sequential where synthesis is required.
 
-## Inputs to gather
+## Inputs to gather first
 
 Before spawning teammates, gather or infer:
 
-1. **Spec path(s)** - preferably explicit, otherwise infer from nearby `docs/superpowers/specs/` docs
-2. **Plan path(s)** - preferably explicit, otherwise infer from nearby `docs/superpowers/plans/` docs
+1. **Spec path(s)** - ideally explicit, otherwise infer from nearby `docs/superpowers/specs/` docs
+2. **Plan path(s)** - ideally explicit, otherwise infer from nearby `docs/superpowers/plans/` docs
 3. **Code scope** - changed files, target directory, diff, PR, or module name
-4. **Acceptance target** - current chunk, whole feature, or current diff only
-5. **Fixing latitude** - normally "fix clear issues immediately unless product semantics are unclear"
+4. **Acceptance target** - current chunk, whole feature, or diff-only validation
+5. **Fixing latitude** - normally: fix clear issues immediately unless product semantics are unclear
 
-If paths are not provided, infer the closest matching pair by feature name, date, or current editor context. Record that assumption in the final report; do not block on a follow-up question unless ambiguity would likely produce the wrong fix.
+If exact paths are missing, infer the closest matching spec/plan pair by feature name, date, active files, or changed scope. Record that assumption in the final report instead of blocking on a question unless the ambiguity is severe enough to risk the wrong fix.
 
 ## Team sizing rule
 
 ### Use the full team when
+
 - the feature spans multiple files or layers
 - spec compliance, plan alignment, and generic code risk are meaningfully different checks
-- the fix backlog may split into multiple independent workstreams
+- the acceptance backlog may split into multiple independent repair lanes
 
 ### Use a reduced flow when
-- the change is tiny or obviously local
-- the review would otherwise become heavier than the change itself
 
-Reduced flow usually means: one focused reviewer + one direct fix pass by the lead.
+- the change is tiny or obviously local
+- one reviewer lane is enough to establish reality
+- the coordination overhead would exceed the likely benefit
+
+Reduced flow usually means one focused reviewer plus one direct fix pass by the lead.
 
 ## Workflow
 
-### Step 1: Read sources of truth first
+### Step 1: Read the sources of truth first
 
-Read the chosen spec and plan before diving into code. Extract:
-- required behavior
-- explicit constraints
-- architecture or layering expectations
-- verification expectations
-- anything the final code must visibly prove
+Read the selected spec and plan before diving into implementation details. Extract a compact acceptance checklist:
 
-Turn this into a short internal checklist. This prevents generic review noise.
+- required user-visible behavior
+- explicit constraints and non-goals
+- architecture or layering requirements
+- plan promises about files, services, boundaries, or sequencing
+- verification expectations the plan said would exist
+
+The checklist should be written in terms that can later be proven from code.
 
 ### Step 2: Inspect the implementation scope
 
-Read the changed files or target module. If a diff exists, use it. If not, inspect the files most directly connected to the spec / plan.
+Read the changed files, target module, or diff. The goal here is not to finish the review early. The goal is to understand:
 
-The goal is to prepare good spawn prompts, not to fully redo the review before the team starts.
+- where the feature should have landed
+- which files or symbols should prove implementation
+- which files reviewers should inspect
+- whether there are obvious verification hooks such as tests, IPC wrappers, services, or UI integration points
 
-### Step 3: Design and spawn the review team
+### Step 3: Spawn the validation team
 
-When the workstreams are genuinely independent, spawn parallel reviewers with strict role boundaries.
+When the workstreams are truly independent, spawn parallel reviewers with strict role boundaries.
 
-Each spawn prompt should include:
+Each reviewer prompt must include:
+
 1. role and goal
-2. exact spec / plan inputs
+2. exact spec and plan inputs
 3. exact code scope
-4. what is out of scope
-5. required output structure
-6. instruction to return only high-signal findings
+4. out-of-scope boundaries
+5. required output format
+6. instruction to report only validated, high-signal findings
+7. instruction to classify every major requirement or plan item as `landed`, `partial`, `missing`, or `unclear`
 
-### Step 4: Synthesize findings into a fix backlog
+### Step 4: Validate whether spec and plan became code
 
-The lead merges duplicate findings and creates a fix backlog.
+The lead should synthesize reviewer outputs into an evidence table or backlog.
 
-Classify each item as:
-- `spec-gap`
-- `plan-gap`
-- `risk`
+For each finding, capture:
 
-Then decide whether it should be fixed immediately.
+- the requirement or plan item being checked
+- the evidence in code or verification
+- the current status: `landed` / `partial` / `missing` / `unclear`
+- the issue classification: `spec-gap` / `plan-gap` / `risk`
+- the concrete repair direction
 
-### Fix immediately when
+Do not pass raw reviewer output straight to a fixer. The lead must deduplicate and validate first.
+
+### Step 5: Decide what can be fixed immediately
+
+Fix immediately when all are true:
+
 - the issue is concrete and evidenced
-- the correct change is reasonably clear from the spec, plan, and code
-- the change is reversible and low ambiguity
+- the correct repair path is reasonably clear from the spec, plan, and code
+- the fix is low ambiguity and reversible
+- the lead can describe the expected result precisely enough for a fixer mate
 
-### Do not auto-fix when
+Do **not** auto-fix when:
+
 - the spec and plan conflict in a product-significant way
-- the required behavior is ambiguous
-- the fix is risky and irreversible without approval
-- the fix requires a product or design decision not present in the docs
+- the docs leave room for multiple product meanings
+- the fix is risky and effectively irreversible without approval
+- the reviewer evidence is too weak to prove the intended behavior
 
-When auto-fix is unsafe, report the issue clearly instead of guessing.
+When auto-fix is unsafe, keep the issue in the final report instead of guessing.
 
-### Step 5: Spawn fixer teammates when appropriate
+### Step 6: Hand validated issues to a Fixer Mate
 
-If there are clear issues:
-- use **one integrator** for tightly coupled changes
-- use **multiple fixers** only when file ownership and dependency boundaries are clear
+The fixer mate should receive a **curated fix backlog**, not a vague instruction like "please fix review comments".
 
-Good examples for parallel fixers:
-- one fixer for renderer UI wiring
-- one fixer for service-layer state logic
-- one fixer for tests or verification harness
+Each handoff item should contain:
 
-Bad examples for parallel fixers:
-- three fixers all touching the same service or same component tree without boundaries
+- title
+- classification: `spec-gap` / `plan-gap` / `risk`
+- why it matters
+- required outcome
+- allowed code scope
+- constraints or non-goals
+- any required verification after the fix
 
-For risky fixes, require plan approval before editing.
+Good handoff:
 
-### Step 6: Verify after fixes
+- "Spec requires titlebar actions to remain visible in compact mode; current render path hides them behind `isSidebarCollapsed`. Restore visibility without changing unrelated layout tokens. Verify the compact-mode branch and affected styles."
 
-After fixes are applied:
+Bad handoff:
+
+- "Please look into the titlebar issue from the review."
+
+### Step 7: Verify after repair
+
+After the fixer mate completes changes, the lead verifies the original issue is actually resolved.
+
+Minimum expectations:
+
 - re-read the changed files
-- run targeted checks that match the touched scope when practical
-- confirm the original finding is actually resolved
-- record any residual risk or unverified behavior
+- confirm the new code matches the intended fix direction
+- run targeted checks that fit the touched scope when practical
+- confirm the finding status moved from `partial` or `missing` to `landed`, or document why it did not
+- record any residual risk or unverified behavior honestly
 
-Do not claim full compliance if only part of the issue was verified.
+Do not claim full acceptance if only the code shape changed but the required behavior remains unproven.
 
 ## Reviewer output format
 
@@ -175,74 +253,92 @@ Ask each reviewer to return this exact structure:
 
 ```text
 1. Verdict: pass / pass-with-risks / fail
-2. Findings:
+2. Acceptance mapping:
+   - requirement or plan item
+   - status: landed / partial / missing / unclear
+   - evidence
+3. Findings:
    - [severity] title
    - why it matters
-   - evidence
    - classification: spec-gap / plan-gap / risk
-3. Suggested fix direction
+   - repair direction
 4. Open questions
 5. What looks good
 ```
 
-This format makes it easy for the lead to convert review output into a concrete fix backlog.
+This format forces reviewers to prove what is real, not only list complaints.
 
-## Fixer output format
+## Fixer Mate output format
 
 Ask each fixer to return:
 
 ```text
-1. Files changed
-2. What was fixed
-3. Anything intentionally not fixed
-4. Verification performed
-5. Residual risk
+1. Backlog items addressed
+2. Files changed
+3. What was fixed
+4. What could not be fixed and why
+5. Verification performed
+6. Residual risk
 ```
 
 ## Lead synthesis rules
 
 1. Findings come before celebration.
-2. Prefer user-visible spec correctness over plan preferences when they conflict.
-3. Do not treat every unchecked plan step as a bug; only elevate it when it affects architecture, verification confidence, or maintainability.
-4. If multiple reviewers report the same issue, merge them into one fix item.
-5. Keep team coordination overhead proportional to the problem size.
-6. Once an issue is validated and fixable, move to repair rather than stopping at review.
-7. Only leave issues unresolved when ambiguity or risk justifies it.
+2. Prefer proven user-visible correctness over plan aesthetics when they conflict.
+3. Do not mark a plan item as landed merely because similarly named code exists.
+4. Missing verification promised by the plan is itself a meaningful finding when it weakens confidence.
+5. Merge duplicate reviewer findings into one validated backlog item.
+6. A fixer mate should receive concrete outcomes, boundaries, and evidence.
+7. Move from validated finding to repair quickly when the correct change is clear.
+8. Leave issues unresolved only when ambiguity or risk genuinely justifies it.
 
 ## Final answer format
 
 Use a concise execution report in this order:
 
-### Fixed
-- what issue was found
+### Scope
+
+- spec path(s)
+- plan path(s)
+- code scope reviewed
+
+### Findings
+
+- issue title
+- status: `partial` / `missing` / `unclear`
 - classification: `spec-gap` / `plan-gap` / `risk`
-- what changed to resolve it
+- why it matters
+
+### Fixed
+
+- which validated findings were repaired
+- what changed to resolve them
 
 ### Remaining
+
 - unresolved issues, if any
 - why they were not auto-fixed
 
 ### Verification
-- what was checked after the fixes
+
+- what was checked after fixes
 - what is still not fully verified
 
 ### Assumptions
+
 - inferred spec / plan paths
-- review scope boundaries
+- scope assumptions
 - product assumptions made during fixes
 
-### Next actions
-- only brief, practical follow-ups
+If no substantive issues are found, say so explicitly and briefly explain why the implementation appears genuinely landed.
 
-If no substantive issues are found, say that explicitly and do not invent changes just to satisfy the workflow.
-
-## Spawn prompt template
+## Reviewer spawn prompt template
 
 ```text
 You are the [ROLE] on a spec + plan acceptance team.
 
 Goal:
-Review the implementation against the spec and plan, then help the lead turn real findings into actionable fixes.
+Verify whether the spec and implementation plan are real in code, not just documented.
 
 Inputs:
 - Spec: <path(s)>
@@ -257,36 +353,74 @@ Out of scope:
 
 Rules:
 - Read the spec and plan before judging code.
-- Prefer concrete mismatches, regressions, and missing verification over style nits.
-- Keep role boundaries tight; don't redo another teammate's job.
-- If you find no substantive issues, say "No findings" explicitly.
-- Suggest fix direction, not just criticism.
+- For each major requirement or plan item you inspect, classify it as landed / partial / missing / unclear.
+- Prefer concrete mismatches, missing wiring, missing verification, and regressions over style nits.
+- Keep role boundaries tight; do not redo another teammate's lane.
+- If there are no substantive findings, say "No findings" explicitly.
+- Suggest repair direction, not just criticism.
 - Cite evidence with file paths and symbols where possible.
 
 Return exactly:
 1. Verdict: pass / pass-with-risks / fail
-2. Findings:
+2. Acceptance mapping:
+   - requirement or plan item
+   - status: landed / partial / missing / unclear
+   - evidence
+3. Findings:
    - [severity] title
    - why it matters
-   - evidence
    - classification: spec-gap / plan-gap / risk
-3. Suggested fix direction
+   - repair direction
 4. Open questions
 5. What looks good
 ```
 
+## Fixer Mate spawn prompt template
+
+```text
+You are the Fixer Mate on a spec + plan acceptance team.
+
+Goal:
+Repair only the validated backlog items provided by the lead, keep changes coherent, and verify that each repaired issue is actually resolved.
+
+Inputs:
+- Spec: <path(s)>
+- Plan: <path(s)>
+- Validated fix backlog:
+  - <item 1>
+  - <item 2>
+- Allowed code scope: <path(s)>
+
+Rules:
+- Do not redefine requirements; follow the validated backlog.
+- If a backlog item is ambiguous in a product-significant way, stop and report it instead of guessing.
+- Keep edits within the allowed scope unless the fix clearly requires a small adjacent change.
+- After editing, verify each backlog item against the intended outcome.
+- Report anything intentionally not fixed.
+
+Return exactly:
+1. Backlog items addressed
+2. Files changed
+3. What was fixed
+4. What could not be fixed and why
+5. Verification performed
+6. Residual risk
+```
+
 ## Heuristics that improve signal
 
-- A missing user-visible requirement is usually more important than a plan-style deviation.
-- A plan deviation without user impact can still matter if it weakens architecture boundaries or leaves required verification undone.
-- A good teammate does not only identify a bug; they narrow the repair path.
-- A good lead does not stop at a review document when the fix is obvious.
-- For tiny changes, restraint is part of quality: do the smallest review/fix flow that still protects correctness.
+- A requirement is not "done" until you can point to code and explain how it satisfies the behavior.
+- A plan step is not "done" until the intended wiring, boundaries, or verification really exist.
+- Missing tests are not always a bug, but missing verification promised by the plan is a real acceptance signal.
+- A good reviewer reduces uncertainty; a good fixer reduces the backlog.
+- For small changes, restraint is part of quality: use the lightest workflow that still proves reality.
 
 ## Example trigger phrases
 
 This skill should activate for prompts like:
+
 - "我采取 specs + plan 开发，plan 做完后帮我 review 并直接修复"
 - "按 spec 和 implementation plan 做一次 Agent Team 验收，有问题直接改"
+- "检查这次改动是不是把 spec 和 plan 真正落地成代码了，不符合就修掉"
+- "用 agent team 验证 spec/plan 是否真实落地，收集问题后交给 fixer mate 处理"
 - "这个功能做完了，检查是否符合 docs/superpowers/specs 和 plans，不符合就修掉"
-- "用 agent team 看看这次改动有没有偏离设计和实施计划，发现问题直接处理"

@@ -60,12 +60,17 @@ app.whenReady().then(() => {
 
       const sanitizedRelativePath = relativePath.replace(/^([./\\])+/, '');
       const normalizedVaultPath = path.normalize(vaultPath);
-      const normalizedFullPath = path.normalize(path.join(normalizedVaultPath, sanitizedRelativePath));
+      const normalizedFullPath = path.normalize(
+        path.join(normalizedVaultPath, sanitizedRelativePath)
+      );
       const vaultRootWithSep = normalizedVaultPath.endsWith(path.sep)
         ? normalizedVaultPath
         : `${normalizedVaultPath}${path.sep}`;
 
-      if (normalizedFullPath !== normalizedVaultPath && !normalizedFullPath.startsWith(vaultRootWithSep)) {
+      if (
+        normalizedFullPath !== normalizedVaultPath &&
+        !normalizedFullPath.startsWith(vaultRootWithSep)
+      ) {
         return new Response('Forbidden', { status: 403 });
       }
 

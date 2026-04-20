@@ -83,9 +83,7 @@ function findLinePosition(doc: Node, targetLine: number): number {
 
 ```typescript
 function scrollToLine(view: EditorView, pos: number) {
-  const tr = view.state.tr.setSelection(
-    view.state.selection.constructor.near(pos)
-  );
+  const tr = view.state.tr.setSelection(view.state.selection.constructor.near(pos));
   view.dispatch(tr.scrollIntoView());
 }
 ```
@@ -124,9 +122,7 @@ const scrollToLineNumber = (lineNumber: number) => {
     if (!found) return;
 
     // 设置 selection 并滚动
-    const tr = view.state.tr.setSelection(
-      view.state.selection.constructor.near(targetPos)
-    );
+    const tr = view.state.tr.setSelection(view.state.selection.constructor.near(targetPos));
     view.dispatch(tr.scrollIntoView());
   });
 };
@@ -179,6 +175,7 @@ useEffect(() => {
 ## 替代方案（不做行号转换，直接用 DOM）
 
 如果 Milkdown 的行节点定位不精确，也可以用 DOM 方式：
+
 - 用 `editorRef.current.dom` 获取 `.ProseMirror` 根元素
 - 遍历 `<p>` 子元素计数到目标行
 - 用 `element.scrollIntoView()` 滚动

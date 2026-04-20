@@ -5,6 +5,7 @@
 **Goal:** 实现 Obsidian 风格的完整双向链接系统，包括 Graph 模块、IPC 层、Wiki-link Milkdown 插件、Backlinks 面板和知识图谱。
 
 **Architecture:**
+
 - `packages/core` 实现 Graph 类（邻接表），提供 `buildFromNotes`/`getGraphData`/`getBacklinks`/`getOutlinks`
 - `apps/client` 实现 IPC handlers，调用 core 并做 renderer 类型适配
 - `apps/render` 实现 Milkdown wiki-link 插件、BacklinksPanel 和 GraphView
@@ -19,6 +20,7 @@
 > 核心依赖层。后续所有功能都依赖它。必须先完成且测试通过。
 
 **Files:**
+
 - Create: `packages/core/vitest.config.ts`
 - Modify: `packages/core/package.json` (添加 vitest devDependencies + test script)
 - Create: `packages/core/src/graph/graph.ts` (Graph 类实现)
@@ -83,8 +85,8 @@
   const TAG_REGEX = /#([a-zA-Z0-9_-]+)/g;
 
   export interface ParsedLink {
-    target: string;   // 链接目标（如 "笔记名"）
-    alias: string;    // 别名（如 "显示文本"，无别名时等于 target）
+    target: string; // 链接目标（如 "笔记名"）
+    alias: string; // 别名（如 "显示文本"，无别名时等于 target）
     isEmbed: boolean; // 是否为嵌入语法
   }
 
@@ -151,6 +153,7 @@
   ```bash
   cd packages/core && pnpm test:run
   ```
+
   预期：PASS（无现有测试则通过）
 
 - [ ] **Step 3: 提交**
@@ -179,24 +182,21 @@
    * - Step 3: 部分匹配（末路径段匹配，如 [[笔记]] 匹配 "子目录/笔记"）
    * - 返回 null 表示断链
    */
-  export function resolveLink(
-    linkText: string,
-    allNotePaths: string[]
-  ): string | null {
+  export function resolveLink(linkText: string, allNotePaths: string[]): string | null {
     const candidates = allNotePaths.map(normalizePath);
     const normalized = linkText.replace(/\\/g, '/');
 
     // Step 1: 精确匹配
-    const exact = candidates.find(c => c === normalized);
+    const exact = candidates.find((c) => c === normalized);
     if (exact) return exact;
 
     // Step 2: 模糊匹配（忽略大小写）
     const lc = normalized.toLowerCase();
-    const fuzzy = candidates.find(c => c.toLowerCase() === lc);
+    const fuzzy = candidates.find((c) => c.toLowerCase() === lc);
     if (fuzzy) return fuzzy;
 
     // Step 3: 部分匹配（末路径段匹配）
-    const partial = candidates.filter(c => {
+    const partial = candidates.filter((c) => {
       const lcFull = c.toLowerCase();
       const lastSegment = lcFull.split('/').pop()!;
       return lastSegment === lc || lcFull.includes(lc);
@@ -221,9 +221,9 @@
 
   export interface Graph {
     buildFromNotes(notes: { path: string; body: string }[]): GraphData;
-    getGraphData(): GraphData;              // ← 新增：返回完整图数据
-    getBacklinks(path: string): string[];    // 返回链接到 path 的笔记路径列表
-    getOutlinks(path: string): string[];    // 返回 path 中所有外链目标路径列表
+    getGraphData(): GraphData; // ← 新增：返回完整图数据
+    getBacklinks(path: string): string[]; // 返回链接到 path 的笔记路径列表
+    getOutlinks(path: string): string[]; // 返回 path 中所有外链目标路径列表
   }
   ```
 
@@ -383,16 +383,14 @@
     });
 
     it('filters self-links', () => {
-      const notes = [
-        { path: '自链笔记.md', body: '[[自链笔记]]这是自链。' },
-      ];
+      const notes = [{ path: '自链笔记.md', body: '[[自链笔记]]这是自链。' }];
 
       graph.buildFromNotes(notes);
 
       const backlinks = graph.getBacklinks('自链笔记.md');
       const outlinks = graph.getOutlinks('自链笔记.md');
       expect(backlinks).toHaveLength(0); // 自链不过滤进backlinks
-      expect(outlinks).toHaveLength(0);  // 自链不过滤进outlinks
+      expect(outlinks).toHaveLength(0); // 自链不过滤进outlinks
     });
 
     it('normalizes paths (backslash, extension)', () => {
@@ -424,8 +422,8 @@
       const data = graph.buildFromNotes(notes);
 
       expect(data.nodes.length).toBeGreaterThanOrEqual(2);
-      expect(data.edges.some(e => e.source === 'A' && e.target === 'B')).toBe(true);
-      expect(data.edges.some(e => e.source === 'B' && e.target === 'A')).toBe(true);
+      expect(data.edges.some((e) => e.source === 'A' && e.target === 'B')).toBe(true);
+      expect(data.edges.some((e) => e.source === 'B' && e.target === 'A')).toBe(true);
     });
   });
   ```
@@ -435,6 +433,7 @@
   ```bash
   cd packages/core && pnpm test:run
   ```
+
   预期：5 PASS
 
 - [ ] **Step 3: 提交**
@@ -455,11 +454,7 @@
   import { resolveLink } from './index';
 
   describe('resolveLink', () => {
-    const allNotes = [
-      '笔记A.md',
-      '子目录/笔记B.md',
-      '笔记C.mdx',
-    ];
+    const allNotes = ['笔记A.md', '子目录/笔记B.md', '笔记C.mdx'];
 
     it('returns exact match', () => {
       expect(resolveLink('笔记A', allNotes)).toBe('笔记A');
@@ -493,6 +488,7 @@
   ```bash
   cd packages/core && pnpm test:run
   ```
+
   预期：6 PASS
 
 - [ ] **Step 3: 提交**
@@ -509,6 +505,7 @@
 > 把 core Graph 数据通过 IPC 传到 renderer，并填充 GraphService。
 
 **Files:**
+
 - Modify: `apps/client/src/preload/index.ts` (添加 graph API)
 - Modify: `apps/client/src/main/ipc/handlers.ts` (实现 graph handlers)
 - Modify: `apps/render/src/ipc/graph.ts` (填充 IPC 调用)
@@ -541,13 +538,14 @@
   // Graph operations
   graph: {
     build: (notes: { path: string; body: string }[]) => Promise<void>;
-    getGraphData: () => Promise<{
-      nodes: { id: string; path: string }[];
-      edges: { source: string; target: string }[];
-    }>;
+    getGraphData: () =>
+      Promise<{
+        nodes: { id: string; path: string }[];
+        edges: { source: string; target: string }[];
+      }>;
     getBacklinks: (noteId: string) => Promise<string[]>;
     getOutlinks: (noteId: string) => Promise<string[]>;
-  };
+  }
   ```
 
 - [ ] **Step 2: 提交**
@@ -760,24 +758,39 @@
       return this.flattenTree(result.tree);
     }
 
-    private flattenTree(nodes: { path: string; type: string; children?: { path: string; type: string; children?: unknown[] }[] }[]): { path: string; type: string }[] {
+    private flattenTree(
+      nodes: {
+        path: string;
+        type: string;
+        children?: { path: string; type: string; children?: unknown[] }[];
+      }[]
+    ): { path: string; type: string }[] {
       const flat: { path: string; type: string }[] = [];
       for (const node of nodes) {
-        if (node.type === 'file' && node.path.endsWith('.md') || node.path.endsWith('.mdx')) {
+        if ((node.type === 'file' && node.path.endsWith('.md')) || node.path.endsWith('.mdx')) {
           flat.push({ path: node.path, type: node.type });
         }
         if (node.children) {
-          flat.push(...this.flattenTree(node.children as { path: string; type: string; children?: unknown[] }[]));
+          flat.push(
+            ...this.flattenTree(
+              node.children as { path: string; type: string; children?: unknown[] }[]
+            )
+          );
         }
       }
       return flat;
     }
 
-    private async loadAllNotes(files: { path: string; type: string }[]): Promise<{ path: string; body: string }[]> {
+    private async loadAllNotes(
+      files: { path: string; type: string }[]
+    ): Promise<{ path: string; body: string }[]> {
       const notes: { path: string; body: string }[] = [];
       for (const file of files) {
         if (file.type !== 'file') continue;
-        const result = await window.electronAPI.vault.readNote(this.vaultService.vaultPath, file.path);
+        const result = await window.electronAPI.vault.readNote(
+          this.vaultService.vaultPath,
+          file.path
+        );
         if (result.content !== undefined) {
           notes.push({ path: file.path, body: result.content });
         }
@@ -805,6 +818,7 @@
 > 在 Milkdown 编辑器中实现 `[[]]` 语法渲染和编辑体验。
 
 **Files:**
+
 - Create: `apps/render/src/components/editor/plugins/wiki-link/plugin.ts` (Milkdown plugin)
 - Create: `apps/render/src/components/editor/plugins/wiki-link/index.ts` (导出)
 - Modify: `apps/render/src/components/editor/MilkdownEditorInner.tsx` (注册插件)
@@ -832,11 +846,7 @@
   // apps/render/src/components/editor/plugins/wiki-link/plugin.ts
 
   import { createPlugin, nodeViewFactory } from '@milkdown/core';
-  import {
-    InputRule,
-    callCommand,
-    toggleEmphasisCommand,
-  } from '@milkdown/core';
+  import { InputRule, callCommand, toggleEmphasisCommand } from '@milkdown/core';
   import { Node, nodeInputRule } from '@milkdown/prose';
   import { useEditor } from '@milkdown/react';
   import { Ctx, editorViewOptions, editorView } from '@milkdown/core';
@@ -912,29 +922,20 @@
    */
   export function preprocessWikiLinks(content: string): string {
     // 嵌入语法：![[target|alias]] → <embed data-target="target" data-alias="alias"></embed>
-    let result = content.replace(
-      /!\[\[([^\]|]+)(?:\|([^\]|]+))?\]\]/g,
-      (_match, target, alias) => {
-        return `<embed data-wiki-target="${target}" data-wiki-alias="${alias ?? target}"></embed>`;
-      }
-    );
+    let result = content.replace(/!\[\[([^\]|]+)(?:\|([^\]|]+))?\]\]/g, (_match, target, alias) => {
+      return `<embed data-wiki-target="${target}" data-wiki-alias="${alias ?? target}"></embed>`;
+    });
 
     // 普通链接：[[target|alias]] → [alias](wiki://target)
-    result = result.replace(
-      /\[\[([^\]|]+)\|([^\]]+)\]\]/g,
-      (_match, target, alias) => {
-        return `[${alias}](wiki://${target})`;
-      }
-    );
+    result = result.replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, (_match, target, alias) => {
+      return `[${alias}](wiki://${target})`;
+    });
 
     // 无别名链接：[[target]] → [target](wiki://target)
     // 使用负向前瞻确保不匹配 ![[
-    result = result.replace(
-      /(?<!\!)\[\[([^\]|]+)\]\]/g,
-      (_match, target) => {
-        return `[${target}](wiki://${target})`;
-      }
-    );
+    result = result.replace(/(?<!\!)\[\[([^\]|]+)\]\]/g, (_match, target) => {
+      return `[${target}](wiki://${target})`;
+    });
 
     return result;
   }
@@ -973,7 +974,7 @@
     const markdown = ctx.get(consumerCtx);
     const processed = postprocessWikiLinks(markdown);
     onChange?.(processed);
-  })
+  });
   ```
 
 - [ ] **Step 3: 提交**
@@ -1101,6 +1102,7 @@
 > 实现侧边栏 Backlinks 面板，显示当前笔记的反向链接和上下文片段。
 
 **Files:**
+
 - Modify: `apps/render/src/components/side-panel/SidePanel.tsx` (实现 BacklinksPanel)
 - Modify: `apps/render/src/components/side-panel/BacklinksPanel.tsx` (新建 BacklinksPanel 组件)
 
@@ -1253,7 +1255,9 @@
   import { BacklinksPanel } from './BacklinksPanel';
 
   // 在 backlinks tab 中：
-  {uiService.activeSidePanelTab === 'backlinks' && <BacklinksPanel />}
+  {
+    uiService.activeSidePanelTab === 'backlinks' && <BacklinksPanel />;
+  }
   ```
 
 - [ ] **Step 3: 提交**
@@ -1270,6 +1274,7 @@
 > 实现知识图谱全屏视图，D3.js Force-directed 布局。
 
 **Files:**
+
 - Create: `apps/render/src/components/graph/GraphView.tsx`
 - Create: `apps/render/src/components/graph/GraphCanvas.tsx` (D3 渲染)
 - Modify: `apps/render/src/services/graph.service.ts` (添加快捷键监听)

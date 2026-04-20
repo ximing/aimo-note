@@ -30,7 +30,8 @@ export class UIService extends Service {
 
   // Settings Modal
   settingsModalOpen = false;
-  activeSettingsCategory: 'appearance' | 'editor' | 'shortcuts' | 'image-storage' | 'about' = 'appearance';
+  activeSettingsCategory: 'appearance' | 'editor' | 'shortcuts' | 'image-storage' | 'about' =
+    'appearance';
 
   // Legacy (removed, kept for reference during migration)
   // sidebarOpen = true; // replaced by leftRailOpen and explorerOpen
@@ -74,7 +75,7 @@ export class UIService extends Service {
       this._resolvedTheme = this.theme;
     }
     this._applyThemeToDOM();
-  };
+  }
 
   private _applyThemeToDOM() {
     if (typeof document !== 'undefined') {
@@ -111,12 +112,15 @@ export class UIService extends Service {
   }
 
   setLeftSidebarWidth(width: number): void {
-    this.leftSidebarWidth = Math.max(this.leftSidebarMinWidth, Math.min(this.leftSidebarMaxWidth, width));
+    this.leftSidebarWidth = Math.max(
+      this.leftSidebarMinWidth,
+      Math.min(this.leftSidebarMaxWidth, width)
+    );
   }
 
   // Editor Tabs
   openTab(path: string, title: string): void {
-    const existing = this.tabs.find(t => t.path === path);
+    const existing = this.tabs.find((t) => t.path === path);
     if (existing) {
       this.activeTabId = existing.id;
     } else {
@@ -128,9 +132,9 @@ export class UIService extends Service {
   }
 
   closeTab(id: string): void {
-    const idx = this.tabs.findIndex(t => t.id === id);
+    const idx = this.tabs.findIndex((t) => t.id === id);
     if (idx === -1) return;
-    this.tabs = this.tabs.filter(t => t.id !== id);
+    this.tabs = this.tabs.filter((t) => t.id !== id);
     if (this.activeTabId === id) {
       // Activate adjacent tab
       this.activeTabId = this.tabs[idx - 1]?.id ?? this.tabs[idx]?.id ?? null;
@@ -143,7 +147,10 @@ export class UIService extends Service {
     this.vaultService.saveTabs(this.tabs, this.activeTabId);
   }
 
-  restoreTabs(tabs: Array<{ id: string; path: string; title?: string }>, activeTabId: string | null): void {
+  restoreTabs(
+    tabs: Array<{ id: string; path: string; title?: string }>,
+    activeTabId: string | null
+  ): void {
     this.tabs = tabs.map((tab) => ({
       ...tab,
       title: tab.title ?? tab.path.split('/').pop() ?? 'Untitled',
@@ -172,7 +179,9 @@ export class UIService extends Service {
     this.settingsModalOpen = false;
   }
 
-  setActiveSettingsCategory(category: 'appearance' | 'editor' | 'shortcuts' | 'image-storage' | 'about'): void {
+  setActiveSettingsCategory(
+    category: 'appearance' | 'editor' | 'shortcuts' | 'image-storage' | 'about'
+  ): void {
     this.activeSettingsCategory = category;
   }
 

@@ -89,7 +89,7 @@ rg --heading --json --max-count=10 --glob=!.* --glob=!node_modules <query> <root
 所以这样写是错误的：
 
 ```ts
-text.slice(byteStart, byteEnd)
+text.slice(byteStart, byteEnd);
 ```
 
 因为 `byteStart` 和 `byteEnd` 并不是字符串索引。

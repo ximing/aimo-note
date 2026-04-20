@@ -13,6 +13,7 @@
 ## File Structure Changes
 
 ### New Files to Create
+
 ```
 apps/render/src/components/
 ├── left-rail/
@@ -30,6 +31,7 @@ apps/render/src/components/
 ```
 
 ### Files to Modify
+
 ```
 apps/render/src/components/
 ├── Layout.tsx                # Restructure to 5-region layout
@@ -48,11 +50,13 @@ apps/render/src/services/
 **Goal:** Add global UI state for all 5 regions to UIService.
 
 **Files:**
+
 - Modify: `apps/render/src/services/ui.service.ts`
 
 - [ ] **Step 1: Add state properties to UIService**
 
 Add the following properties to `UIService` class:
+
 ```typescript
 // Left Rail
 leftRailOpen = true;
@@ -142,6 +146,7 @@ git commit -m "feat(ui): add state for 5-region layout"
 **Goal:** Create the Left Rail component (vertical icon navigation bar).
 
 **Files:**
+
 - Create: `apps/render/src/components/left-rail/LeftRail.tsx`
 - Create: `apps/render/src/components/left-rail/index.ts`
 - Modify: `apps/render/src/index.css`
@@ -213,6 +218,7 @@ git commit -m "feat(ui): add LeftRail component"
 **Goal:** Create Title Bar Actions component for icons next to traffic lights.
 
 **Files:**
+
 - Create: `apps/render/src/components/titlebar-actions/TitleBarActions.tsx`
 - Create: `apps/render/src/components/titlebar-actions/index.ts`
 
@@ -275,6 +281,7 @@ git commit -m "feat(ui): add TitleBarActions component"
 **Goal:** Create Editor Tabs component for multi-tab document management.
 
 **Files:**
+
 - Create: `apps/render/src/components/editor-tabs/EditorTabs.tsx`
 - Create: `apps/render/src/components/editor-tabs/index.ts`
 
@@ -343,6 +350,7 @@ git commit -m "feat(ui): add EditorTabs component"
 **Goal:** Create Side Panel component for right-side collapsible panels.
 
 **Files:**
+
 - Create: `apps/render/src/components/side-panel/SidePanel.tsx`
 - Create: `apps/render/src/components/side-panel/index.ts`
 
@@ -437,6 +445,7 @@ git commit -m "feat(ui): add SidePanel component"
 **Goal:** Update the main Layout component to include all 5 regions.
 
 **Files:**
+
 - Modify: `apps/render/src/components/Layout.tsx`
 
 - [ ] **Step 1: Update Layout.tsx**
@@ -508,12 +517,14 @@ export const Layout = observer(() => {
 - [ ] **Step 2: Update CSS classes in explorer components**
 
 Modify `SidebarHeader.tsx` to use `.explorer-header` class name:
+
 ```tsx
 // Change className from "sidebar-header" to "explorer-header"
 <div className="explorer-header flex items-center gap-1 px-2 py-2 border-b border-border">
 ```
 
 Modify `VaultTree.tsx` to wrap content in `.explorer-content`:
+
 ```tsx
 // Already has sidebar-content, rename to explorer-content
 <div className="explorer-content flex-1 overflow-auto">
@@ -535,6 +546,7 @@ git commit -m "feat(layout): restructure to 5-region layout"
 **Goal:** Update EditorPage to integrate with Editor Tabs and support single/double click behaviors.
 
 **Files:**
+
 - Modify: `apps/render/src/pages/editor/index.tsx`
 - Modify: `apps/render/src/services/ui.service.ts` (add tab integration)
 
@@ -568,6 +580,7 @@ useEffect(() => {
 ```
 
 Also inject `UIService` into the page using the existing `useUIService()` hook pattern:
+
 ```tsx
 import { useUIService } from '@/services/ui.service';
 
@@ -598,6 +611,7 @@ git commit -m "feat(editor): integrate with EditorTabs"
 **Goal:** Clean up old CSS classes and ensure new regions are styled correctly.
 
 **Files:**
+
 - Modify: `apps/render/src/index.css`
 
 - [ ] **Step 1: Add/update CSS variables and remove old unused classes**
@@ -616,6 +630,7 @@ git commit -m "style(ui): update CSS for new layout regions
 ## Verification
 
 Run the app and verify:
+
 1. Left Rail appears on the left with icon navigation
 2. Explorer (file tree) appears next to Left Rail
 3. Title Bar Actions appear next to traffic lights

@@ -111,7 +111,7 @@ const EditorPageContent = observer(() => {
       service.currentNote = { ...service.currentNote, path: newPath };
 
       // Update tab
-      const tab = uiService.tabs.find(t => t.path === oldPath);
+      const tab = uiService.tabs.find((t) => t.path === oldPath);
       if (tab) {
         tab.path = newPath;
         tab.title = newName;
@@ -128,22 +128,28 @@ const EditorPageContent = observer(() => {
     }
   }, [fileName, service, vaultService, uiService, navigate]);
 
-  const handleFileNameKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      (e.target as HTMLInputElement).blur();
-    } else if (e.key === 'Escape') {
-      setIsEditingFileName(false);
-      if (service.currentNote) {
-        const name = service.currentNote.path.split('/').pop() || '';
-        setFileName(name.replace(/\.md$/, ''));
+  const handleFileNameKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        (e.target as HTMLInputElement).blur();
+      } else if (e.key === 'Escape') {
+        setIsEditingFileName(false);
+        if (service.currentNote) {
+          const name = service.currentNote.path.split('/').pop() || '';
+          setFileName(name.replace(/\.md$/, ''));
+        }
       }
-    }
-  }, [service.currentNote]);
+    },
+    [service.currentNote]
+  );
 
-  const handleChange = useCallback((markdown: string) => {
-    service.updateContent(markdown);
-  }, [service]);
+  const handleChange = useCallback(
+    (markdown: string) => {
+      service.updateContent(markdown);
+    },
+    [service]
+  );
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     const target = e.target;
@@ -161,39 +167,48 @@ const EditorPageContent = observer(() => {
     setNewFileDialog(true);
   }, []);
 
-  const handleConfirmNewFile = useCallback(async (name: string) => {
-    setNewFileDialog(false);
-    if (name) {
-      const vaultPath = vaultService.vaultPath;
-      if (vaultPath) {
-        const fileName = name.endsWith('.md') ? name : `${name}.md`;
-        await vaultService.createNote('', fileName);
-        navigate(`/editor/${encodeURIComponent(fileName)}`);
+  const handleConfirmNewFile = useCallback(
+    async (name: string) => {
+      setNewFileDialog(false);
+      if (name) {
+        const vaultPath = vaultService.vaultPath;
+        if (vaultPath) {
+          const fileName = name.endsWith('.md') ? name : `${name}.md`;
+          await vaultService.createNote('', fileName);
+          navigate(`/editor/${encodeURIComponent(fileName)}`);
+        }
       }
-    }
-  }, [vaultService, navigate]);
+    },
+    [vaultService, navigate]
+  );
 
   const handleNewFolder = useCallback(() => {
     setNewFolderDialog(true);
   }, []);
 
-  const handleConfirmNewFolder = useCallback(async (name: string) => {
-    setNewFolderDialog(false);
-    if (name) {
-      await vaultService.createFolder('', name);
-    }
-  }, [vaultService]);
+  const handleConfirmNewFolder = useCallback(
+    async (name: string) => {
+      setNewFolderDialog(false);
+      if (name) {
+        await vaultService.createFolder('', name);
+      }
+    },
+    [vaultService]
+  );
 
   const handleRename = useCallback((node: TreeNode) => {
     setRenameDialog({ node });
   }, []);
 
-  const handleConfirmRename = useCallback(async (newName: string) => {
-    setRenameDialog(null);
-    if (renameDialog && newName && newName !== renameDialog.node.name) {
-      await vaultService.renameNode(renameDialog.node, newName);
-    }
-  }, [vaultService, renameDialog]);
+  const handleConfirmRename = useCallback(
+    async (newName: string) => {
+      setRenameDialog(null);
+      if (renameDialog && newName && newName !== renameDialog.node.name) {
+        await vaultService.renameNode(renameDialog.node, newName);
+      }
+    },
+    [vaultService, renameDialog]
+  );
 
   const handleDelete = useCallback((node: TreeNode) => {
     setDeleteDialog({ node });
@@ -227,16 +242,15 @@ const EditorPageContent = observer(() => {
           />
         </div>
       )}
-      <div
-        className="editor-content flex-1 overflow-auto"
-        onContextMenu={handleContextMenu}
-      >
+      <div className="editor-content flex-1 overflow-auto" onContextMenu={handleContextMenu}>
         <MilkdownEditor
           key={service.currentNote?.path || 'empty'}
           onChange={handleChange}
           defaultValue={service.content || '# New Note'}
           highlightQuery={highlightQuery}
-          targetLine={Number.isFinite(targetLine) && targetLine && targetLine > 0 ? targetLine : undefined}
+          targetLine={
+            Number.isFinite(targetLine) && targetLine && targetLine > 0 ? targetLine : undefined
+          }
           editorRef={editorRef}
         />
       </div>

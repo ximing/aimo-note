@@ -32,7 +32,11 @@ export interface UseImageEditingResult {
   handleResizeEnd: (width: number, height: number) => void;
 }
 
-export const useImageEditing = ({ getEditor, editorRootRef, vaultPath }: UseImageEditingParams): UseImageEditingResult => {
+export const useImageEditing = ({
+  getEditor,
+  editorRootRef,
+  vaultPath,
+}: UseImageEditingParams): UseImageEditingResult => {
   const [selectedImageNodePos, setSelectedImageNodePos] = useState<number | null>(null);
   const [selectedAlignment, setSelectedAlignment] = useState<ImageAlign>('center');
   const [imagePosition, setImagePosition] = useState<ImageOverlayPosition | null>(null);
@@ -47,18 +51,21 @@ export const useImageEditing = ({ getEditor, editorRootRef, vaultPath }: UseImag
     setImagePosition(null);
   }, []);
 
-  const updateImageOverlayPosition = useCallback((imageEl: HTMLImageElement) => {
-    const containerRect = editorRootRef.current?.getBoundingClientRect();
-    if (!containerRect) return;
+  const updateImageOverlayPosition = useCallback(
+    (imageEl: HTMLImageElement) => {
+      const containerRect = editorRootRef.current?.getBoundingClientRect();
+      if (!containerRect) return;
 
-    const rect = imageEl.getBoundingClientRect();
-    setImagePosition({
-      top: rect.top - containerRect.top,
-      left: rect.left - containerRect.left,
-      width: rect.width,
-      height: rect.height,
-    });
-  }, [editorRootRef]);
+      const rect = imageEl.getBoundingClientRect();
+      setImagePosition({
+        top: rect.top - containerRect.top,
+        left: rect.left - containerRect.left,
+        width: rect.width,
+        height: rect.height,
+      });
+    },
+    [editorRootRef]
+  );
 
   const resolvePreviewImageUrl = useCallback(
     (src: string) => {
@@ -106,11 +113,12 @@ export const useImageEditing = ({ getEditor, editorRootRef, vaultPath }: UseImag
           pos = view.state.selection.from;
           node = selectedNode;
           const domNode = view.nodeDOM(pos);
-          imageEl = domNode instanceof HTMLImageElement
-            ? domNode
-            : domNode instanceof HTMLElement
-              ? domNode.querySelector('img')
-              : null;
+          imageEl =
+            domNode instanceof HTMLImageElement
+              ? domNode
+              : domNode instanceof HTMLElement
+                ? domNode.querySelector('img')
+                : null;
         }
       }
 
@@ -122,8 +130,13 @@ export const useImageEditing = ({ getEditor, editorRootRef, vaultPath }: UseImag
             pos = fallbackPos;
             node = fallbackNode;
             imageEl = clickedImage;
-            if (!(view.state.selection instanceof NodeSelection) || view.state.selection.from !== fallbackPos) {
-              const tr = view.state.tr.setSelection(NodeSelection.create(view.state.doc, fallbackPos));
+            if (
+              !(view.state.selection instanceof NodeSelection) ||
+              view.state.selection.from !== fallbackPos
+            ) {
+              const tr = view.state.tr.setSelection(
+                NodeSelection.create(view.state.doc, fallbackPos)
+              );
               view.dispatch(tr);
             }
           }
@@ -211,9 +224,10 @@ export const useImageEditing = ({ getEditor, editorRootRef, vaultPath }: UseImag
         if (!node) return;
 
         const nextWidth = Math.max(40, Math.round(width));
-        const currentWidth = typeof node.attrs.width === 'number'
-          ? Math.round(node.attrs.width)
-          : Number.parseInt(String(node.attrs.width || ''), 10);
+        const currentWidth =
+          typeof node.attrs.width === 'number'
+            ? Math.round(node.attrs.width)
+            : Number.parseInt(String(node.attrs.width || ''), 10);
 
         if (Number.isFinite(currentWidth) && currentWidth === nextWidth) return;
 

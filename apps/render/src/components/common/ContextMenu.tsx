@@ -12,7 +12,8 @@ const contentClassName =
 const itemClassName =
   'flex items-center gap-2 px-3 py-2 text-sm text-text-primary text-left w-full cursor-default select-none outline-none data-[highlighted]:bg-accent data-[highlighted]:text-white data-[disabled]:opacity-50 data-[disabled]:pointer-events-none';
 const separatorClassName = 'h-px bg-border my-1 mx-1';
-const labelClassName = 'px-3 py-1.5 text-xs font-medium text-text-secondary uppercase tracking-wide';
+const labelClassName =
+  'px-3 py-1.5 text-xs font-medium text-text-secondary uppercase tracking-wide';
 
 // ============================================
 // Radix UI Context Menu - 用于 TreeNode 等声明式场景
@@ -119,10 +120,7 @@ export function TreeNodeContextMenu({
               <ContextMenuPrimitive.Label className={labelClassName}>
                 当前文件
               </ContextMenuPrimitive.Label>
-              <ContextMenuPrimitive.Item
-                className={itemClassName}
-                onSelect={() => onRename(node)}
-              >
+              <ContextMenuPrimitive.Item className={itemClassName} onSelect={() => onRename(node)}>
                 <span className="w-4">
                   <Pencil size={14} />
                 </span>

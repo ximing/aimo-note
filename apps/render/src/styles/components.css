@@ -11,7 +11,9 @@
 .tab-close-button {
   color: var(--text-secondary);
   background-color: transparent;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .chrome-icon-button:hover,
@@ -72,7 +74,10 @@
   border: none;
   cursor: pointer;
   white-space: nowrap;
-  transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    opacity 0.15s ease;
 }
 
 .editor-tab:hover {

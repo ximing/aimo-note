@@ -84,17 +84,17 @@ app-layout
 
 ## CSS Classes
 
-| Class | Description | Location |
-|-------|-------------|----------|
-| `.app-layout` | Root layout container | `Layout.tsx` |
-| `.main-area` | Main horizontal split | `Layout.tsx` |
-| `.header-row` | Header with traffic light offset (`pl-12`) | `Layout.tsx`, `index.css` |
-| `.content-area` | Contains LeftRail + left-sidebar | `Layout.tsx`, `index.css` |
-| `.left-column` | Vertical stack of header + content | `Layout.tsx`, `index.css` |
-| `.right-column` | Vertical stack of tabs + editor | `Layout.tsx`, `index.css` |
-| `.left-rail` | Icon navigation (48px width) | `LeftRail.tsx`, `index.css` |
-| `.left-sidebar` | File tree container | `Layout.tsx`, `index.css` |
-| `.main-content` | Editor area | `Layout.tsx`, `index.css` |
+| Class           | Description                                | Location                    |
+| --------------- | ------------------------------------------ | --------------------------- |
+| `.app-layout`   | Root layout container                      | `Layout.tsx`                |
+| `.main-area`    | Main horizontal split                      | `Layout.tsx`                |
+| `.header-row`   | Header with traffic light offset (`pl-12`) | `Layout.tsx`, `index.css`   |
+| `.content-area` | Contains LeftRail + left-sidebar           | `Layout.tsx`, `index.css`   |
+| `.left-column`  | Vertical stack of header + content         | `Layout.tsx`, `index.css`   |
+| `.right-column` | Vertical stack of tabs + editor            | `Layout.tsx`, `index.css`   |
+| `.left-rail`    | Icon navigation (48px width)               | `LeftRail.tsx`, `index.css` |
+| `.left-sidebar` | File tree container                        | `Layout.tsx`, `index.css`   |
+| `.main-content` | Editor area                                | `Layout.tsx`, `index.css`   |
 
 ## Layout Constants
 

@@ -13,6 +13,7 @@
 ## Chunk 1: VaultService — loadTabs / saveTabs
 
 **Files:**
+
 - Modify: `apps/render/src/services/vault.service.ts`
 - Modify: `apps/render/src/ipc/vault.ts` (add `TabConfig` type)
 
@@ -77,6 +78,7 @@ git commit -m "feat(vault): add loadTabs and saveTabs to VaultService"
 ## Chunk 2: UIService — Trigger saves on tab changes
 
 **Files:**
+
 - Modify: `apps/render/src/services/ui.service.ts`
 - Modify: `apps/render/src/services/vault.service.ts` (inject VaultService reference)
 
@@ -154,6 +156,7 @@ git commit -m "feat(ui): trigger saveTabs on tab mutations"
 ## Chunk 3: EditorPage — Restore tabs on vault open
 
 **Files:**
+
 - Modify: `apps/render/src/pages/editor/index.tsx`
 
 - [ ] **Step 1: Add loadTabs call after vault opens**
@@ -179,6 +182,7 @@ git commit -m "feat(editor): restore tabs from vault config on open"
 ## Chunk 4: VaultTree — Filter .aimo-note directory
 
 **Files:**
+
 - Modify: `apps/render/src/components/explorer/VaultTree.tsx`
 
 - [ ] **Step 1: Add filter for .aimo-note in sortedTree**
@@ -187,7 +191,7 @@ Find where `sortedTree` is computed and add filter:
 
 ```typescript
 const sortedTree = [...tree]
-  .filter(node => node.name !== '.aimo-note')
+  .filter((node) => node.name !== '.aimo-note')
   .sort((a, b) => {
     if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
     return (a.name || '').localeCompare(b.name || '');

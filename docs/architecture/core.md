@@ -26,9 +26,9 @@ packages/core/src/
 
 ```json
 {
-  "chokidar": "^3.6.0",      // File system watching
-  "gray-matter": "^4.0.3",   // Frontmatter parsing
-  "flexsearch": "^0.7.43"     // Full-text search index
+  "chokidar": "^3.6.0", // File system watching
+  "gray-matter": "^4.0.3", // Frontmatter parsing
+  "flexsearch": "^0.7.43" // Full-text search index
 }
 ```
 
@@ -53,7 +53,7 @@ export interface Note {
   path: string;
   content: string;
   frontmatter: Record<string, unknown>;
-  body: string;  // content without frontmatter
+  body: string; // content without frontmatter
 }
 
 export interface VaultEvent {
@@ -100,6 +100,7 @@ export interface GraphEdge {
 ### Link Extraction
 
 Uses regex to extract:
+
 - **Wiki Links**: `[[note-name]]`
 - **Tags**: `#tag-name`
 

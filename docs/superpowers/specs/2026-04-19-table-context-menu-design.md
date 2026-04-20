@@ -19,20 +19,23 @@
 ## 3. 设计决策
 
 ### 交互方式
+
 - 点击单元格 → 高亮选中（`.selectedCell`）
 - 在选中单元格上右键 → 弹出浮动菜单
 - 点击菜单项 → 执行对应命令并关闭菜单
 
 ### 菜单位置
+
 - 跟随鼠标光标，自动调整避免超出视口（参考现有 `ContextMenu.tsx` 的实现）
 
 ### 菜单操作项
-| 操作 | 命令 | 说明 |
-|------|------|------|
-| 向左插入列 | `addColBeforeCommand` | 在当前列左侧插入新列 |
-| 向右插入列 | `addColAfterCommand` | 在当前列右侧插入新列 |
-| 向上插入行 | `addRowBeforeCommand` | 在当前行上方插入新行 |
-| 向下插入行 | `addRowAfterCommand` | 在当前行下方插入新行 |
+
+| 操作       | 命令                         | 说明                       |
+| ---------- | ---------------------------- | -------------------------- |
+| 向左插入列 | `addColBeforeCommand`        | 在当前列左侧插入新列       |
+| 向右插入列 | `addColAfterCommand`         | 在当前列右侧插入新列       |
+| 向上插入行 | `addRowBeforeCommand`        | 在当前行上方插入新行       |
+| 向下插入行 | `addRowAfterCommand`         | 在当前行下方插入新行       |
 | 删除当前列 | `deleteSelectedCellsCommand` | 删除当前列（需多列选中时） |
 | 删除当前行 | `deleteSelectedCellsCommand` | 删除当前行（需多行选中时） |
 
@@ -85,12 +88,12 @@ const syncTableSelection = useCallback(() => {
 const commands = ctx.get(commandsCtx);
 
 // 插入列
-commands.call(addColBeforeCommand.key);  // 向左插入
-commands.call(addColAfterCommand.key);   // 向右插入
+commands.call(addColBeforeCommand.key); // 向左插入
+commands.call(addColAfterCommand.key); // 向右插入
 
 // 插入行
-commands.call(addRowBeforeCommand.key);  // 向上插入
-commands.call(addRowAfterCommand.key);   // 向下插入
+commands.call(addRowBeforeCommand.key); // 向上插入
+commands.call(addRowAfterCommand.key); // 向下插入
 
 // 删除行列（需先选中行/列）
 if (isColSelection) {

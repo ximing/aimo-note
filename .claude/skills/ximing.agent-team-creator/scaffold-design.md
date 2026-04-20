@@ -114,41 +114,44 @@ aimo-note/
 ## Key Files to Create
 
 ### packages/core/ (NEW - Node.js core logic)
-| File | Purpose |
-|------|---------|
-| `packages/core/src/vault/index.ts` | Vault service interface - open vault, read/write notes |
-| `packages/core/src/vault/reader.ts` | Read markdown files, parse frontmatter |
-| `packages/core/src/vault/writer.ts` | Write markdown files with frontmatter |
-| `packages/core/src/vault/watcher.ts` | File system watcher for vault changes |
-| `packages/core/src/graph/index.ts` | Graph service interface - note connections |
-| `packages/core/src/graph/extractor.ts` | Extract [[wiki-links]] and #tags from markdown |
-| `packages/core/src/graph/builder.ts` | Build graph data structure from vault |
-| `packages/core/src/search/index.ts` | Search service interface |
-| `packages/core/src/search/indexer.ts` | Build/search index (flexsearch or similar) |
-| `packages/core/src/plugins/index.ts` | Plugin system - load/unload plugins |
-| `packages/core/src/plugins/api.ts` | Plugin API exposed to plugins |
-| `packages/core/package.json` | Package manifest with dependencies |
-| `packages/core/tsconfig.json` | TypeScript config for core package |
+
+| File                                   | Purpose                                                |
+| -------------------------------------- | ------------------------------------------------------ |
+| `packages/core/src/vault/index.ts`     | Vault service interface - open vault, read/write notes |
+| `packages/core/src/vault/reader.ts`    | Read markdown files, parse frontmatter                 |
+| `packages/core/src/vault/writer.ts`    | Write markdown files with frontmatter                  |
+| `packages/core/src/vault/watcher.ts`   | File system watcher for vault changes                  |
+| `packages/core/src/graph/index.ts`     | Graph service interface - note connections             |
+| `packages/core/src/graph/extractor.ts` | Extract [[wiki-links]] and #tags from markdown         |
+| `packages/core/src/graph/builder.ts`   | Build graph data structure from vault                  |
+| `packages/core/src/search/index.ts`    | Search service interface                               |
+| `packages/core/src/search/indexer.ts`  | Build/search index (flexsearch or similar)             |
+| `packages/core/src/plugins/index.ts`   | Plugin system - load/unload plugins                    |
+| `packages/core/src/plugins/api.ts`     | Plugin API exposed to plugins                          |
+| `packages/core/package.json`           | Package manifest with dependencies                     |
+| `packages/core/tsconfig.json`          | TypeScript config for core package                     |
 
 ### apps/render/src/ (Frontend refactor targets)
-| File | Purpose |
-|------|---------|
-| `apps/render/src/services/vault.service.ts` | IPC wrapper for vault operations |
-| `apps/render/src/services/graph.service.ts` | IPC wrapper for graph operations |
-| `apps/render/src/services/search.service.ts` | IPC wrapper for search |
-| `apps/render/src/stores/vault.store.ts` | Vault state (files tree, current vault) |
-| `apps/render/src/stores/editor.store.ts` | Editor state (active note, dirty flag) |
-| `apps/render/src/stores/graph.store.ts` | Graph view state |
-| `apps/render/src/hooks/useVault.ts` | Hook for vault operations |
-| `apps/render/src/hooks/useNote.ts` | Hook for note CRUD |
-| `apps/render/src/pages/editor/` | New dedicated editor page |
-| `apps/render/src/pages/graph/` | New dedicated graph page |
-| `apps/render/src/components/editor/` | Editor-specific components |
-| `apps/render/src/components/ui/` | Base UI components |
+
+| File                                         | Purpose                                 |
+| -------------------------------------------- | --------------------------------------- |
+| `apps/render/src/services/vault.service.ts`  | IPC wrapper for vault operations        |
+| `apps/render/src/services/graph.service.ts`  | IPC wrapper for graph operations        |
+| `apps/render/src/services/search.service.ts` | IPC wrapper for search                  |
+| `apps/render/src/stores/vault.store.ts`      | Vault state (files tree, current vault) |
+| `apps/render/src/stores/editor.store.ts`     | Editor state (active note, dirty flag)  |
+| `apps/render/src/stores/graph.store.ts`      | Graph view state                        |
+| `apps/render/src/hooks/useVault.ts`          | Hook for vault operations               |
+| `apps/render/src/hooks/useNote.ts`           | Hook for note CRUD                      |
+| `apps/render/src/pages/editor/`              | New dedicated editor page               |
+| `apps/render/src/pages/graph/`               | New dedicated graph page                |
+| `apps/render/src/components/editor/`         | Editor-specific components              |
+| `apps/render/src/components/ui/`             | Base UI components                      |
 
 ### apps/client/src/preload/ (IPC bridge)
-| File | Purpose |
-|------|---------|
+
+| File                               | Purpose                                |
+| ---------------------------------- | -------------------------------------- |
 | `apps/client/src/preload/index.ts` | Expose core services via contextBridge |
 
 ## Notes
@@ -170,6 +173,7 @@ aimo-note/
 ### Migration Path
 
 The existing codebase has many files that will be refactored or removed. The stub files above represent the minimal new structure needed. Existing files can be:
+
 - **Kept**: API services, existing components (will be refactored later)
 - **Removed**: Old memo-centric services after vault service takes over
 - **New**: editor/, graph/, search/ pages and vault/graph/search services

@@ -188,15 +188,19 @@ Requirements:
 已完成修复 ✅
 
 ## What was fixed
+
 - ...
 
 ## Verification
+
 - ...
 
 ## Commit
+
 - <commit-hash> (`Refs #<number>`)
 
 ## Notes
+
 - ...
 ```
 

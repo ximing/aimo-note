@@ -10,6 +10,7 @@ Help users understand Claude Code's loading mechanism first, then design instruc
 ## Core goal
 
 This skill is mainly about two things:
+
 - how Claude Code loads persistent instructions
 - how to write instruction files so they load progressively
 
@@ -22,12 +23,14 @@ Explain Claude Code's loading behavior in this order.
 ### 1. Startup load from the current working directory upward
 
 At session start, Claude walks up from the current working directory and loads:
+
 - `CLAUDE.md`
 - `CLAUDE.local.md`
 - `.claude/CLAUDE.md`
 - unscoped files under `.claude/rules/`
 
 Important behavior:
+
 - ancestor files are concatenated, not replaced
 - more specific files do not override by magic; they are simply added later in context
 - `CLAUDE.local.md` is appended after `CLAUDE.md` at the same directory level
@@ -39,6 +42,7 @@ Instruction files inside subdirectories are not always loaded at startup.
 They load when Claude reads files in that subtree. This is the key to progressive loading.
 
 Examples:
+
 - `packages/a/CLAUDE.md` loads when Claude starts reading files under `packages/a/`
 - `src/components/CLAUDE.md` loads when Claude works with files under `src/components/`
 - a rule with `paths: ["src/api/**/*.ts"]` loads when Claude reads matching files
@@ -48,6 +52,7 @@ Examples:
 If a `CLAUDE.md` contains `@path/to/file`, the imported file is expanded together with that `CLAUDE.md`.
 
 Implication:
+
 - imports are not a progressive-loading mechanism by themselves
 - if you import a large file from a startup-loaded `CLAUDE.md`, that content also comes in at startup
 - use imports for maintenance and reuse, not as your main lazy-loading strategy
@@ -57,6 +62,7 @@ Implication:
 Auto memory is separate from `CLAUDE.md`.
 
 Important behavior:
+
 - `MEMORY.md` loads only its first 200 lines or first 25KB at startup
 - other memory topic files are read on demand
 - this makes auto memory naturally more progressive than a huge root `CLAUDE.md`
@@ -68,6 +74,7 @@ If the user says they want "渐进式加载", recommend this design by default.
 ### Keep the root file thin
 
 Put only stable, global instructions in the root-level `CLAUDE.md`:
+
 - core project conventions
 - common commands
 - repo-wide non-negotiable rules
@@ -80,6 +87,7 @@ Do not dump every subsystem detail into the root file.
 Move area-specific instructions closer to the files they govern.
 
 Good examples:
+
 - `packages/logger/CLAUDE.md`
 - `reactive-state/react/CLAUDE.md`
 - `src/components/CLAUDE.md`
@@ -95,11 +103,12 @@ Example:
 ```markdown
 ---
 paths:
-  - "src/**/*.{ts,tsx}"
-  - "tests/**/*.test.ts"
+  - 'src/**/*.{ts,tsx}'
+  - 'tests/**/*.test.ts'
 ---
 
 # TypeScript Rules
+
 - Prefer explicit return types for exported APIs.
 - Keep test fixtures close to the test file.
 ```
@@ -109,6 +118,7 @@ This is a strong way to achieve progressive loading without creating many nested
 ### Use imports sparingly
 
 Use `@...` imports when:
+
 - the content must always travel with the parent file
 - you want shared maintenance across files
 - the imported content is still appropriate for the same loading moment
@@ -124,12 +134,14 @@ When helping the user author files, apply these rules.
 Keep it short and global.
 
 Good contents:
+
 - project architecture summary
 - build and test entry commands
 - repo-wide naming or review rules
 - pointers such as `API-specific guidance lives under .claude/rules/api.md`
 
 Bad contents:
+
 - every package's local conventions
 - detailed framework-specific instructions for areas Claude may never touch
 - long procedural workflows better represented as skills
@@ -142,6 +154,7 @@ Good pattern:
 
 ```markdown
 # React Package Notes
+
 - Use `useService` for service access.
 - Keep platform adapters under `src/platforms/`.
 - Prefer observer-based rendering for stateful views.
@@ -154,6 +167,7 @@ Write only what is unique to that subtree. Do not repeat root-level rules unless
 Use rules when the concern is pattern-based rather than folder-based.
 
 Good for:
+
 - all `*.test.ts`
 - all API handlers
 - all React components
@@ -163,14 +177,14 @@ If the file has no `paths`, it loads broadly. If the user wants progressive load
 
 ## Recommended decision table
 
-| Goal | Best mechanism |
-| --- | --- |
-| Everyone should always see it | root `CLAUDE.md` |
-| Only one subtree should see it | nested `CLAUDE.md` |
-| Only matching file patterns should see it | `.claude/rules` with `paths` |
-| Reusable workflow, not persistent guidance | skill |
-| Personal repo-only note | `CLAUDE.local.md` |
-| Personal learned history | auto memory |
+| Goal                                       | Best mechanism               |
+| ------------------------------------------ | ---------------------------- |
+| Everyone should always see it              | root `CLAUDE.md`             |
+| Only one subtree should see it             | nested `CLAUDE.md`           |
+| Only matching file patterns should see it  | `.claude/rules` with `paths` |
+| Reusable workflow, not persistent guidance | skill                        |
+| Personal repo-only note                    | `CLAUDE.local.md`            |
+| Personal learned history                   | auto memory                  |
 
 ## A concrete progressive layout
 
@@ -194,6 +208,7 @@ repo/
 ```
 
 And explain it like this:
+
 - root `CLAUDE.md`: only repo-wide baseline guidance
 - `reactive-state/react/CLAUDE.md`: React package details, loaded when work enters that package
 - `packages/logger/CLAUDE.md`: logger-specific conventions, loaded only when needed
@@ -203,6 +218,7 @@ And explain it like this:
 ## Response pattern
 
 When answering, prefer this sequence:
+
 1. Explain the actual load order.
 2. Point out which parts load immediately and which load later.
 3. Recommend a file layout for progressive loading.
@@ -212,6 +228,7 @@ When answering, prefer this sequence:
 ## Debugging progressive loading
 
 If the user's setup is not behaving as expected, check these points:
+
 1. Is the file located in a directory Claude actually entered?
 2. Is the rule missing a `paths` frontmatter block?
 3. Did a root `CLAUDE.md` import a huge file, causing eager loading?
@@ -222,6 +239,7 @@ If the user's setup is not behaving as expected, check these points:
 ## Boundaries
 
 Do not turn this skill into a generic explanation of all Claude Code features. Keep the emphasis on:
+
 - loading order
 - progressive loading
 - file placement strategy

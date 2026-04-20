@@ -16,21 +16,20 @@
 位置：`.aimo-note/config.json`（与现有 vault 配置合并）
 
 ```typescript
-type ImageStorageConfig =
-  | { type: 'local'; local: { path: string } }
-  | { type: 's3'; s3: S3Config };
+type ImageStorageConfig = { type: 'local'; local: { path: string } } | { type: 's3'; s3: S3Config };
 
 type S3Config = {
   accessKey: string;
   secretKey: string;
   bucket: string;
   region: string;
-  endpoint: string;       // 可选，自定义 endpoint
-  keyPrefix: string;      // 可选，默认空
+  endpoint: string; // 可选，自定义 endpoint
+  keyPrefix: string; // 可选，默认空
 };
 ```
 
 **配置示例（type=local）**:
+
 ```json
 {
   "imageStorage": {
@@ -41,6 +40,7 @@ type S3Config = {
 ```
 
 **配置示例（type=s3）**:
+
 ```json
 {
   "imageStorage": {
@@ -112,10 +112,10 @@ Milkdown 插入图片 markdown
 
 ### 返回 URL 格式
 
-| 存储类型 | URL 格式 | 示例 |
-|----------|----------|------|
-| local | 相对路径（相对于 vault 根目录） | `assets/images/a1b2c3d4.png` |
-| s3 | 完整 S3 URL | `https://bucket.s3.region.amazonaws.com/2026/04/a1b2c3d4.png` |
+| 存储类型 | URL 格式                        | 示例                                                          |
+| -------- | ------------------------------- | ------------------------------------------------------------- |
+| local    | 相对路径（相对于 vault 根目录） | `assets/images/a1b2c3d4.png`                                  |
+| s3       | 完整 S3 URL                     | `https://bucket.s3.region.amazonaws.com/2026/04/a1b2c3d4.png` |
 
 > Milkdown 使用相对路径时，会基于 vault 根目录解析；S3 URL 直接作为 img src。
 
@@ -127,17 +127,18 @@ Milkdown 插入图片 markdown
 import { Service } from '@rabjs/react';
 
 export class ImageStorageService extends Service {
-  async upload(
-    arrayBuffer: ArrayBuffer,
-    mimeType: string
-  ): Promise<string> {
+  async upload(arrayBuffer: ArrayBuffer, mimeType: string): Promise<string> {
     // 1. 读取 vault 配置
     // 2. 根据类型路由到 local 或 s3 处理
     // 3. 返回 URL
   }
 
-  async loadConfig(): Promise<ImageStorageConfig> { /* ... */ }
-  async saveConfig(config: ImageStorageConfig): Promise<void> { /* ... */ }
+  async loadConfig(): Promise<ImageStorageConfig> {
+    /* ... */
+  }
+  async saveConfig(config: ImageStorageConfig): Promise<void> {
+    /* ... */
+  }
 }
 
 export function useImageStorageService(): ImageStorageService {
@@ -147,12 +148,12 @@ export function useImageStorageService(): ImageStorageService {
 
 ### IPC 新增通道
 
-| 通道 | 方向 | 说明 |
-|------|------|------|
-| `clipboard:read-image` | renderer → main | 从剪贴板读取图片，返回 `{ arrayBuffer: ArrayBuffer, mimeType: string }` |
-| `image-storage:upload` | renderer → main | 上传图片（根据 vault 配置自动路由到 local 或 s3） |
-| `image-storage:get-config` | renderer → main | 获取当前 vault 的 imageStorage 配置 |
-| `image-storage:set-config` | renderer → main | 保存 imageStorage 配置到当前 vault |
+| 通道                       | 方向            | 说明                                                                    |
+| -------------------------- | --------------- | ----------------------------------------------------------------------- |
+| `clipboard:read-image`     | renderer → main | 从剪贴板读取图片，返回 `{ arrayBuffer: ArrayBuffer, mimeType: string }` |
+| `image-storage:upload`     | renderer → main | 上传图片（根据 vault 配置自动路由到 local 或 s3）                       |
+| `image-storage:get-config` | renderer → main | 获取当前 vault 的 imageStorage 配置                                     |
+| `image-storage:set-config` | renderer → main | 保存 imageStorage 配置到当前 vault                                      |
 
 ### Preload API
 
@@ -180,6 +181,7 @@ window.electronAPI.imageStorage.setConfig(config: ImageStorageConfig): Promise<v
 ### 路径安全性校验
 
 本地写入时必须校验：
+
 1. `local.path` 不包含 `../`（防止路径遍历）
 2. 最终路径必须在 `vaultRoot` 内
 3. UUID 保证文件名唯一性
@@ -213,16 +215,16 @@ window.electronAPI.imageStorage.setConfig(config: ImageStorageConfig): Promise<v
 
 ## 错误处理
 
-| 场景 | 处理 |
-|------|------|
-| 剪贴板无图片 | 静默忽略，正常粘贴文本 |
-| 不支持的图片格式 | 显示 toast 错误提示 |
-| S3 认证失败 | 显示 toast 错误提示（区分于网络错误） |
-| S3 上传超时/失败 | 显示 toast 错误提示，图片不插入 |
-| 本地写入失败（权限/磁盘空间） | 显示 toast 错误提示，图片不插入 |
-| 配置缺失 | 降级到默认本地配置 `{ type: 'local', local: { path: 'assets/images' } }` |
-| 未选择 vault | 提示选择 vault |
-| UUID 冲突 | 理论上不可能（UUIDv4 唯一性），不处理 |
+| 场景                          | 处理                                                                     |
+| ----------------------------- | ------------------------------------------------------------------------ |
+| 剪贴板无图片                  | 静默忽略，正常粘贴文本                                                   |
+| 不支持的图片格式              | 显示 toast 错误提示                                                      |
+| S3 认证失败                   | 显示 toast 错误提示（区分于网络错误）                                    |
+| S3 上传超时/失败              | 显示 toast 错误提示，图片不插入                                          |
+| 本地写入失败（权限/磁盘空间） | 显示 toast 错误提示，图片不插入                                          |
+| 配置缺失                      | 降级到默认本地配置 `{ type: 'local', local: { path: 'assets/images' } }` |
+| 未选择 vault                  | 提示选择 vault                                                           |
+| UUID 冲突                     | 理论上不可能（UUIDv4 唯一性），不处理                                    |
 
 ## 待定项
 

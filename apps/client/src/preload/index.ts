@@ -153,8 +153,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Vault operations
   vault: {
     selectFolder: () => ipcRenderer.invoke('vault:selectFolder') as Promise<VaultResult>,
-    create: (vaultPath: string) => ipcRenderer.invoke('vault:create', vaultPath) as Promise<VaultResult>,
-    open: (vaultPath: string) => ipcRenderer.invoke('vault:open', vaultPath) as Promise<VaultResult>,
+    create: (vaultPath: string) =>
+      ipcRenderer.invoke('vault:create', vaultPath) as Promise<VaultResult>,
+    open: (vaultPath: string) =>
+      ipcRenderer.invoke('vault:open', vaultPath) as Promise<VaultResult>,
     readNote: (vaultPath: string, filePath: string) =>
       ipcRenderer.invoke('vault:readNote', vaultPath, filePath) as Promise<VaultResult>,
     writeNote: (vaultPath: string, filePath: string, content: string) =>
@@ -165,7 +167,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('vault:rename', vaultPath, oldPath, newPath) as Promise<VaultResult>,
     createFolder: (vaultPath: string, folderPath: string) =>
       ipcRenderer.invoke('vault:createFolder', vaultPath, folderPath) as Promise<VaultResult>,
-    list: (vaultPath: string) => ipcRenderer.invoke('vault:list', vaultPath) as Promise<VaultResult>,
+    list: (vaultPath: string) =>
+      ipcRenderer.invoke('vault:list', vaultPath) as Promise<VaultResult>,
   },
 
   // Update status listener
@@ -188,8 +191,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Config operations for recent vaults
   config: {
     getRecentVaults: () => ipcRenderer.invoke('config:getRecentVaults'),
-    addRecentVault: (vaultPath: string) =>
-      ipcRenderer.invoke('config:addRecentVault', vaultPath),
+    addRecentVault: (vaultPath: string) => ipcRenderer.invoke('config:addRecentVault', vaultPath),
     removeRecentVault: (vaultPath: string) =>
       ipcRenderer.invoke('config:removeRecentVault', vaultPath),
   },
@@ -221,11 +223,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
       rootPath: string;
       caseSensitive: boolean;
       isRegex: boolean;
-    }) => ipcRenderer.invoke('search:search', options) as Promise<{
-      success: boolean;
-      results: SearchResult[];
-      error?: string;
-    }>,
+    }) =>
+      ipcRenderer.invoke('search:search', options) as Promise<{
+        success: boolean;
+        results: SearchResult[];
+        error?: string;
+      }>,
   },
 
   // Template operations
@@ -307,12 +310,20 @@ declare global {
       // Config operations
       config: {
         getRecentVaults: () => Promise<RecentVault[]>;
-        addRecentVault: (vaultPath: string) => Promise<{ success: boolean; recentVaults: RecentVault[] }>;
-        removeRecentVault: (vaultPath: string) => Promise<{ success: boolean; recentVaults: RecentVault[] }>;
+        addRecentVault: (
+          vaultPath: string
+        ) => Promise<{ success: boolean; recentVaults: RecentVault[] }>;
+        removeRecentVault: (
+          vaultPath: string
+        ) => Promise<{ success: boolean; recentVaults: RecentVault[] }>;
       };
       // Clipboard operations
       clipboard: {
-        readImage: () => Promise<{ success: boolean; data: ClipboardImageData | null; error?: string }>;
+        readImage: () => Promise<{
+          success: boolean;
+          data: ClipboardImageData | null;
+          error?: string;
+        }>;
         writeText: (text: string) => Promise<{ success: boolean; error?: string }>;
       };
       // Shell operations
@@ -321,10 +332,18 @@ declare global {
       };
       // Image storage operations
       imageStorage: {
-        upload: (data: { arrayBuffer: ArrayBuffer; mimeType: string; vaultPath: string }) =>
-          Promise<{ success: boolean; url?: string; error?: string }>;
-        getConfig: (vaultPath: string) => Promise<{ success: boolean; config: ImageStorageConfig | null }>;
-        setConfig: (vaultPath: string, config: ImageStorageConfig) => Promise<{ success: boolean; error?: string }>;
+        upload: (data: {
+          arrayBuffer: ArrayBuffer;
+          mimeType: string;
+          vaultPath: string;
+        }) => Promise<{ success: boolean; url?: string; error?: string }>;
+        getConfig: (
+          vaultPath: string
+        ) => Promise<{ success: boolean; config: ImageStorageConfig | null }>;
+        setConfig: (
+          vaultPath: string,
+          config: ImageStorageConfig
+        ) => Promise<{ success: boolean; error?: string }>;
       };
       // Search operations
       search: {
@@ -346,16 +365,26 @@ declare global {
           templates: Array<{ fileName: string; fieldCount: number; preview: string }>;
           error?: string;
         }>;
-        read: (vaultPath: string, fileName: string) => Promise<{
+        read: (
+          vaultPath: string,
+          fileName: string
+        ) => Promise<{
           success: boolean;
           content?: string;
           error?: string;
         }>;
-        write: (vaultPath: string, fileName: string, content: string) => Promise<{
+        write: (
+          vaultPath: string,
+          fileName: string,
+          content: string
+        ) => Promise<{
           success: boolean;
           error?: string;
         }>;
-        delete: (vaultPath: string, fileName: string) => Promise<{
+        delete: (
+          vaultPath: string,
+          fileName: string
+        ) => Promise<{
           success: boolean;
           error?: string;
         }>;
@@ -364,7 +393,10 @@ declare global {
           mappings: Record<string, string>;
           error?: string;
         }>;
-        setMappings: (vaultPath: string, mappings: Record<string, string>) => Promise<{
+        setMappings: (
+          vaultPath: string,
+          mappings: Record<string, string>
+        ) => Promise<{
           success: boolean;
           error?: string;
         }>;

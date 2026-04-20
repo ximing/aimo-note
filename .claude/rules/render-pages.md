@@ -1,6 +1,6 @@
 ---
 paths:
-  - "apps/render/src/pages/**/*.{ts,tsx}"
+  - 'apps/render/src/pages/**/*.{ts,tsx}'
 ---
 
 # Renderer Page Rules

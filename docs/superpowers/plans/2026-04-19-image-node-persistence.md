@@ -25,6 +25,7 @@
 ## Chunk 1: Replace Comment-Based Persistence With Custom Image Node
 
 **Files:**
+
 - Modify: `apps/render/src/components/editor/MilkdownEditorInner.tsx`
 - Create: `apps/render/src/components/editor/extensions/custom-image.ts` (or another editor-local extension file if a better path fits existing conventions)
 
@@ -65,6 +66,7 @@
 ## Chunk 2: Backward Compatibility and Migration
 
 **Files:**
+
 - Modify: `apps/render/src/components/editor/MilkdownEditorInner.tsx`
 
 ### Task 4: Migrate temporary comment-persisted state
@@ -79,6 +81,7 @@
 ## Chunk 3: Validation
 
 **Files:**
+
 - Modify tests if present; otherwise validate with typecheck and targeted manual scenarios
 
 ### Task 5: Verification checklist

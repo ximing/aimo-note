@@ -74,9 +74,11 @@ const handleGetContent = () => {
 ## Available Plugins
 
 ### Presets
+
 - `@milkdown/kit/preset/commonmark` - CommonMark support
 
 ### Plugins
+
 - `@milkdown/kit/plugin/history` - Undo/redo
 - `@milkdown/kit/plugin/listener` - Event listeners (markdownUpdated, etc.)
 - `@milkdown/kit/plugin/clipboard` - Clipboard support
@@ -95,12 +97,9 @@ Implement custom wiki-link parsing:
 import { Plugin, schema } from '@milkdown/kit/core';
 import { InputRule } from '@milkdown/kit/prose';
 
-const wikiLinkRule = new InputRule(
-  /\[\[([^\]]+)\]\]$/,
-  (state, match, start, end) => {
-    // Create wiki-link node
-  }
-);
+const wikiLinkRule = new InputRule(/\[\[([^\]]+)\]\]$/, (state, match, start, end) => {
+  // Create wiki-link node
+});
 ```
 
 ### Tag Support (`#tag`)

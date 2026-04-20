@@ -91,7 +91,8 @@ const doResize = (
 
   if (shiftKey && state.origWidth > 0 && state.origHeight > 0) {
     const ratio = state.origWidth / state.origHeight;
-    const widthDriven = Math.abs(dx) >= Math.abs(dy) || state.handle === 'e' || state.handle === 'w';
+    const widthDriven =
+      Math.abs(dx) >= Math.abs(dy) || state.handle === 'e' || state.handle === 'w';
     if (widthDriven) {
       newHeight = clamp(Math.round(newWidth / ratio), MIN_HEIGHT, state.maxHeight);
     } else {
@@ -119,16 +120,23 @@ interface InitResizeParams {
 
 const initResize = (
   params: InitResizeParams,
-  activeListenersRef: React.MutableRefObject<{ onPointerMove: (e: PointerEvent) => void; onPointerUp: () => void } | null>
+  activeListenersRef: React.MutableRefObject<{
+    onPointerMove: (e: PointerEvent) => void;
+    onPointerUp: () => void;
+  } | null>
 ) => {
-  const { imageEl, clientX, clientY, pointerId, handle, onResizeStart, onResize, onResizeEnd } = params;
+  const { imageEl, clientX, clientY, pointerId, handle, onResizeStart, onResize, onResizeEnd } =
+    params;
 
   onResizeStart();
   imageEl.style.marginLeft = '';
   imageEl.style.marginTop = '';
 
   const maxWidth = imageEl.parentElement?.offsetWidth || 800;
-  const maxHeight = Math.max(imageEl.parentElement?.offsetHeight || imageEl.offsetHeight || 800, MIN_HEIGHT);
+  const maxHeight = Math.max(
+    imageEl.parentElement?.offsetHeight || imageEl.offsetHeight || 800,
+    MIN_HEIGHT
+  );
 
   const state: ResizeState = {
     startX: clientX,
@@ -177,7 +185,10 @@ export const ImageResizeHandles: React.FC<ImageResizeHandlesProps> = ({
   const onResizeRef = useRef(onResize);
   const onResizeEndRef = useRef(onResizeEnd);
   const onResizeStartRef = useRef(onResizeStart);
-  const activeListenersRef = useRef<{ onPointerMove: (e: PointerEvent) => void; onPointerUp: () => void } | null>(null);
+  const activeListenersRef = useRef<{
+    onPointerMove: (e: PointerEvent) => void;
+    onPointerUp: () => void;
+  } | null>(null);
 
   useEffect(() => {
     onResizeRef.current = onResize;

@@ -104,7 +104,12 @@ export function applyTemplate(
 
   const fmLines = Object.entries(frontmatter)
     .map(([k, v]) => {
-      if (Array.isArray(v)) return `${k}: ${JSON.stringify(v)}`;
+      if (Array.isArray(v)) {
+        const items = v.map(item =>
+          typeof item === 'string' ? `'${item}'` : String(item)
+        );
+        return `${k}: [${items.join(', ')}]`;
+      }
       if (typeof v === 'string') return `${k}: "${v}"`;
       return `${k}: ${v}`;
     })

@@ -6,12 +6,12 @@
 
 ## 布局层次（从外→内，由深→浅）
 
-| 区域 | CSS 变量 | Light 值 | Dark 值 | 用途 |
-|------|----------|----------|---------|------|
-| **外层** header-row | `--bg-header` | `#e2dfd8` | `#2f2f2f` | 最深，最顶部标题栏 |
-| **外层** left-rail | `--bg-rail` | `#e8e6e0` | `#2a2a2a` | 次深，图标导航 |
-| **中层** left-sidebar | `--bg-sidebar` | `#f2f1ed` | `#1e1e1e` | 文件树区域 |
-| **内层** main-content | `--bg-primary` | `#ffffff` | `#191919` | 编辑器主区域 |
+| 区域                  | CSS 变量       | Light 值  | Dark 值   | 用途               |
+| --------------------- | -------------- | --------- | --------- | ------------------ |
+| **外层** header-row   | `--bg-header`  | `#e2dfd8` | `#2f2f2f` | 最深，最顶部标题栏 |
+| **外层** left-rail    | `--bg-rail`    | `#e8e6e0` | `#2a2a2a` | 次深，图标导航     |
+| **中层** left-sidebar | `--bg-sidebar` | `#f2f1ed` | `#1e1e1e` | 文件树区域         |
+| **内层** main-content | `--bg-primary` | `#ffffff` | `#191919` | 编辑器主区域       |
 
 ## 层级关系示意
 
@@ -60,10 +60,10 @@ html.dark {
 
 ### 2. 组件样式映射
 
-| 组件 | CSS 类 | 使用变量 |
-|------|--------|----------|
-| Header Row | `.header-row` | `var(--bg-header)` |
-| Left Rail | `.left-rail` | `var(--bg-rail)` |
+| 组件         | CSS 类          | 使用变量            |
+| ------------ | --------------- | ------------------- |
+| Header Row   | `.header-row`   | `var(--bg-header)`  |
+| Left Rail    | `.left-rail`    | `var(--bg-rail)`    |
 | Left Sidebar | `.left-sidebar` | `var(--bg-sidebar)` |
 | Main Content | `.main-content` | `var(--bg-primary)` |
 

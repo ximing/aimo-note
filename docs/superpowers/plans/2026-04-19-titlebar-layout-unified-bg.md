@@ -16,10 +16,10 @@ This plan implements the design decision from `docs/superpowers/specs/2026-04-19
 
 ### Changes Required
 
-| File | Line | Change |
-|------|------|--------|
-| `apps/render/src/components/left-rail/LeftRail.tsx` | 26 | `bg-bg-tertiary` → `bg-bg-secondary` |
-| `apps/render/src/components/Layout.tsx` | 25 | `bg-bg-primary` → `bg-bg-secondary` |
+| File                                                | Line | Change                               |
+| --------------------------------------------------- | ---- | ------------------------------------ |
+| `apps/render/src/components/left-rail/LeftRail.tsx` | 26   | `bg-bg-tertiary` → `bg-bg-secondary` |
+| `apps/render/src/components/Layout.tsx`             | 25   | `bg-bg-primary` → `bg-bg-secondary`  |
 
 ---
 
@@ -28,11 +28,13 @@ This plan implements the design decision from `docs/superpowers/specs/2026-04-19
 ### Task 1: Update LeftRail background color
 
 **Files:**
+
 - Modify: `apps/render/src/components/left-rail/LeftRail.tsx:26`
 
 - [ ] **Step 1: Change LeftRail background from bg-bg-tertiary to bg-bg-secondary**
 
 Modify line 26 in `LeftRail.tsx`:
+
 ```tsx
 // Before
 <aside className="left-rail w-12 flex flex-col items-center pt-12 py-2 gap-1 bg-bg-tertiary">
@@ -44,11 +46,13 @@ Modify line 26 in `LeftRail.tsx`:
 ### Task 2: Update LeftSidebar background color
 
 **Files:**
+
 - Modify: `apps/render/src/components/Layout.tsx:25`
 
 - [ ] **Step 2: Change LeftSidebar background from bg-bg-primary to bg-bg-secondary**
 
 Modify line 25 in `Layout.tsx`:
+
 ```tsx
 // Before
 <aside className="left-sidebar w-64 flex flex-col bg-bg-primary">
@@ -62,6 +66,7 @@ Modify line 25 in `Layout.tsx`:
 - [ ] **Step 3: Verify the changes visually**
 
 Run the app and verify:
+
 1. Left Rail (48px vertical strip) now has `bg-secondary` background
 2. Left Sidebar now has `bg-secondary` background
 3. Both match the Left Sidebar Header background

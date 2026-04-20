@@ -1,9 +1,29 @@
 import { useState, useRef, useEffect } from 'react';
-import { FilePlus, FolderPlus, ChevronsUpDown, Check, SortAsc, SortDesc, Calendar, Clock } from 'lucide-react';
+import {
+  FilePlus,
+  FolderPlus,
+  ChevronsUpDown,
+  Check,
+  SortAsc,
+  SortDesc,
+  Calendar,
+  Clock,
+} from 'lucide-react';
 
-export type SortOption = 'name-asc' | 'name-desc' | 'created-desc' | 'created-asc' | 'modified-desc' | 'modified-asc';
+export type SortOption =
+  | 'name-asc'
+  | 'name-desc'
+  | 'created-desc'
+  | 'created-asc'
+  | 'modified-desc'
+  | 'modified-asc';
 
-const sortOptions: { value: SortOption; label: string; icon: typeof SortAsc; disabled?: boolean }[] = [
+const sortOptions: {
+  value: SortOption;
+  label: string;
+  icon: typeof SortAsc;
+  disabled?: boolean;
+}[] = [
   { value: 'name-asc', label: '按文件名 A-Z', icon: SortAsc },
   { value: 'name-desc', label: '按文件名 Z-A', icon: SortDesc },
   { value: 'created-desc', label: '按创建时间 ↓', icon: Calendar, disabled: true },
@@ -52,11 +72,15 @@ export function SidebarHeader({
   }, [showSortMenu]);
 
   const currentSortOption = `${sortBy}-${sortOrder}` as SortOption;
-  const currentOption = sortOptions.find((opt) => opt.value === currentSortOption) ?? sortOptions[0];
+  const currentOption =
+    sortOptions.find((opt) => opt.value === currentSortOption) ?? sortOptions[0];
 
   const handleSortSelect = (value: SortOption, disabled?: boolean) => {
     if (disabled) return;
-    const [newSortBy, newSortOrder] = value.split('-') as ['name' | 'created' | 'modified', 'asc' | 'desc'];
+    const [newSortBy, newSortOrder] = value.split('-') as [
+      'name' | 'created' | 'modified',
+      'asc' | 'desc',
+    ];
     onSortChange(newSortBy, newSortOrder);
     setShowSortMenu(false);
   };

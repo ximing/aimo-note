@@ -3,7 +3,7 @@ export type ImageStorageType = 'local' | 's3';
 export interface LocalImageStorageConfig {
   type: 'local';
   local: {
-    path: string;  // default: 'assets/images'
+    path: string; // default: 'assets/images'
   };
 }
 
@@ -14,8 +14,8 @@ export interface S3ImageStorageConfig {
     secretKey: string;
     bucket: string;
     region: string;
-    endpoint?: string;   // optional
-    keyPrefix?: string;  // optional, default ''
+    endpoint?: string; // optional
+    keyPrefix?: string; // optional, default ''
   };
 }
 
@@ -27,5 +27,5 @@ export interface ClipboardImageData {
 }
 
 export interface ImageStorageUploadResult {
-  url: string;  // relative path for local, full URL for S3
+  url: string; // relative path for local, full URL for S3
 }

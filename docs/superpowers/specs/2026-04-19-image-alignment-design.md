@@ -6,12 +6,12 @@
 
 ## 功能需求
 
-| 功能 | 描述 |
-|------|------|
-| 图片对齐 | 支持左对齐、居中对齐、右对齐三种方式 |
+| 功能         | 描述                                             |
+| ------------ | ------------------------------------------------ |
+| 图片对齐     | 支持左对齐、居中对齐、右对齐三种方式             |
 | 拖拽调整大小 | 通过四角和四边手柄拖拽调整图片尺寸，支持等比缩放 |
-| 默认对齐 | 新插入图片默认居中对齐 |
-| 删除图片 | 通过工具栏删除按钮移除图片 |
+| 默认对齐     | 新插入图片默认居中对齐                           |
+| 删除图片     | 通过工具栏删除按钮移除图片                       |
 
 ## 用户交互
 
@@ -67,22 +67,22 @@
 
 #### ImageToolbarProps
 
-| 属性 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `alignment` | `'left' \| 'center' \| 'right'` | 是 | 当前对齐方式 |
-| `position` | `{ top: number; left: number; width: number }` | 是 | 图片位置信息，用于定位工具栏 |
-| `onAlign` | `(align: 'left' \| 'center' \| 'right') => void` | 是 | 对齐方式变更回调 |
-| `onDelete` | `() => void` | 是 | 删除按钮回调 |
-| `containerRef` | `React.RefObject<HTMLElement>` | 是 | 编辑器容器 ref，用于计算相对位置 |
+| 属性           | 类型                                             | 必填 | 说明                             |
+| -------------- | ------------------------------------------------ | ---- | -------------------------------- |
+| `alignment`    | `'left' \| 'center' \| 'right'`                  | 是   | 当前对齐方式                     |
+| `position`     | `{ top: number; left: number; width: number }`   | 是   | 图片位置信息，用于定位工具栏     |
+| `onAlign`      | `(align: 'left' \| 'center' \| 'right') => void` | 是   | 对齐方式变更回调                 |
+| `onDelete`     | `() => void`                                     | 是   | 删除按钮回调                     |
+| `containerRef` | `React.RefObject<HTMLElement>`                   | 是   | 编辑器容器 ref，用于计算相对位置 |
 
 #### ImageResizeHandlesProps
 
-| 属性 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `imageRef` | `React.RefObject<HTMLImageElement>` | 是 | 图片元素 ref |
-| `onResizeStart` | `() => void` | 是 | 开始拖拽回调 |
-| `onResize` | `(width: number, height: number) => void` | 是 | 拖拽中回调 |
-| `onResizeEnd` | `(width: number, height: number) => void` | 是 | 拖拽结束回调 |
+| 属性            | 类型                                      | 必填 | 说明         |
+| --------------- | ----------------------------------------- | ---- | ------------ |
+| `imageRef`      | `React.RefObject<HTMLImageElement>`       | 是   | 图片元素 ref |
+| `onResizeStart` | `() => void`                              | 是   | 开始拖拽回调 |
+| `onResize`      | `(width: number, height: number) => void` | 是   | 拖拽中回调   |
+| `onResizeEnd`   | `(width: number, height: number) => void` | 是   | 拖拽结束回调 |
 
 ### 状态流
 
@@ -130,8 +130,8 @@ interface ImageNodeAttrs {
   src: string;
   alt?: string;
   title?: string;
-  align?: 'left' | 'center' | 'right';  // 新增
-  width?: number;                        // 新增：用户拖拽设置的宽度（像素值）
+  align?: 'left' | 'center' | 'right'; // 新增
+  width?: number; // 新增：用户拖拽设置的宽度（像素值）
 }
 ```
 
@@ -317,16 +317,16 @@ const handleResize = (e: MouseEvent, handle: HandlePosition) => {
 
 ### 边界情况处理
 
-| 情况 | 处理方式 |
-|------|----------|
-| 图片加载失败 | 不显示手柄，工具栏只显示删除按钮 |
-| 图片被外部删除 | 工具栏自动隐藏 |
-| 图片在折叠区域内 | 工具栏不可见，不处理选中 |
-| 工具栏超出视口 | 调整位置到可见区域（上方/下方/左右偏移） |
-| naturalWidth 为 0（图片未加载完成） | 禁止拖拽开始，等图片加载完成后再允许 |
-| 四角/侧边自由缩放超出最小高度 | 同步限制最小高度 40px |
-| 图片在折叠区域内被脚本操作 | 操作被拒绝，等待图片进入可见状态 |
-| 拖拽期间文本选择 | 拖拽开始时对图片元素调用 `setPointerCapture`，同时设置 `user-select: none` 防止选中文本 |
+| 情况                                | 处理方式                                                                                |
+| ----------------------------------- | --------------------------------------------------------------------------------------- |
+| 图片加载失败                        | 不显示手柄，工具栏只显示删除按钮                                                        |
+| 图片被外部删除                      | 工具栏自动隐藏                                                                          |
+| 图片在折叠区域内                    | 工具栏不可见，不处理选中                                                                |
+| 工具栏超出视口                      | 调整位置到可见区域（上方/下方/左右偏移）                                                |
+| naturalWidth 为 0（图片未加载完成） | 禁止拖拽开始，等图片加载完成后再允许                                                    |
+| 四角/侧边自由缩放超出最小高度       | 同步限制最小高度 40px                                                                   |
+| 图片在折叠区域内被脚本操作          | 操作被拒绝，等待图片进入可见状态                                                        |
+| 拖拽期间文本选择                    | 拖拽开始时对图片元素调用 `setPointerCapture`，同时设置 `user-select: none` 防止选中文本 |
 
 ### 交互范围约定
 
@@ -336,12 +336,12 @@ const handleResize = (e: MouseEvent, handle: HandlePosition) => {
 
 ## 文件清单
 
-| 文件 | 操作 | 改动范围 |
-|------|------|----------|
-| `apps/render/src/components/editor/ImageToolbar.tsx` | 新增 | 完整新文件 |
-| `apps/render/src/components/editor/ImageResizeHandles.tsx` | 新增 | 完整新文件 |
-| `apps/render/src/styles/editor-content.css` | 修改 | 在 `/* Images */` 区块后追加 `.image-wrapper.*`、`.image-toolbar`、`.resize-handle` 样式 |
-| `apps/render/src/components/editor/MilkdownEditorInner.tsx` | 修改 | 添加选中状态、图片点击事件、渲染 ImageToolbar + ImageResizeHandles |
+| 文件                                                        | 操作 | 改动范围                                                                                 |
+| ----------------------------------------------------------- | ---- | ---------------------------------------------------------------------------------------- |
+| `apps/render/src/components/editor/ImageToolbar.tsx`        | 新增 | 完整新文件                                                                               |
+| `apps/render/src/components/editor/ImageResizeHandles.tsx`  | 新增 | 完整新文件                                                                               |
+| `apps/render/src/styles/editor-content.css`                 | 修改 | 在 `/* Images */` 区块后追加 `.image-wrapper.*`、`.image-toolbar`、`.resize-handle` 样式 |
+| `apps/render/src/components/editor/MilkdownEditorInner.tsx` | 修改 | 添加选中状态、图片点击事件、渲染 ImageToolbar + ImageResizeHandles                       |
 
 ## 实现顺序
 

@@ -17,6 +17,7 @@
 ### Task 1: 扩展 preload electronAPI 类型
 
 **Files:**
+
 - Modify: `apps/client/src/preload/index.ts:44-143`
 
 - [x] **Step 1: 添加 vault API 类型定义**
@@ -65,6 +66,7 @@ git commit -m "feat(client): add vault API to electronAPI preload"
 ### Task 2: 实现 vault IPC handlers
 
 **Files:**
+
 - Modify: `apps/client/src/main/ipc/handlers.ts:16-163`
 
 - [x] **Step 1: 在 handlers.ts 顶部添加导入**
@@ -159,12 +161,15 @@ ipcMain.handle('vault:create', async (_event, vaultPath: string) => {
 ```typescript
 ipcMain.handle('vault:open', async (_event, vaultPath: string) => {
   try {
-    const exists = await fs.access(vaultPath).then(() => true).catch(() => false);
+    const exists = await fs
+      .access(vaultPath)
+      .then(() => true)
+      .catch(() => false);
     if (!exists) {
       return { path: vaultPath, files: 0 };
     }
     const nodes = await listDir(vaultPath);
-    const fileCount = nodes.filter(n => n.type === 'file').length;
+    const fileCount = nodes.filter((n) => n.type === 'file').length;
     return { path: vaultPath, files: fileCount };
   } catch (error) {
     console.error('[IPC] vault:open error:', error);
@@ -191,17 +196,20 @@ ipcMain.handle('vault:readNote', async (_event, vaultPath: string, notePath: str
 - [x] **Step 7: 替换 vault:writeNote handler**
 
 ```typescript
-ipcMain.handle('vault:writeNote', async (_event, vaultPath: string, notePath: string, content: string) => {
-  try {
-    const fullPath = path.join(vaultPath, notePath);
-    await fs.mkdir(path.dirname(fullPath), { recursive: true });
-    await fs.writeFile(fullPath, content, 'utf-8');
-    return { success: true };
-  } catch (error) {
-    console.error('[IPC] vault:writeNote error:', error);
-    return { success: false };
+ipcMain.handle(
+  'vault:writeNote',
+  async (_event, vaultPath: string, notePath: string, content: string) => {
+    try {
+      const fullPath = path.join(vaultPath, notePath);
+      await fs.mkdir(path.dirname(fullPath), { recursive: true });
+      await fs.writeFile(fullPath, content, 'utf-8');
+      return { success: true };
+    } catch (error) {
+      console.error('[IPC] vault:writeNote error:', error);
+      return { success: false };
+    }
   }
-});
+);
 ```
 
 - [x] **Step 8: 添加 vault:delete handler**
@@ -227,17 +235,20 @@ ipcMain.handle('vault:delete', async (_event, vaultPath: string, targetPath: str
 - [x] **Step 9: 添加 vault:rename handler**
 
 ```typescript
-ipcMain.handle('vault:rename', async (_event, vaultPath: string, oldPath: string, newPath: string) => {
-  try {
-    const oldFullPath = path.join(vaultPath, oldPath);
-    const newFullPath = path.join(vaultPath, newPath);
-    await fs.rename(oldFullPath, newFullPath);
-    return { success: true };
-  } catch (error) {
-    console.error('[IPC] vault:rename error:', error);
-    return { success: false };
+ipcMain.handle(
+  'vault:rename',
+  async (_event, vaultPath: string, oldPath: string, newPath: string) => {
+    try {
+      const oldFullPath = path.join(vaultPath, oldPath);
+      const newFullPath = path.join(vaultPath, newPath);
+      await fs.rename(oldFullPath, newFullPath);
+      return { success: true };
+    } catch (error) {
+      console.error('[IPC] vault:rename error:', error);
+      return { success: false };
+    }
   }
-});
+);
 ```
 
 - [x] **Step 10: 添加 vault:createFolder handler**
@@ -282,6 +293,7 @@ git commit -m "feat(client): implement vault IPC handlers"
 ### Task 3: 实现 render IPC vault 封装
 
 **Files:**
+
 - Modify: `apps/render/src/ipc/vault.ts`
 
 - [x] **Step 1: 更新 vault.ts IPC 封装**
@@ -355,6 +367,7 @@ git commit -m "feat(render): implement vault IPC client wrapper"
 ### Task 4: 完善 VaultService
 
 **Files:**
+
 - Modify: `apps/render/src/services/vault.service.ts`
 
 - [x] **Step 1: 完善 VaultService 状态和逻辑**
@@ -451,6 +464,7 @@ git commit -m "feat(render): enhance VaultService with full state management"
 ### Task 5: 实现 HomePage Vault 选择界面
 
 **Files:**
+
 - Modify: `apps/render/src/pages/home/index.tsx`
 
 - [x] **Step 1: 更新 HomePage UI**
@@ -526,6 +540,7 @@ git commit -m "feat(render): implement HomePage vault selection UI"
 ### Task 6: 实现 VaultTree 组件
 
 **Files:**
+
 - Modify: `apps/render/src/components/explorer/VaultTree.tsx`
 
 - [x] **Step 1: 实现 VaultTree 组件**
@@ -585,6 +600,7 @@ git commit -m "feat(render): implement VaultTree component"
 ### Task 7: 实现 TreeNode 组件
 
 **Files:**
+
 - Modify: `apps/render/src/components/explorer/TreeNode.tsx`
 
 - [x] **Step 1: 实现 TreeNode 组件（支持展开/收起）**
@@ -672,6 +688,7 @@ git commit -m "feat(render): implement TreeNode component with expand/collapse"
 ### Task 8: 完善 EditorPage 读取和保存
 
 **Files:**
+
 - Modify: `apps/render/src/pages/editor/index.tsx`
 - Modify: `apps/render/src/services/editor.service.ts`
 
@@ -865,6 +882,7 @@ git commit -m "feat(render): implement editor service with auto-save"
 ### Task 9: 实现 ContextMenu 组件
 
 **Files:**
+
 - Create: `apps/render/src/components/common/ContextMenu.tsx`
 - Modify: `apps/render/src/components/common/index.ts`
 
@@ -963,6 +981,7 @@ git commit -m "feat(render): implement ContextMenu component"
 ### Task 10: 在 TreeNode 中集成右键菜单
 
 **Files:**
+
 - Modify: `apps/render/src/components/explorer/TreeNode.tsx`
 
 - [x] **Step 1: 更新 TreeNode 添加右键菜单**
@@ -1136,6 +1155,7 @@ git commit -m "feat(render): integrate context menu in TreeNode"
 ### Task 11: 在编辑器空白处添加右键新建
 
 **Files:**
+
 - Modify: `apps/render/src/pages/editor/index.tsx`
 
 - [x] **Step 1: 更新 EditorPage 支持空白处右键**
@@ -1187,6 +1207,7 @@ git commit -m "feat(render): add right-click new file in editor"
 ### Task 12: 更新 app.tsx 路由和侧边栏布局
 
 **Files:**
+
 - Modify: `apps/render/src/app.tsx`
 - Create: `apps/render/src/components/Layout.tsx`
 

@@ -97,22 +97,46 @@ declare global {
       removeFileDropListener?: (callback: (filePaths: string[]) => void) => void;
       // Vault APIs
       vault: {
-        open: (path: string) => Promise<{ success: boolean; path?: string; tree?: TreeNode[]; error?: string }>;
-        readNote: (vaultPath: string, notePath: string) => Promise<{ success: boolean; content?: string; error?: string }>;
-        writeNote: (vaultPath: string, notePath: string, content: string) => Promise<{ success: boolean; error?: string }>;
-        delete: (vaultPath: string, notePath: string) => Promise<{ success: boolean; error?: string }>;
+        open: (
+          path: string
+        ) => Promise<{ success: boolean; path?: string; tree?: TreeNode[]; error?: string }>;
+        readNote: (
+          vaultPath: string,
+          notePath: string
+        ) => Promise<{ success: boolean; content?: string; error?: string }>;
+        writeNote: (
+          vaultPath: string,
+          notePath: string,
+          content: string
+        ) => Promise<{ success: boolean; error?: string }>;
+        delete: (
+          vaultPath: string,
+          notePath: string
+        ) => Promise<{ success: boolean; error?: string }>;
         list: (path: string) => Promise<{ success: boolean; tree?: TreeNode[]; error?: string }>;
         selectFolder: () => Promise<{ success: boolean; path?: string; error?: string }>;
         create: (path: string) => Promise<{ success: boolean; error?: string }>;
-        createFolder: (vaultPath: string, folderPath: string) => Promise<{ success: boolean; error?: string }>;
-        rename: (vaultPath: string, oldPath: string, newPath: string) => Promise<{ success: boolean; error?: string }>;
+        createFolder: (
+          vaultPath: string,
+          folderPath: string
+        ) => Promise<{ success: boolean; error?: string }>;
+        rename: (
+          vaultPath: string,
+          oldPath: string,
+          newPath: string
+        ) => Promise<{ success: boolean; error?: string }>;
       };
       // Plugin APIs
       plugin: {
         load: (pluginPath: string) => Promise<{ success: boolean; error?: string }>;
         unload: (pluginId: string) => Promise<{ success: boolean; error?: string }>;
-        getSettings: (pluginId: string) => Promise<{ success: boolean; settings?: Record<string, unknown>; error?: string }>;
-        setSettings: (pluginId: string, settings: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>;
+        getSettings: (
+          pluginId: string
+        ) => Promise<{ success: boolean; settings?: Record<string, unknown>; error?: string }>;
+        setSettings: (
+          pluginId: string,
+          settings: Record<string, unknown>
+        ) => Promise<{ success: boolean; error?: string }>;
       };
       // Search APIs
       search: {
@@ -126,7 +150,9 @@ declare global {
       // Graph APIs
       graph: {
         build: () => Promise<{ success: boolean; error?: string }>;
-        getBacklinks: (path: string) => Promise<{ success: boolean; links?: unknown[]; error?: string }>;
+        getBacklinks: (
+          path: string
+        ) => Promise<{ success: boolean; links?: unknown[]; error?: string }>;
       };
       // FS APIs
       fs: {
@@ -154,12 +180,20 @@ declare global {
       // Config APIs
       config: {
         getRecentVaults: () => Promise<RecentVault[]>;
-        addRecentVault: (vaultPath: string) => Promise<{ success: boolean; recentVaults: RecentVault[] }>;
-        removeRecentVault: (vaultPath: string) => Promise<{ success: boolean; recentVaults: RecentVault[] }>;
+        addRecentVault: (
+          vaultPath: string
+        ) => Promise<{ success: boolean; recentVaults: RecentVault[] }>;
+        removeRecentVault: (
+          vaultPath: string
+        ) => Promise<{ success: boolean; recentVaults: RecentVault[] }>;
       };
       // Clipboard APIs
       clipboard: {
-        readImage: () => Promise<{ success: boolean; data: { arrayBuffer: ArrayBuffer; mimeType: string } | null; error?: string }>;
+        readImage: () => Promise<{
+          success: boolean;
+          data: { arrayBuffer: ArrayBuffer; mimeType: string } | null;
+          error?: string;
+        }>;
         writeText: (text: string) => Promise<{ success: boolean; error?: string }>;
       };
       // Shell APIs
@@ -168,12 +202,18 @@ declare global {
       };
       // Image storage APIs
       imageStorage: {
-        upload: (data: { arrayBuffer: ArrayBuffer; mimeType: string; vaultPath: string }) =>
-          Promise<{ success: boolean; url?: string; error?: string }>;
-        getConfig: (vaultPath: string) =>
-          Promise<{ success: boolean; config?: ElectronImageStorageConfig | null }>;
-        setConfig: (vaultPath: string, config: ElectronImageStorageConfig) =>
-          Promise<{ success: boolean; error?: string }>;
+        upload: (data: {
+          arrayBuffer: ArrayBuffer;
+          mimeType: string;
+          vaultPath: string;
+        }) => Promise<{ success: boolean; url?: string; error?: string }>;
+        getConfig: (
+          vaultPath: string
+        ) => Promise<{ success: boolean; config?: ElectronImageStorageConfig | null }>;
+        setConfig: (
+          vaultPath: string,
+          config: ElectronImageStorageConfig
+        ) => Promise<{ success: boolean; error?: string }>;
       };
       // Template APIs
       template: {
@@ -182,16 +222,26 @@ declare global {
           templates: { fileName: string; fieldCount: number; preview: string }[];
           error?: string;
         }>;
-        read: (vaultPath: string, fileName: string) => Promise<{
+        read: (
+          vaultPath: string,
+          fileName: string
+        ) => Promise<{
           success: boolean;
           content?: string;
           error?: string;
         }>;
-        write: (vaultPath: string, fileName: string, content: string) => Promise<{
+        write: (
+          vaultPath: string,
+          fileName: string,
+          content: string
+        ) => Promise<{
           success: boolean;
           error?: string;
         }>;
-        delete: (vaultPath: string, fileName: string) => Promise<{
+        delete: (
+          vaultPath: string,
+          fileName: string
+        ) => Promise<{
           success: boolean;
           error?: string;
         }>;
@@ -200,7 +250,10 @@ declare global {
           mappings: Record<string, string>;
           error?: string;
         }>;
-        setMappings: (vaultPath: string, mappings: Record<string, string>) => Promise<{
+        setMappings: (
+          vaultPath: string,
+          mappings: Record<string, string>
+        ) => Promise<{
           success: boolean;
           error?: string;
         }>;
@@ -235,4 +288,3 @@ type ElectronImageStorageConfig =
         keyPrefix?: string;
       };
     };
-

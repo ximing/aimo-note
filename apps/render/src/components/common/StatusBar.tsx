@@ -37,9 +37,7 @@ export const StatusBar = observer(() => {
         <span>{loading ? '...' : `${stats.words} words`}</span>
         <span>{stats.characters} characters</span>
       </div>
-      <div className="flex items-center gap-2">
-        {/* Reserved for additional status info */}
-      </div>
+      <div className="flex items-center gap-2">{/* Reserved for additional status info */}</div>
     </div>
   );
 });

@@ -29,14 +29,20 @@ export class EditorService extends Service {
   }
 
   async openNote(path: string): Promise<void> {
-    console.log('[EditorService] openNote called:', { path, currentNote: this.currentNote, vaultPath: this.vaultService?.path });
+    console.log('[EditorService] openNote called:', {
+      path,
+      currentNote: this.currentNote,
+      vaultPath: this.vaultService?.path,
+    });
     if (this.isDirty && this.currentNote) {
       await this.saveNote();
     }
 
     const vaultPath = this.vaultService?.path;
     if (!vaultPath) {
-      console.error('[EditorService] openNote failed: no vaultPath', { vaultPath: this.vaultService?.path });
+      console.error('[EditorService] openNote failed: no vaultPath', {
+        vaultPath: this.vaultService?.path,
+      });
       throw new Error('Vault not open');
     }
     const note = await vault.readNote(vaultPath, path);
@@ -54,7 +60,10 @@ export class EditorService extends Service {
   }
 
   updateContent(content: string): void {
-    console.log('[EditorService] updateContent called:', { contentLength: content.length, preview: content.substring(0, 50) });
+    console.log('[EditorService] updateContent called:', {
+      contentLength: content.length,
+      preview: content.substring(0, 50),
+    });
     if (this.content === content) {
       console.log('[EditorService] updateContent skipped: same content');
       return;
@@ -73,20 +82,30 @@ export class EditorService extends Service {
   async saveNote(): Promise<void> {
     const note = this.currentNote;
     if (!note || !this.isDirty) {
-      console.log('[EditorService] saveNote skipped:', { reason: !note ? 'no note' : 'not dirty', note, isDirty: this.isDirty });
+      console.log('[EditorService] saveNote skipped:', {
+        reason: !note ? 'no note' : 'not dirty',
+        note,
+        isDirty: this.isDirty,
+      });
       return;
     }
 
     const vaultPath = this.vaultService?.path;
     if (!vaultPath) {
-      console.error('[EditorService] saveNote failed: no vaultPath', { vaultServicePath: this.vaultService?.path });
+      console.error('[EditorService] saveNote failed: no vaultPath', {
+        vaultServicePath: this.vaultService?.path,
+      });
       return;
     }
 
     this.isSaving = true;
 
     try {
-      console.log('[EditorService] saveNote:', { vaultPath, notePath: note.path, contentLength: this.content.length });
+      console.log('[EditorService] saveNote:', {
+        vaultPath,
+        notePath: note.path,
+        contentLength: this.content.length,
+      });
       await vault.writeNote(vaultPath, note.path, this.content);
       this.currentNote = { ...note, content: this.content };
       this.isDirty = false;

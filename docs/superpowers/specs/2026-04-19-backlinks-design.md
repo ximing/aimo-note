@@ -8,15 +8,15 @@
 
 ## 一、能力范围
 
-| 功能 | 说明 |
-|---|---|
-| Wiki-link 编辑渲染 | `[[笔记]]` 在 Milkdown 编辑器中渲染为可点击内联元素 |
-| 别名语法 | `[[笔记\|显示文本]]`，解析时精确优先 + 模糊兜底 |
-| 嵌入（Transclusion） | `![[笔记]]` 延迟渲染，默认占位符，hover/click 展开 |
-| Backlinks 面板 | 侧边栏显示当前笔记的所有反向链接（笔记名 + 上下文片段） |
-| 知识图谱 | 全屏模态图谱视图，节点可拖拽，点击跳转 |
-| 断链提示 | 链接目标不存在时显示红色/虚线下划线标识 |
-| 块引用 | **不在本版本范围内** |
+| 功能                 | 说明                                                    |
+| -------------------- | ------------------------------------------------------- |
+| Wiki-link 编辑渲染   | `[[笔记]]` 在 Milkdown 编辑器中渲染为可点击内联元素     |
+| 别名语法             | `[[笔记\|显示文本]]`，解析时精确优先 + 模糊兜底         |
+| 嵌入（Transclusion） | `![[笔记]]` 延迟渲染，默认占位符，hover/click 展开      |
+| Backlinks 面板       | 侧边栏显示当前笔记的所有反向链接（笔记名 + 上下文片段） |
+| 知识图谱             | 全屏模态图谱视图，节点可拖拽，点击跳转                  |
+| 断链提示             | 链接目标不存在时显示红色/虚线下划线标识                 |
+| 块引用               | **不在本版本范围内**                                    |
 
 ---
 
@@ -56,9 +56,9 @@ apps/render         # React renderer
 
 export interface Graph {
   buildFromNotes(notes: { path: string; body: string }[]): GraphData;
-  getGraphData(): GraphData;             // 返回完整图数据（供 IPC 调用）
-  getBacklinks(path: string): string[];  // 返回链接到 path 的笔记路径列表
-  getOutlinks(path: string): string[];   // 返回 path 中所有外链目标路径列表
+  getGraphData(): GraphData; // 返回完整图数据（供 IPC 调用）
+  getBacklinks(path: string): string[]; // 返回链接到 path 的笔记路径列表
+  getOutlinks(path: string): string[]; // 返回 path 中所有外链目标路径列表
 }
 
 export interface GraphData {
@@ -107,27 +107,25 @@ const EMBED_REGEX = /!\[\[([^\]|]+)(?:\|([^\]|]+))?\]\]/g;
 // packages/core/src/index.ts
 
 export function resolveLink(
-  linkText: string,      // wiki-link 中的 target 部分（不含 [[]] 和 alias）
-  allNotePaths: string[]  // vault 中所有笔记的相对路径（不含 .md/.mdx 后缀）
+  linkText: string, // wiki-link 中的 target 部分（不含 [[]] 和 alias）
+  allNotePaths: string[] // vault 中所有笔记的相对路径（不含 .md/.mdx 后缀）
 ): string | null {
   // 标准化：去掉扩展名，统一路径分隔符
-  const candidates = allNotePaths.map(p =>
-    p.replace(/\.mdx?$/, '').replace(/\\/g, '/')
-  );
+  const candidates = allNotePaths.map((p) => p.replace(/\.mdx?$/, '').replace(/\\/g, '/'));
   // 标准化 linkText
   const normalized = linkText.replace(/\\/g, '/');
 
   // Step 1: 精确匹配
-  const exact = candidates.find(c => c === normalized);
+  const exact = candidates.find((c) => c === normalized);
   if (exact) return exact;
 
   // Step 2: 模糊匹配（忽略大小写）
   const lc = normalized.toLowerCase();
-  const fuzzy = candidates.find(c => c.toLowerCase() === lc);
+  const fuzzy = candidates.find((c) => c.toLowerCase() === lc);
   if (fuzzy) return fuzzy;
 
   // Step 3: 部分匹配（最后一个路径段匹配，如 [[笔记]] 匹配 "子目录/笔记"）
-  const partial = candidates.filter(c => {
+  const partial = candidates.filter((c) => {
     const lcFull = c.toLowerCase();
     const lastSegment = lcFull.split('/').pop();
     return lastSegment === lc || lcFull.includes(lc);
@@ -140,12 +138,12 @@ export function resolveLink(
 
 ### 3.4 边缘情况处理
 
-| 场景 | 处理方式 |
-|---|---|
-| 自链 `[[当前笔记]]` | **不**计入 backlinks 和 outlinks（避免自我引用污染面板） |
-| 循环引用 A↔B | 正常计入各自 outlinks/backlinks，图谱中显示双向边 |
-| 笔记重命名 | **暂不处理**（rename propagation 属于高级特性，后续单独 spec） |
-| 多模糊匹配 | 返回第一个（模糊匹配列表无序，结果不稳定，接受现状） |
+| 场景                | 处理方式                                                       |
+| ------------------- | -------------------------------------------------------------- |
+| 自链 `[[当前笔记]]` | **不**计入 backlinks 和 outlinks（避免自我引用污染面板）       |
+| 循环引用 A↔B        | 正常计入各自 outlinks/backlinks，图谱中显示双向边              |
+| 笔记重命名          | **暂不处理**（rename propagation 属于高级特性，后续单独 spec） |
+| 多模糊匹配          | 返回第一个（模糊匹配列表无序，结果不稳定，接受现状）           |
 
 ---
 
@@ -153,12 +151,12 @@ export function resolveLink(
 
 实现以下 handlers（统一使用 `noteId` 参数名，对应笔记相对路径）：
 
-| Handler | 说明 |
-|---|---|
-| `graph:build` | 接收所有笔记 `{ path, body }[]`，调用 core.graph.buildFromNotes()，返回空 `{}` |
-| `graph:getBacklinks` | 传入 noteId，返回 backlinks 路径数组 `string[]` |
-| `graph:getOutlinks` | 传入 noteId，返回 outlinks 路径数组 `string[]` |
-| `graph:getGraphData` | 返回完整图数据 `{ nodes: GraphNode[], edges: GraphEdge[] }` |
+| Handler              | 说明                                                                           |
+| -------------------- | ------------------------------------------------------------------------------ |
+| `graph:build`        | 接收所有笔记 `{ path, body }[]`，调用 core.graph.buildFromNotes()，返回空 `{}` |
+| `graph:getBacklinks` | 传入 noteId，返回 backlinks 路径数组 `string[]`                                |
+| `graph:getOutlinks`  | 传入 noteId，返回 outlinks 路径数组 `string[]`                                 |
+| `graph:getGraphData` | 返回完整图数据 `{ nodes: GraphNode[], edges: GraphEdge[] }`                    |
 
 ---
 
@@ -174,11 +172,11 @@ export function resolveLink(
 
 ### 5.2 Wiki-link 点击行为
 
-| 场景 | 行为 |
-|---|---|
-| `[[笔记]]` + 目标存在 | 跳转（打开目标笔记） |
+| 场景                        | 行为                                           |
+| --------------------------- | ---------------------------------------------- |
+| `[[笔记]]` + 目标存在       | 跳转（打开目标笔记）                           |
 | `[[笔记]]` + 目标**不存在** | 标记断链（红色虚线样式），点击提示"创建笔记？" |
-| `![[笔记]]` | 触发嵌入展开（hover/click，详见 5.3） |
+| `![[笔记]]`                 | 触发嵌入展开（hover/click，详见 5.3）          |
 
 ### 5.3 嵌入（Transclusion）渲染
 
@@ -238,12 +236,12 @@ commonmark → gfm → history → listener → slash → math
 
 触发时序：
 
-| 事件 | 图更新行为 |
-|---|---|
-| **笔记保存** | 传入 `{ path, body }`，移除旧外链边，添加新边 |
-| **笔记删除** | 传入 path，移除所有相关边（入边 + 出边） |
+| 事件                | 图更新行为                                             |
+| ------------------- | ------------------------------------------------------ |
+| **笔记保存**        | 传入 `{ path, body }`，移除旧外链边，添加新边          |
+| **笔记删除**        | 传入 path，移除所有相关边（入边 + 出边）               |
 | **笔记移动/重命名** | 传入 `{ oldPath, newPath }`，更新所有指向 oldPath 的边 |
-| **首次打开 vault** | 调用 `graph:build` 全量构建 |
+| **首次打开 vault**  | 调用 `graph:build` 全量构建                            |
 
 ---
 
@@ -279,11 +277,11 @@ Graph View → IPC: graph:getGraphData → 重渲染图谱
 
 ## 九、技术决策总结
 
-| 决策点 | 选择 |
-|---|---|
-| Graph 更新策略 | 按需构建 + 增量（Vault watcher 触发） |
+| 决策点             | 选择                                        |
+| ------------------ | ------------------------------------------- |
+| Graph 更新策略     | 按需构建 + 增量（Vault watcher 触发）       |
 | Wiki-link 渲染方式 | Milkdown 自定义 Node + InputRule + NodeView |
-| 链接解析 | 精确匹配优先 → 模糊匹配兜底 |
-| 嵌入渲染 | 延迟渲染（默认占位符，hover/click 展开） |
-| 图谱交互 | 全屏模态 |
-| 块引用 | 不在范围内 |
+| 链接解析           | 精确匹配优先 → 模糊匹配兜底                 |
+| 嵌入渲染           | 延迟渲染（默认占位符，hover/click 展开）    |
+| 图谱交互           | 全屏模态                                    |
+| 块引用             | 不在范围内                                  |

@@ -10,8 +10,6 @@ export async function writeNote(
 ) {
   const fullPath = path.join(vaultPath, notePath);
   await fs.mkdir(path.dirname(fullPath), { recursive: true });
-  const fileContent = frontmatter
-    ? matter.stringify(content, frontmatter)
-    : content;
+  const fileContent = frontmatter ? matter.stringify(content, frontmatter) : content;
   await fs.writeFile(fullPath, fileContent, 'utf-8');
 }

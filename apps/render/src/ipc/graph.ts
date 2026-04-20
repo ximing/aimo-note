@@ -10,8 +10,10 @@ export const graph: Graph = {
     // TODO: IPC call - window.electronAPI.graph.build()
     return { nodes: [], edges: [] };
   },
-  async getBacklinks(// eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _path: string) {
+  async getBacklinks(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _path: string
+  ) {
     // TODO: IPC call - window.electronAPI.graph.getBacklinks(path)
     return [];
   },

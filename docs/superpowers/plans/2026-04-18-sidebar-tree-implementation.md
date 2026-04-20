@@ -34,6 +34,7 @@ apps/render/src/
 ## Chunk 1: PromptDialog & ConfirmDialog 样式优化
 
 **Files:**
+
 - Modify: `apps/render/src/components/common/PromptDialog.tsx:39-78`
 - Modify: `apps/render/src/components/common/ConfirmDialog.tsx:32-66`
 
@@ -149,6 +150,7 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 ## Chunk 2: ContextMenu 边界处理
 
 **Files:**
+
 - Modify: `apps/render/src/components/common/ContextMenu.tsx:56-58`
 
 - [ ] **Step 1: 改进 ContextMenu 边界检测**
@@ -206,6 +208,7 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 ## Chunk 3: .md 后缀处理
 
 **Files:**
+
 - Modify: `apps/render/src/components/explorer/TreeNode.tsx:103`
 - Modify: `apps/render/src/components/explorer/VaultTree.tsx:74-86`
 - Modify: `apps/render/src/components/explorer/VaultTree.tsx:147-172`
@@ -270,56 +273,64 @@ const handleDialogConfirm = useCallback(
 
 ```tsx
 // 当前：
-{dialog.type === 'newFile' && (
-  <PromptDialog
-    title="New File"
-    defaultValue="untitled.md"
-    placeholder="Enter file name"
-    onConfirm={handleDialogConfirm}
-    onCancel={() => setDialog({ type: null })}
-  />
-)}
+{
+  dialog.type === 'newFile' && (
+    <PromptDialog
+      title="New File"
+      defaultValue="untitled.md"
+      placeholder="Enter file name"
+      onConfirm={handleDialogConfirm}
+      onCancel={() => setDialog({ type: null })}
+    />
+  );
+}
 
 // 替换为：
-{dialog.type === 'newFile' && (
-  <PromptDialog
-    title="新建文件"
-    defaultValue="untitled"
-    placeholder="输入文件名"
-    onConfirm={handleDialogConfirm}
-    onCancel={() => setDialog({ type: null })}
-  />
-)}
+{
+  dialog.type === 'newFile' && (
+    <PromptDialog
+      title="新建文件"
+      defaultValue="untitled"
+      placeholder="输入文件名"
+      onConfirm={handleDialogConfirm}
+      onCancel={() => setDialog({ type: null })}
+    />
+  );
+}
 ```
 
 同样更新 `newFolder`（第 156-164 行）：
 
 ```tsx
 // 替换为：
-{dialog.type === 'newFolder' && (
-  <PromptDialog
-    title="新建文件夹"
-    defaultValue="new-folder"
-    placeholder="输入文件夹名"
-    onConfirm={handleDialogConfirm}
-    onCancel={() => setDialog({ type: null })}
-  />
-)}
+{
+  dialog.type === 'newFolder' && (
+    <PromptDialog
+      title="新建文件夹"
+      defaultValue="new-folder"
+      placeholder="输入文件夹名"
+      onConfirm={handleDialogConfirm}
+      onCancel={() => setDialog({ type: null })}
+    />
+  );
+}
 ```
 
 重命名弹窗（第 165-173 行）：
 
 ```tsx
 // 替换为：
-{dialog.type === 'rename' && dialog.node && (
-  <PromptDialog
-    title="重命名"
-    defaultValue={dialog.node.name.replace(/\.md$/, '')}
-    placeholder="输入新名称"
-    onConfirm={handleDialogConfirm}
-    onCancel={() => setDialog({ type: null })}
-  />
-)}
+{
+  dialog.type === 'rename' && dialog.node && (
+    <PromptDialog
+      title="重命名"
+      defaultValue={dialog.node.name.replace(/\.md$/, '')}
+      placeholder="输入新名称"
+      onConfirm={handleDialogConfirm}
+      onCancel={() => setDialog({ type: null })}
+    />
+  );
+}
 ```
 
 - [ ] **Step 4: 提交**
@@ -341,12 +352,14 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 ## Chunk 4: 文件夹内文件选中态修复
 
 **Files:**
+
 - Modify: `apps/render/src/components/explorer/VaultTree.tsx:128-143`
 - Modify: `apps/render/src/components/explorer/TreeNode.tsx:107-120`
 
 - [ ] **Step 1: 分析 Bug 原因**
 
 在 `VaultTree.tsx` 第 134 行：
+
 ```tsx
 isSelected={activeFile === node.path}
 ```
@@ -457,6 +470,7 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 ## Chunk 5: 排序功能重构
 
 **Files:**
+
 - Modify: `apps/render/src/components/explorer/SidebarHeader.tsx`
 - Modify: `apps/render/src/components/explorer/VaultTree.tsx`
 
@@ -470,7 +484,13 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 import { useState, useRef, useEffect } from 'react';
 import { FilePlus, FolderPlus, ChevronsUpDown, Check } from 'lucide-react';
 
-export type SortOption = 'name-asc' | 'name-desc' | 'created-desc' | 'created-asc' | 'modified-desc' | 'modified-asc';
+export type SortOption =
+  | 'name-asc'
+  | 'name-desc'
+  | 'created-desc'
+  | 'created-asc'
+  | 'modified-desc'
+  | 'modified-asc';
 
 interface SidebarHeaderProps {
   onNewFile: () => void;
@@ -514,10 +534,13 @@ export function SidebarHeader({
   }, []);
 
   const currentSortValue = `${sortBy}-${sortOrder}` as SortOption;
-  const currentLabel = sortOptions.find(o => o.value === currentSortValue)?.label || '排序';
+  const currentLabel = sortOptions.find((o) => o.value === currentSortValue)?.label || '排序';
 
   const handleSortSelect = (value: SortOption) => {
-    const [newSortBy, newSortOrder] = value.split('-') as ['name' | 'created' | 'modified', 'asc' | 'desc'];
+    const [newSortBy, newSortOrder] = value.split('-') as [
+      'name' | 'created' | 'modified',
+      'asc' | 'desc',
+    ];
     onSortChange(newSortBy, newSortOrder);
     setShowSortMenu(false);
   };
@@ -561,7 +584,9 @@ export function SidebarHeader({
                 type="button"
                 onClick={() => handleSortSelect(option.value)}
                 className={`flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-[--accent] hover:text-white transition-colors ${
-                  currentSortValue === option.value ? 'bg-[--accent] bg-opacity-10 text-[--accent]' : ''
+                  currentSortValue === option.value
+                    ? 'bg-[--accent] bg-opacity-10 text-[--accent]'
+                    : ''
                 }`}
               >
                 <span>{option.icon}</span>
@@ -614,10 +639,13 @@ const handleSortChange = useCallback((order: 'asc' | 'desc') => {
 }, []);
 
 // 替换为：
-const handleSortChange = useCallback((newSortBy: 'name' | 'created' | 'modified', newSortOrder: 'asc' | 'desc') => {
-  setSortBy(newSortBy);
-  setSortOrder(newSortOrder);
-}, []);
+const handleSortChange = useCallback(
+  (newSortBy: 'name' | 'created' | 'modified', newSortOrder: 'asc' | 'desc') => {
+    setSortBy(newSortBy);
+    setSortOrder(newSortOrder);
+  },
+  []
+);
 ```
 
 3. 修改排序逻辑（第 103-110 行）：
@@ -626,9 +654,7 @@ const handleSortChange = useCallback((newSortBy: 'name' | 'created' | 'modified'
 // 当前：
 const sortedTree = [...tree].sort((a, b) => {
   if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
-  return sortOrder === 'asc'
-    ? a.name.localeCompare(b.name)
-    : b.name.localeCompare(a.name);
+  return sortOrder === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
 });
 
 // 替换为：
@@ -705,6 +731,7 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 ## 后续工作（需后端支持）
 
 时间戳排序需要在后端实现：
+
 1. `TreeNode` 类型添加 `createdAt: number` 和 `modifiedAt: number` 字段
 2. 后端 `vault.list()` 返回的节点包含时间戳
 3. 前端排序逻辑完整实现时间排序

@@ -67,24 +67,24 @@ Renderer                          Main Process
 
 ## 4. 搜索选项
 
-| 选项 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| 搜索模式 | `text` / `regex` | `text` | 普通文本或正则表达式 |
-| 大小写敏感 | boolean | `false` | 是否区分大小写 |
+| 选项       | 类型             | 默认值  | 说明                 |
+| ---------- | ---------------- | ------- | -------------------- |
+| 搜索模式   | `text` / `regex` | `text`  | 普通文本或正则表达式 |
+| 大小写敏感 | boolean          | `false` | 是否区分大小写       |
 
 ## 5. 结果数据模型
 
 ```typescript
 interface SearchMatch {
-  path: string;        // 文件绝对路径
-  line: number;        // 行号（1-indexed）
-  text: string;         // 匹配行的完整文本
-  matchStart: number;   // 匹配词在行中的起始位置
-  matchEnd: number;     // 匹配词在行中的结束位置
+  path: string; // 文件绝对路径
+  line: number; // 行号（1-indexed）
+  text: string; // 匹配行的完整文本
+  matchStart: number; // 匹配词在行中的起始位置
+  matchEnd: number; // 匹配词在行中的结束位置
 }
 
 interface SearchResult {
-  path: string;         // 文件路径（去重后）
+  path: string; // 文件路径（去重后）
   matches: SearchMatch[];
   totalMatches: number; // 该文件中的总匹配数
 }
@@ -105,12 +105,12 @@ note.md:12
 
 ### 6.2 状态处理
 
-| 状态 | UI |
-|------|-----|
+| 状态   | UI                            |
+| ------ | ----------------------------- |
 | 空输入 | 显示提示 "输入关键词开始搜索" |
-| 搜索中 | 显示 spinner + "搜索中..." |
-| 无结果 | 显示 "未找到匹配结果" |
-| 有结果 | 显示结果列表 |
+| 搜索中 | 显示 spinner + "搜索中..."    |
+| 无结果 | 显示 "未找到匹配结果"         |
+| 有结果 | 显示结果列表                  |
 
 ## 7. 组件结构
 

@@ -30,6 +30,7 @@ apps/render/src/services/vault.service.ts [MODIFY] createNote with template
 ## Chunk 1: DTO Types
 
 **Files:**
+
 - Create: `packages/dto/src/template.ts`
 
 ### Task 1: Define template types
@@ -78,6 +79,7 @@ git commit -m "feat(dto): add template types"
 ## Chunk 2: Core Template Logic
 
 **Files:**
+
 - Create: `packages/core/src/vault/template.ts`
 - Modify: `packages/core/src/vault/index.ts`
 
@@ -164,13 +166,13 @@ export function buildFrontmatter(
   }
 
   // Always include title, tags, created, modified
-  if (!fields.some(f => f.name === 'created')) {
+  if (!fields.some((f) => f.name === 'created')) {
     fm.created = new Date().toISOString();
   }
-  if (!fields.some(f => f.name === 'modified')) {
+  if (!fields.some((f) => f.name === 'modified')) {
     fm.modified = new Date().toISOString();
   }
-  if (!fields.some(f => f.name === 'tags')) {
+  if (!fields.some((f) => f.name === 'tags')) {
     fm.tags = [];
   }
 
@@ -288,6 +290,7 @@ git commit -m "feat(core): add template core logic"
 ## Chunk 3: IPC Layer (Client + Preload)
 
 **Files:**
+
 - Modify: `apps/client/src/main/ipc/handlers.ts`
 - Modify: `apps/client/src/preload/index.ts`
 
@@ -298,40 +301,42 @@ git commit -m "feat(core): add template core logic"
 Locate the end of `registerIpcHandlers()` in `apps/client/src/main/ipc/handlers.ts`, before the closing `console.log`. Add:
 
 ```typescript
-  // Template handlers
-  ipcMain.handle('template:list', async (_event, vaultPath: string) => {
-    try {
-      const templatesDir = path.join(vaultPath, TEMPLATES_DIR);
-      const entries = await fs.readdir(templatesDir).catch(() => []);
-      const templateFiles = entries.filter((f: string) => f.endsWith(TEMPLATE_EXT));
+// Template handlers
+ipcMain.handle('template:list', async (_event, vaultPath: string) => {
+  try {
+    const templatesDir = path.join(vaultPath, TEMPLATES_DIR);
+    const entries = await fs.readdir(templatesDir).catch(() => []);
+    const templateFiles = entries.filter((f: string) => f.endsWith(TEMPLATE_EXT));
 
-      const templates: Array<{ fileName: string; fieldCount: number; preview: string }> = [];
-      for (const file of templateFiles) {
-        const fullPath = path.join(templatesDir, file);
-        const content = await fs.readFile(fullPath, 'utf-8');
-        const { data, content: body } = matter(content);
-        const fieldCount = Object.keys(data).length;
-        const preview = body.split('\n').slice(0, 2).join(' ').substring(0, 50);
-        templates.push({ fileName: file, fieldCount, preview });
-      }
-
-      return { success: true, templates };
-    } catch (error) {
-      return { success: false, error: String(error), templates: [] };
-    }
-  });
-
-  ipcMain.handle('template:read', async (_event, vaultPath: string, fileName: string) => {
-    try {
-      const fullPath = path.join(vaultPath, TEMPLATES_DIR, fileName);
+    const templates: Array<{ fileName: string; fieldCount: number; preview: string }> = [];
+    for (const file of templateFiles) {
+      const fullPath = path.join(templatesDir, file);
       const content = await fs.readFile(fullPath, 'utf-8');
-      return { success: true, content };
-    } catch (error) {
-      return { success: false, error: String(error) };
+      const { data, content: body } = matter(content);
+      const fieldCount = Object.keys(data).length;
+      const preview = body.split('\n').slice(0, 2).join(' ').substring(0, 50);
+      templates.push({ fileName: file, fieldCount, preview });
     }
-  });
 
-  ipcMain.handle('template:write', async (_event, vaultPath: string, fileName: string, content: string) => {
+    return { success: true, templates };
+  } catch (error) {
+    return { success: false, error: String(error), templates: [] };
+  }
+});
+
+ipcMain.handle('template:read', async (_event, vaultPath: string, fileName: string) => {
+  try {
+    const fullPath = path.join(vaultPath, TEMPLATES_DIR, fileName);
+    const content = await fs.readFile(fullPath, 'utf-8');
+    return { success: true, content };
+  } catch (error) {
+    return { success: false, error: String(error) };
+  }
+});
+
+ipcMain.handle(
+  'template:write',
+  async (_event, vaultPath: string, fileName: string, content: string) => {
     try {
       const templatesDir = path.join(vaultPath, TEMPLATES_DIR);
       await fs.mkdir(templatesDir, { recursive: true });
@@ -341,37 +346,42 @@ Locate the end of `registerIpcHandlers()` in `apps/client/src/main/ipc/handlers.
     } catch (error) {
       return { success: false, error: String(error) };
     }
-  });
+  }
+);
 
-  ipcMain.handle('template:delete', async (_event, vaultPath: string, fileName: string) => {
-    try {
-      const fullPath = path.join(vaultPath, TEMPLATES_DIR, fileName);
-      await fs.rm(fullPath);
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: String(error) };
-    }
-  });
+ipcMain.handle('template:delete', async (_event, vaultPath: string, fileName: string) => {
+  try {
+    const fullPath = path.join(vaultPath, TEMPLATES_DIR, fileName);
+    await fs.rm(fullPath);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: String(error) };
+  }
+});
 
-  ipcMain.handle('template:getMappings', async (_event, vaultPath: string) => {
-    try {
-      const configPath = path.join(vaultPath, '.aimo-note/config.json');
-      const content = await fs.readFile(configPath, 'utf-8');
-      const config = JSON.parse(content);
-      return { success: true, mappings: config.templateMappings ?? {} };
-    } catch {
-      return { success: true, mappings: {} };
-    }
-  });
+ipcMain.handle('template:getMappings', async (_event, vaultPath: string) => {
+  try {
+    const configPath = path.join(vaultPath, '.aimo-note/config.json');
+    const content = await fs.readFile(configPath, 'utf-8');
+    const config = JSON.parse(content);
+    return { success: true, mappings: config.templateMappings ?? {} };
+  } catch {
+    return { success: true, mappings: {} };
+  }
+});
 
-  ipcMain.handle('template:setMappings', async (_event, vaultPath: string, mappings: Record<string, string>) => {
+ipcMain.handle(
+  'template:setMappings',
+  async (_event, vaultPath: string, mappings: Record<string, string>) => {
     try {
       const configPath = path.join(vaultPath, '.aimo-note/config.json');
       let existingConfig: Record<string, unknown> = {};
       try {
         const content = await fs.readFile(configPath, 'utf-8');
         existingConfig = JSON.parse(content);
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
       existingConfig.templateMappings = mappings;
       await fs.mkdir(path.dirname(configPath), { recursive: true });
       await fs.writeFile(configPath, JSON.stringify(existingConfig, null, 2), 'utf-8');
@@ -379,7 +389,8 @@ Locate the end of `registerIpcHandlers()` in `apps/client/src/main/ipc/handlers.
     } catch (error) {
       return { success: false, error: String(error) };
     }
-  });
+  }
+);
 ```
 
 Note: Add `import matter from 'gray-matter';` at the top of handlers.ts if not present, and add `const TEMPLATES_DIR = '.aimo-note/templates'; const TEMPLATE_EXT = '.md';` as module-level constants.
@@ -450,6 +461,7 @@ git commit -m "feat(preload): expose template IPC channels"
 ## Chunk 4: Renderer IPC Wrapper
 
 **Files:**
+
 - Create: `apps/render/src/ipc/template.ts`
 
 ### Task 5: Create renderer IPC wrapper
@@ -471,16 +483,26 @@ export interface TemplateIPC {
     templates: TemplateListItem[];
     error?: string;
   }>;
-  read(vaultPath: string, fileName: string): Promise<{
+  read(
+    vaultPath: string,
+    fileName: string
+  ): Promise<{
     success: boolean;
     content?: string;
     error?: string;
   }>;
-  write(vaultPath: string, fileName: string, content: string): Promise<{
+  write(
+    vaultPath: string,
+    fileName: string,
+    content: string
+  ): Promise<{
     success: boolean;
     error?: string;
   }>;
-  delete(vaultPath: string, fileName: string): Promise<{
+  delete(
+    vaultPath: string,
+    fileName: string
+  ): Promise<{
     success: boolean;
     error?: string;
   }>;
@@ -489,7 +511,10 @@ export interface TemplateIPC {
     mappings: Record<string, string>;
     error?: string;
   }>;
-  setMappings(vaultPath: string, mappings: Record<string, string>): Promise<{
+  setMappings(
+    vaultPath: string,
+    mappings: Record<string, string>
+  ): Promise<{
     success: boolean;
     error?: string;
   }>;
@@ -540,6 +565,7 @@ git commit -m "feat(render): add template IPC wrapper"
 ## Chunk 5: TemplateService
 
 **Files:**
+
 - Create: `apps/render/src/services/template.service.ts`
 
 ### Task 6: Create TemplateService
@@ -553,7 +579,12 @@ import { Service } from '@rabjs/react';
 import { template } from '@/ipc/template';
 import { VaultService } from './vault.service';
 import type { Template, TemplateField, TemplateMapping } from '@aimo-note/dto';
-import { parseTemplate, applyTemplate, serializeTemplate, findTemplateForDirectory } from '@aimo-note/core';
+import {
+  parseTemplate,
+  applyTemplate,
+  serializeTemplate,
+  findTemplateForDirectory,
+} from '@aimo-note/core';
 
 export class TemplateService extends Service {
   templates: Array<{ fileName: string; fieldCount: number; preview: string }> = [];
@@ -651,6 +682,7 @@ git commit -m "feat(render): add TemplateService"
 ## Chunk 6: TemplateEditor Component
 
 **Files:**
+
 - Create: `apps/render/src/components/template/TemplateEditor.tsx`
 
 ### Task 7: Create TemplateEditor component
@@ -843,6 +875,7 @@ git commit -m "feat(render): add TemplateEditor component"
 ## Chunk 7: Settings Page Templates Tab
 
 **Files:**
+
 - Modify: `apps/render/src/pages/settings/index.tsx` (add Templates tab)
 - Create: `apps/render/src/pages/settings/components/TemplateSettings.tsx`
 
@@ -1078,6 +1111,7 @@ git commit -m "feat(render): add Templates tab to Settings page"
 ## Chunk 8: New Note Dialog with Template Variables
 
 **Files:**
+
 - Create: `apps/render/src/components/common/NewNoteDialog.tsx`
 - Modify: `apps/render/src/components/explorer/VaultTree.tsx`
 - Modify: `apps/render/src/services/vault.service.ts`
@@ -1288,6 +1322,7 @@ git commit -m "feat(render): add NewNoteDialog with template variables"
 - [ ] **Step 1: Modify VaultTree to use NewNoteDialog**
 
 In `apps/render/src/components/explorer/VaultTree.tsx`:
+
 - Replace `PromptDialog` for new file with `NewNoteDialog`
 - Add `navigate` import from react-router
 - When creating a note with a template, navigate to the new note path after creation

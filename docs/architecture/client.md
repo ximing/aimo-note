@@ -32,7 +32,9 @@ apps/client/src/
 ## Module Responsibilities
 
 ### `main/index.ts`
+
 App entry point. Orchestrates initialization in `app.whenReady()`:
+
 1. `registerIpcHandlers()` -- bind all IPC channels
 2. `createWindow()` -- build the main BrowserWindow
 3. `createTray()` -- system tray icon
@@ -43,21 +45,23 @@ App entry point. Orchestrates initialization in `app.whenReady()`:
 Handles lifecycle events: `window-all-closed`, `activate`, `before-quit`, `will-quit`.
 
 ### `main/shared-state.ts`
+
 Module-level mutable singletons shared across main-process modules. Exists because Electron main modules are effectively singletons -- no constructor injection.
 
 ```typescript
 // State
-mainWindow: BrowserWindow | null
-tray: Tray | null
-isQuitting: boolean
+mainWindow: BrowserWindow | null;
+tray: Tray | null;
+isQuitting: boolean;
 
 // Vault service instance (set after vault:open)
-vaultService: Vault | null
+vaultService: Vault | null;
 ```
 
 All other main modules import and mutate these directly. This is a known trade-off in Electron apps -- avoids prop drilling through deeply nested call chains.
 
 ### `main/constants.ts`
+
 Build-time constants derived from `import.meta.url`. Centralizes paths so they are computed once.
 
 - `VITE_DEV_SERVER_URL` -- dev server URL (undefined in production)
@@ -66,6 +70,7 @@ Build-time constants derived from `import.meta.url`. Centralizes paths so they a
 - `getIconPath()` -- path to app icon
 
 ### `main/window/manager.ts`
+
 Owns `createWindow()` and `showMainWindow()`. Responsibilities:
 
 - Creates `BrowserWindow` with appropriate `webPreferences` (`contextIsolation: true`, `nodeIntegration: false`, `sandbox: false`)
@@ -76,35 +81,45 @@ Owns `createWindow()` and `showMainWindow()`. Responsibilities:
 - `close` event → save window state, hide to tray (unless `isQuitting`)
 
 ### `main/menu/manager.ts`
+
 Builds the native application menu. Platform-adaptive:
+
 - macOS: full app menu with `about`, `hide`, `quit`; window menu with standard roles
 - Windows/Linux: `File` menu with `Quit`; `Help` menu with update check and GitHub link
 - All platforms: `Edit`, `View`, `Window` menus with standard accelerator roles
 
 ### `main/tray/manager.ts`
+
 System tray icon lifecycle:
+
 - Creates `Tray` with 16px icon
 - Sets context menu: "Show Main Window", separator, "Quit"
 - Single-click: toggle window visibility
 - Tooltip: "AIMO"
 
 ### `main/menu/shortcuts.ts`
+
 Global shortcut registration. Currently minimal (stub). Should register:
+
 - `CmdOrCtrl+Shift+A` -- toggle window visibility
 - Any user-configurable shortcuts via future settings
 
 ### `main/ipc/handlers.ts`
+
 All `ipcMain.handle()` registrations. Delegates to service modules for domain logic.
 
 The current file mixes auth storage, vault stubs, graph stubs, and search stubs. Each domain should eventually get its own handler file under the `ipc/` subdirectory (see Extension Points).
 
 ### `main/updater/index.ts`
+
 `electron-updater` integration:
+
 - `setupAutoUpdater()` -- configure and trigger initial update check
 - `checkForUpdates()` / `downloadUpdate()` / `installUpdate()` -- user-initiated update actions
 - `registerUpdaterEvents()` -- forwards updater events to renderer as `update-status` IPC messages
 
 ### `main/window/state.ts`
+
 `electron-store` wrapper for persisting window bounds and maximized state across app restarts.
 
 ---
@@ -115,73 +130,73 @@ All channels use `ipcMain.handle()` / `ipcRenderer.invoke()` (request-response) 
 
 ### Vault Channels
 
-| Channel | Direction | Request | Response |
-|---|---|---|---|
-| `vault:open` | invoke | `{ vaultPath: string }` | `Promise<{ success: boolean; error?: string }>` |
-| `vault:close` | invoke | `void` | `Promise<void>` |
-| `vault:read` | invoke | `{ path: string }` | `Promise<Note \| null>` |
-| `vault:write` | invoke | `{ path: string; content: string }` | `Promise<void>` |
-| `vault:delete` | invoke | `{ path: string }` | `Promise<void>` |
-| `vault:list` | invoke | `void` | `Promise<string[]>` |
-| `vault:watch` | push | `VaultEvent` | (renderer subscribes via `onVaultEvent`) |
+| Channel        | Direction | Request                             | Response                                        |
+| -------------- | --------- | ----------------------------------- | ----------------------------------------------- |
+| `vault:open`   | invoke    | `{ vaultPath: string }`             | `Promise<{ success: boolean; error?: string }>` |
+| `vault:close`  | invoke    | `void`                              | `Promise<void>`                                 |
+| `vault:read`   | invoke    | `{ path: string }`                  | `Promise<Note \| null>`                         |
+| `vault:write`  | invoke    | `{ path: string; content: string }` | `Promise<void>`                                 |
+| `vault:delete` | invoke    | `{ path: string }`                  | `Promise<void>`                                 |
+| `vault:list`   | invoke    | `void`                              | `Promise<string[]>`                             |
+| `vault:watch`  | push      | `VaultEvent`                        | (renderer subscribes via `onVaultEvent`)        |
 
 ### Graph Channels
 
-| Channel | Direction | Request | Response |
-|---|---|---|---|
-| `graph:build` | invoke | `void` | `Promise<GraphData>` |
-| `graph:get` | invoke | `{ path: string }` | `Promise<GraphNode>` |
-| `graph:getBacklinks` | invoke | `{ path: string }` | `Promise<string[]>` |
-| `graph:getOutlinks` | invoke | `{ path: string }` | `Promise<string[]>` |
+| Channel              | Direction | Request            | Response             |
+| -------------------- | --------- | ------------------ | -------------------- |
+| `graph:build`        | invoke    | `void`             | `Promise<GraphData>` |
+| `graph:get`          | invoke    | `{ path: string }` | `Promise<GraphNode>` |
+| `graph:getBacklinks` | invoke    | `{ path: string }` | `Promise<string[]>`  |
+| `graph:getOutlinks`  | invoke    | `{ path: string }` | `Promise<string[]>`  |
 
 ### Search Channels
 
-| Channel | Direction | Request | Response |
-|---|---|---|---|
-| `search:query` | invoke | `{ query: string; limit?: number }` | `Promise<SearchResult[]>` |
-| `search:reindex` | invoke | `void` | `Promise<void>` |
+| Channel          | Direction | Request                             | Response                  |
+| ---------------- | --------- | ----------------------------------- | ------------------------- |
+| `search:query`   | invoke    | `{ query: string; limit?: number }` | `Promise<SearchResult[]>` |
+| `search:reindex` | invoke    | `void`                              | `Promise<void>`           |
 
 ### Plugin Channels
 
-| Channel | Direction | Request | Response |
-|---|---|---|---|
-| `plugin:load` | invoke | `Plugin` | `Promise<void>` |
-| `plugin:unload` | invoke | `{ name: string }` | `Promise<void>` |
-| `plugin:list` | invoke | `void` | `Promise<Plugin[]>` |
+| Channel         | Direction | Request            | Response            |
+| --------------- | --------- | ------------------ | ------------------- |
+| `plugin:load`   | invoke    | `Plugin`           | `Promise<void>`     |
+| `plugin:unload` | invoke    | `{ name: string }` | `Promise<void>`     |
+| `plugin:list`   | invoke    | `void`             | `Promise<Plugin[]>` |
 
 ### Window Channels
 
-| Channel | Direction | Request | Response |
-|---|---|---|---|
-| `window:minimize` | invoke | `void` | `void` |
-| `window:maximize` | invoke | `void` | `void` |
-| `window:close` | invoke | `void` | `void` |
-| `window:isMaximized` | invoke | `void` | `Promise<boolean>` |
+| Channel              | Direction | Request | Response           |
+| -------------------- | --------- | ------- | ------------------ |
+| `window:minimize`    | invoke    | `void`  | `void`             |
+| `window:maximize`    | invoke    | `void`  | `void`             |
+| `window:close`       | invoke    | `void`  | `void`             |
+| `window:isMaximized` | invoke    | `void`  | `Promise<boolean>` |
 
 ### FS Channels
 
-| Channel | Direction | Request | Response |
-|---|---|---|---|
-| `fs:selectVault` | invoke | `void` | `Promise<string \| null>` (selected directory path) |
-| `fs:watch` | push | `VaultEvent` | (renderer subscribes via `onVaultEvent`) |
+| Channel          | Direction | Request      | Response                                            |
+| ---------------- | --------- | ------------ | --------------------------------------------------- |
+| `fs:selectVault` | invoke    | `void`       | `Promise<string \| null>` (selected directory path) |
+| `fs:watch`       | push      | `VaultEvent` | (renderer subscribes via `onVaultEvent`)            |
 
 ### App Channels
 
-| Channel | Direction | Request | Response |
-|---|---|---|---|
-| `app:getVersion` | invoke | `void` | `Promise<string>` |
-| `app:checkForUpdates` | invoke | `void` | `Promise<UpdateInfo \| null>` |
-| `app:downloadUpdate` | invoke | `void` | `Promise<void>` |
-| `app:installUpdate` | invoke | `void` | `void` |
-| `update-status` | push | `UpdateStatus` | (renderer subscribes) |
+| Channel               | Direction | Request        | Response                      |
+| --------------------- | --------- | -------------- | ----------------------------- |
+| `app:getVersion`      | invoke    | `void`         | `Promise<string>`             |
+| `app:checkForUpdates` | invoke    | `void`         | `Promise<UpdateInfo \| null>` |
+| `app:downloadUpdate`  | invoke    | `void`         | `Promise<void>`               |
+| `app:installUpdate`   | invoke    | `void`         | `void`                        |
+| `update-status`       | push      | `UpdateStatus` | (renderer subscribes)         |
 
 ### Secure Storage Channels
 
-| Channel | Direction | Request | Response |
-|---|---|---|---|
-| `secure-store:set` | invoke | `{ key: string; value: string }` | `Promise<{ success: boolean; warning?: string }>` |
-| `secure-store:get` | invoke | `{ key: string }` | `Promise<{ success: boolean; value: string \| null }>` |
-| `secure-store:delete` | invoke | `{ key: string }` | `Promise<{ success: boolean }>` |
+| Channel               | Direction | Request                          | Response                                               |
+| --------------------- | --------- | -------------------------------- | ------------------------------------------------------ |
+| `secure-store:set`    | invoke    | `{ key: string; value: string }` | `Promise<{ success: boolean; warning?: string }>`      |
+| `secure-store:get`    | invoke    | `{ key: string }`                | `Promise<{ success: boolean; value: string \| null }>` |
+| `secure-store:delete` | invoke    | `{ key: string }`                | `Promise<{ success: boolean }>`                        |
 
 ---
 
@@ -219,8 +234,8 @@ Built from vault notes on demand or cached:
 
 ```typescript
 ipcMain.handle('graph:build', async () => {
-  const notes = await vault?.listNotes() ?? [];
-  const noteContents = await Promise.all(notes.map(p => vault.readNote(p)));
+  const notes = (await vault?.listNotes()) ?? [];
+  const noteContents = await Promise.all(notes.map((p) => vault.readNote(p)));
   return graph.buildFromNotes(noteContents);
 });
 ```
@@ -336,6 +351,7 @@ Main process modules are Node.js code, testable with Jest. Key approach:
 4. The preload script can be tested by loading it into a minimal `BrowserWindow` in tests
 
 Mock boundaries:
+
 - Mock `packages/core` modules entirely -- the client tests should not depend on actual vault files
 - Mock `electron-store` for store tests
 - Use `ipcMain` / `ipcRenderer` directly for IPC tests

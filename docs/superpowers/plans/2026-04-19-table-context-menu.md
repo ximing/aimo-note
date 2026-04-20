@@ -12,12 +12,12 @@
 
 ## File Structure
 
-| File | Action | Responsibility |
-|------|--------|----------------|
-| `apps/render/src/components/editor/TableContextMenu.tsx` | Create | Floating context menu UI |
+| File                                                        | Action | Responsibility                                                          |
+| ----------------------------------------------------------- | ------ | ----------------------------------------------------------------------- |
+| `apps/render/src/components/editor/TableContextMenu.tsx`    | Create | Floating context menu UI                                                |
 | `apps/render/src/components/editor/MilkdownEditorInner.tsx` | Modify | Import commands, add selection state, contextmenu listener, render menu |
-| `apps/render/src/components/common/index.ts` | Modify | Export TableContextMenu |
-| `apps/render/src/styles/components.css` | Modify | Table context menu styles |
+| `apps/render/src/components/common/index.ts`                | Modify | Export TableContextMenu                                                 |
+| `apps/render/src/styles/components.css`                     | Modify | Table context menu styles                                               |
 
 ---
 
@@ -26,6 +26,7 @@
 ### Task 1: Create TableContextMenu.tsx
 
 **Files:**
+
 - Create: `apps/render/src/components/editor/TableContextMenu.tsx`
 
 - [ ] **Step 1: Write the component file**
@@ -112,7 +113,14 @@ export function TableContextMenu({
   ) => (
     <button
       type="button"
-      onClick={disabled ? undefined : () => { onClick(); onClose(); }}
+      onClick={
+        disabled
+          ? undefined
+          : () => {
+              onClick();
+              onClose();
+            }
+      }
       disabled={disabled}
       className={`flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-accent hover:text-white transition-colors ${
         disabled ? 'opacity-50 cursor-not-allowed' : ''
@@ -146,6 +154,7 @@ export function TableContextMenu({
 File: `apps/render/src/components/editor/index.ts`
 
 Add to exports:
+
 ```typescript
 export { TableContextMenu } from './TableContextMenu';
 export type { TableContextMenuProps } from './TableContextMenu';
@@ -167,6 +176,7 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 ### Task 2: Modify MilkdownEditorInner.tsx
 
 **Files:**
+
 - Modify: `apps/render/src/components/editor/MilkdownEditorInner.tsx`
 - Modify: `apps/render/src/styles/components.css`
 
@@ -237,20 +247,25 @@ Note: `canDeleteCol` and `canDeleteRow` logic needs refinement — use `rect.map
 #### Step E: Add useEffect to attach contextmenu listener
 
 ```typescript
-useEffect(() => {
-  const editorDom = editorRef.current?.querySelector('.ProseMirror');
-  if (!editorDom) return;
+useEffect(
+  () => {
+    const editorDom = editorRef.current?.querySelector('.ProseMirror');
+    if (!editorDom) return;
 
-  const handler = (e: MouseEvent) => {
-    const state = editorViewRef.current?.state;
-    if (state && isInTable(state)) {
-      handleTableContextMenu(e);
-    }
-  };
+    const handler = (e: MouseEvent) => {
+      const state = editorViewRef.current?.state;
+      if (state && isInTable(state)) {
+        handleTableContextMenu(e);
+      }
+    };
 
-  editorDom.addEventListener('contextmenu', handler);
-  return () => editorDom.removeEventListener('contextmenu', handler);
-}, [/* deps */]);
+    editorDom.addEventListener('contextmenu', handler);
+    return () => editorDom.removeEventListener('contextmenu', handler);
+  },
+  [
+    /* deps */
+  ]
+);
 ```
 
 #### Step F: Add table command handlers
@@ -298,21 +313,23 @@ private deleteRow = () => {
 Add conditional render before ImageToolbar:
 
 ```tsx
-{tableContextMenu && (
-  <TableContextMenu
-    x={tableContextMenu.x}
-    y={tableContextMenu.y}
-    canDeleteCol={tableContextMenu.canDeleteCol}
-    canDeleteRow={tableContextMenu.canDeleteRow}
-    onClose={() => setTableContextMenu(null)}
-    onInsertColLeft={this.insertColLeft}
-    onInsertColRight={this.insertColRight}
-    onInsertRowUp={this.insertRowUp}
-    onInsertRowDown={this.insertRowDown}
-    onDeleteCol={this.deleteCol}
-    onDeleteRow={this.deleteRow}
-  />
-)}
+{
+  tableContextMenu && (
+    <TableContextMenu
+      x={tableContextMenu.x}
+      y={tableContextMenu.y}
+      canDeleteCol={tableContextMenu.canDeleteCol}
+      canDeleteRow={tableContextMenu.canDeleteRow}
+      onClose={() => setTableContextMenu(null)}
+      onInsertColLeft={this.insertColLeft}
+      onInsertColRight={this.insertColRight}
+      onInsertRowUp={this.insertRowUp}
+      onInsertRowDown={this.insertRowDown}
+      onDeleteCol={this.deleteCol}
+      onDeleteRow={this.deleteRow}
+    />
+  );
+}
 ```
 
 #### Step H: Fix the canDelete logic
@@ -388,9 +405,9 @@ Add `setTableContextMenu(null)` call in the blur/click handler that clears other
 
 ## Risks & Mitigations
 
-| Risk | Mitigation |
-|------|-----------|
-| `selectedRect` fails when no CellSelection exists | Use `findTable` to get table node directly |
-| Commands fail outside table context | `isInTable` guard in handler |
-| Menu appears on non-table right-click | Only show when `isInTable(state)` is true |
-| Image selection conflicts | Separate state, separate rendering conditions |
+| Risk                                              | Mitigation                                    |
+| ------------------------------------------------- | --------------------------------------------- |
+| `selectedRect` fails when no CellSelection exists | Use `findTable` to get table node directly    |
+| Commands fail outside table context               | `isInTable` guard in handler                  |
+| Menu appears on non-table right-click             | Only show when `isInTable(state)` is true     |
+| Image selection conflicts                         | Separate state, separate rendering conditions |

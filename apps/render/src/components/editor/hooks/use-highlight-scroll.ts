@@ -19,50 +19,54 @@ export const useHighlightScroll = ({
 }: UseHighlightScrollParams) => {
   const pendingScrollTargetRef = useRef<{ line?: number; highlight?: string }>({});
 
-  const scrollToLineNumber = useCallback((lineNumber: number) => {
-    const editor = getEditor();
-    if (!editor || lineNumber < 1) return false;
+  const scrollToLineNumber = useCallback(
+    (lineNumber: number) => {
+      const editor = getEditor();
+      if (!editor || lineNumber < 1) return false;
 
-    let didScroll = false;
-    editor.action((ctx) => {
-      const view = ctx.get(editorViewCtx);
-      const doc = view.state.doc;
-      let currentLine = 1;
-      let targetPos: number | null = null;
+      let didScroll = false;
+      editor.action((ctx) => {
+        const view = ctx.get(editorViewCtx);
+        const doc = view.state.doc;
+        let currentLine = 1;
+        let targetPos: number | null = null;
 
-      doc.descendants((node, pos) => {
-        if (!node.isTextblock) return undefined;
-        if (currentLine === lineNumber) {
-          targetPos = pos + 1;
-          return false;
+        doc.descendants((node, pos) => {
+          if (!node.isTextblock) return undefined;
+          if (currentLine === lineNumber) {
+            targetPos = pos + 1;
+            return false;
+          }
+          currentLine += 1;
+          return undefined;
+        });
+
+        if (targetPos == null) return;
+
+        const domNode = view.nodeDOM(targetPos);
+        if (domNode instanceof HTMLElement) {
+          domNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          didScroll = true;
+          return;
         }
-        currentLine += 1;
-        return undefined;
-      });
 
-      if (targetPos == null) return;
-
-      const domNode = view.nodeDOM(targetPos);
-      if (domNode instanceof HTMLElement) {
-        domNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const coords = view.coordsAtPos(Math.min(targetPos, view.state.doc.content.size));
+        view.dom.ownerDocument.defaultView?.scrollTo({
+          top: coords.top,
+          behavior: 'smooth',
+        });
         didScroll = true;
-        return;
-      }
-
-      const coords = view.coordsAtPos(Math.min(targetPos, view.state.doc.content.size));
-      view.dom.ownerDocument.defaultView?.scrollTo({
-        top: coords.top,
-        behavior: 'smooth',
       });
-      didScroll = true;
-    });
 
-    return didScroll;
-  }, [getEditor]);
+      return didScroll;
+    },
+    [getEditor]
+  );
 
   const scrollToFirstHighlight = useCallback(() => {
-    const pm = editorRootRef.current?.querySelector('.milkdown .ProseMirror')
-      ?? editorRootRef.current?.querySelector('.ProseMirror');
+    const pm =
+      editorRootRef.current?.querySelector('.milkdown .ProseMirror') ??
+      editorRootRef.current?.querySelector('.ProseMirror');
     if (!pm) return false;
 
     const highlight = pm.querySelector('.search-highlight-editor');
@@ -73,8 +77,9 @@ export const useHighlightScroll = ({
   }, [editorRootRef]);
 
   const applyHighlightAndScroll = useCallback(() => {
-    const pm = editorRootRef.current?.querySelector('.milkdown .ProseMirror')
-      ?? editorRootRef.current?.querySelector('.ProseMirror');
+    const pm =
+      editorRootRef.current?.querySelector('.milkdown .ProseMirror') ??
+      editorRootRef.current?.querySelector('.ProseMirror');
     if (!pm) return false;
 
     pm.querySelectorAll('.search-highlight-editor').forEach((el) => {

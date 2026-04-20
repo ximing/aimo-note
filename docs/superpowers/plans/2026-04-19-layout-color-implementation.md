@@ -13,6 +13,7 @@
 ## Chunk 1: CSS Variables
 
 **Files:**
+
 - Modify: `apps/render/src/index.css:1-50`
 
 - [ ] **Step 1: Add CSS variables to :root (Light theme)**
@@ -20,10 +21,10 @@
 Find `:root {` section in `apps/render/src/index.css`, add after existing `--bg-*` variables:
 
 ```css
-  /* Layout layer colors (outer → inner, dark → light) */
-  --bg-header: #e2dfd8;
-  --bg-rail: #e8e6e0;
-  --bg-sidebar: #f2f1ed;
+/* Layout layer colors (outer → inner, dark → light) */
+--bg-header: #e2dfd8;
+--bg-rail: #e8e6e0;
+--bg-sidebar: #f2f1ed;
 ```
 
 - [ ] **Step 2: Add CSS variables to html.dark**
@@ -31,10 +32,10 @@ Find `:root {` section in `apps/render/src/index.css`, add after existing `--bg-
 Find `html.dark {` section in `apps/render/src/index.css`, add after existing `--bg-*` variables:
 
 ```css
-  /* Layout layer colors (outer → inner, dark → light) */
-  --bg-header: #2f2f2f;
-  --bg-rail: #2a2a2a;
-  --bg-sidebar: #1e1e1e;
+/* Layout layer colors (outer → inner, dark → light) */
+--bg-header: #2f2f2f;
+--bg-rail: #2a2a2a;
+--bg-sidebar: #1e1e1e;
 ```
 
 - [ ] **Step 3: Commit**
@@ -49,6 +50,7 @@ git commit -m "feat(ui): add layout layer CSS variables"
 ## Chunk 2: Apply Colors to Components
 
 **Files:**
+
 - Modify: `apps/render/src/index.css:176-245`
 - Modify: `apps/render/src/components/Layout.tsx:34`
 - Modify: `apps/render/src/components/left-rail/LeftRail.tsx:26`
@@ -121,23 +123,28 @@ git commit -m "feat(ui): apply layout layer colors to CSS classes"
 ## Chunk 3: Verify and Test
 
 **Files:**
+
 - Modify: `apps/render/src/components/Layout.tsx`
 - Modify: `apps/render/src/components/left-rail/LeftRail.tsx`
 
 - [ ] **Step 1: Verify header-row in Layout.tsx uses correct class**
 
 Check that `Layout.tsx:34` has:
+
 ```tsx
 <div className="header-row pl-16 flex items-center gap-1 px-3 py-1">
 ```
+
 (No change needed - CSS class is already `.header-row`)
 
 - [ ] **Step 2: Verify left-rail in LeftRail.tsx uses correct class**
 
 Check that `LeftRail.tsx:26` has:
+
 ```tsx
 <aside className="left-rail w-12 flex flex-col items-center pt-12 py-2 gap-1">
 ```
+
 (No change needed - CSS class is already `.left-rail`)
 
 - [ ] **Step 3: Run dev server to verify**
@@ -147,6 +154,7 @@ pnpm --filter @aimo-note/render dev
 ```
 
 Open browser and verify:
+
 - header-row has `--bg-header` color
 - left-rail has `--bg-rail` color
 - left-sidebar has `--bg-sidebar` color
@@ -162,8 +170,8 @@ git commit -m "feat(ui): verify layout color application"
 
 ## Summary
 
-| Chunk | Tasks | Files |
-|-------|-------|-------|
-| 1 | Add CSS variables | `index.css` |
-| 2 | Apply colors to CSS classes | `index.css` |
-| 3 | Verify components use correct classes | `Layout.tsx`, `LeftRail.tsx` |
+| Chunk | Tasks                                 | Files                        |
+| ----- | ------------------------------------- | ---------------------------- |
+| 1     | Add CSS variables                     | `index.css`                  |
+| 2     | Apply colors to CSS classes           | `index.css`                  |
+| 3     | Verify components use correct classes | `Layout.tsx`, `LeftRail.tsx` |

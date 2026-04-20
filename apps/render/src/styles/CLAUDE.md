@@ -13,16 +13,16 @@ Use this file when changing visual styles, layout regions, theme tokens, or edit
 
 ## File Map
 
-| File | Purpose |
-|------|---------|
-| `index.css` | Import entry for the styles architecture inside this directory |
-| `variables.css` | Design tokens: colors, spacing, radius, shadows, theme variables |
-| `base.css` | Global element defaults, reset-like rules, scrollbars, transitions |
-| `layout.css` | App shell layout regions and structural containers |
-| `components.css` | Shared UI components and reusable surface patterns |
-| `editor-layout.css` | Milkdown / ProseMirror wrapper sizing and flex behavior |
-| `editor-content.css` | Editor typography and content-level styling |
-| `editor-syntax.css` | Syntax highlighting tokens for code blocks |
+| File                 | Purpose                                                            |
+| -------------------- | ------------------------------------------------------------------ |
+| `index.css`          | Import entry for the styles architecture inside this directory     |
+| `variables.css`      | Design tokens: colors, spacing, radius, shadows, theme variables   |
+| `base.css`           | Global element defaults, reset-like rules, scrollbars, transitions |
+| `layout.css`         | App shell layout regions and structural containers                 |
+| `components.css`     | Shared UI components and reusable surface patterns                 |
+| `editor-layout.css`  | Milkdown / ProseMirror wrapper sizing and flex behavior            |
+| `editor-content.css` | Editor typography and content-level styling                        |
+| `editor-syntax.css`  | Syntax highlighting tokens for code blocks                         |
 
 ## Import Order
 
@@ -175,10 +175,10 @@ Do not mix general code-block box styling into this file; that belongs in `edito
 
 Prefer the current layout naming scheme:
 
-| Old | Current |
-|-----|---------|
-| `.explorer` | `.left-sidebar` |
-| `.explorer-header` | `.left-sidebar-header` |
+| Old                 | Current                 |
+| ------------------- | ----------------------- |
+| `.explorer`         | `.left-sidebar`         |
+| `.explorer-header`  | `.left-sidebar-header`  |
 | `.explorer-content` | `.left-sidebar-content` |
 
 State naming patterns already in use include:

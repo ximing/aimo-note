@@ -116,7 +116,12 @@ class SlashMenu {
       { label: 'Numbered List', icon: '1.', commandKey: wrapInOrderedListCommand.key },
       { label: 'Quote', icon: '"', commandKey: wrapInBlockquoteCommand.key },
       { label: 'Code Block', icon: '</>', commandKey: createCodeBlockCommand.key },
-      { label: 'Table', icon: '3x3', commandKey: insertTableCommand.key, payload: { row: 3, col: 3 } },
+      {
+        label: 'Table',
+        icon: '3x3',
+        commandKey: insertTableCommand.key,
+        payload: { row: 3, col: 3 },
+      },
       { label: 'Divider', icon: '—', commandKey: insertHrCommand.key },
     ];
   }
@@ -431,9 +436,7 @@ export function MilkdownEditorInner({
         className={`milkdown-wrapper h-full flex flex-col ${className}`}
         onPaste={handlePaste}
       >
-        {loading && (
-          <div className="milkdown-loading p-4 text-gray-500">Loading editor...</div>
-        )}
+        {loading && <div className="milkdown-loading p-4 text-gray-500">Loading editor...</div>}
         <div className="milkdown h-full flex flex-col">
           <Milkdown />
         </div>

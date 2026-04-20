@@ -12,6 +12,7 @@
 ```
 
 **说明**：
+
 - `titleBarStyle: 'hidden'` 模式下，红绿灯显示在窗口左上角（macOS 原生），不在 DOM 中
 - 红绿灯和 left-sidebar-header 在同一行（红绿灯占约 70px 宽度）
 - left-rail 在红绿灯下方，左侧 48px 宽度
@@ -22,6 +23,7 @@
 ## 布局层级
 
 ### 1. Title Bar Row（标题栏行）
+
 - **位置**：DOM 中的第一行，与红绿灯同一垂直位置
 - **组成**：
   - **Traffic Zone**（70px 宽度）：占据左侧空间（不在 DOM 中）
@@ -30,24 +32,26 @@
 - **高度**：44px
 
 ### 2. Left Rail（左侧导航条）
+
 - **位置**：红绿灯下方，48px 宽度
 - **是否在 DOM 中**：是
 - **背景色**：`--bg-secondary`（改动后）
 - **功能**：图谱、设置等全局导航
 
 ### 3. Left Sidebar Content（左侧边栏内容区）
+
 - **位置**：Left Rail 右侧，Title Bar Row 下方
 - **背景色**：`--bg-secondary`（改动后）
 - **功能**：笔记树、文件浏览
 
 ## 背景色（改动后）
 
-| 区域 | CSS Token | Light | Dark |
-|------|-----------|-------|------|
-| 红绿灯区域（不在 DOM 中） | 系统色 | - | - |
-| Left Rail | `--bg-secondary` | #f8f9fa | #16162a |
-| Left Sidebar Header | `--bg-secondary` | #f8f9fa | #16162a |
-| Left Sidebar Content | `--bg-secondary` | #f8f9fa | #16162a |
+| 区域                      | CSS Token        | Light   | Dark    |
+| ------------------------- | ---------------- | ------- | ------- |
+| 红绿灯区域（不在 DOM 中） | 系统色           | -       | -       |
+| Left Rail                 | `--bg-secondary` | #f8f9fa | #16162a |
+| Left Sidebar Header       | `--bg-secondary` | #f8f9fa | #16162a |
+| Left Sidebar Content      | `--bg-secondary` | #f8f9fa | #16162a |
 
 **状态**：✓ 所有区域统一为 `--bg-secondary`
 

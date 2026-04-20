@@ -22,7 +22,9 @@ export const SearchPanel = observer(() => {
     }
 
     uiService.openTab(filePath, title);
-    navigate(`/editor/${encodeURIComponent(filePath)}${params.size ? `?${params.toString()}` : ''}`);
+    navigate(
+      `/editor/${encodeURIComponent(filePath)}${params.size ? `?${params.toString()}` : ''}`
+    );
   };
 
   return (

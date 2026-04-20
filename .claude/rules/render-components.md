@@ -1,7 +1,7 @@
 ---
 paths:
-  - "apps/render/src/components/**/*.tsx"
-  - "apps/render/src/components/**/*.ts"
+  - 'apps/render/src/components/**/*.tsx'
+  - 'apps/render/src/components/**/*.ts'
 ---
 
 # Renderer Component Rules

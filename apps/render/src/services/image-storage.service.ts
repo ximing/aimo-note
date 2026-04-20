@@ -57,7 +57,7 @@ export class ImageStorageService extends Service {
     // Read image from clipboard
     const imageData = await clipboard.readImage();
     if (!imageData) {
-      return null;  // No image in clipboard
+      return null; // No image in clipboard
     }
 
     // Upload

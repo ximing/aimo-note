@@ -27,6 +27,7 @@
 放笔记树、快速切换、树节点等资源浏览相关的共享组件。
 
 **CSS 命名规范**：使用 `.left-sidebar-*` 前缀，示例：
+
 - `.left-sidebar` - 左侧边栏容器
 - `.left-sidebar-header` - 侧边栏头部
 - `.left-sidebar-content` - 侧边栏内容区

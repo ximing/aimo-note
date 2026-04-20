@@ -37,6 +37,7 @@ Reuse existing `vault:readNote` and `vault:writeNote` for config I/O.
 ### VaultService (`apps/render/src/services/vault.service.ts`)
 
 Add methods:
+
 - `loadTabs(): Promise<TabsConfig | null>` — reads `.aimo-note/config.json`
 - `saveTabs(tabs: Tab[], activeTabId: string | null): Promise<void>` — writes `.aimo-note/config.json`
 

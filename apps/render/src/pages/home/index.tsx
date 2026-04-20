@@ -26,17 +26,23 @@ const HomePageContent = observer(() => {
     }
   }, [vaultService, navigate]);
 
-  const handleOpenRecentVault = useCallback(async (vaultPath: string) => {
-    const success = await vaultService.openRecentVault(vaultPath);
-    if (success) {
-      navigate('/editor');
-    }
-  }, [vaultService, navigate]);
+  const handleOpenRecentVault = useCallback(
+    async (vaultPath: string) => {
+      const success = await vaultService.openRecentVault(vaultPath);
+      if (success) {
+        navigate('/editor');
+      }
+    },
+    [vaultService, navigate]
+  );
 
-  const handleRemoveRecent = useCallback(async (e: React.MouseEvent, vaultPath: string) => {
-    e.stopPropagation();
-    await vaultService.removeRecentVault(vaultPath);
-  }, [vaultService]);
+  const handleRemoveRecent = useCallback(
+    async (e: React.MouseEvent, vaultPath: string) => {
+      e.stopPropagation();
+      await vaultService.removeRecentVault(vaultPath);
+    },
+    [vaultService]
+  );
 
   useEffect(() => {
     // Auto-open most recent vault if no vault is open

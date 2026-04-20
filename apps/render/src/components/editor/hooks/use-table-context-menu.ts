@@ -34,53 +34,59 @@ export interface UseTableContextMenuResult {
   deleteRow: () => void;
 }
 
-export const useTableContextMenu = ({ getEditor, loading }: UseTableContextMenuParams): UseTableContextMenuResult => {
+export const useTableContextMenu = ({
+  getEditor,
+  loading,
+}: UseTableContextMenuParams): UseTableContextMenuResult => {
   const [tableContextMenu, setTableContextMenu] = useState<TableContextMenuState | null>(null);
 
-  const handleTableContextMenu = useCallback((e: MouseEvent) => {
-    const target = e.target;
-    if (!(target instanceof Element) || !target.closest('td, th')) {
-      setTableContextMenu(null);
-      return;
-    }
-
-    const editor = getEditor();
-    if (!editor) return;
-
-    editor.action((ctx) => {
-      const view = ctx.get(editorViewCtx);
-      const posAtCoords = view.posAtCoords({ left: e.clientX, top: e.clientY });
-      if (!posAtCoords) {
+  const handleTableContextMenu = useCallback(
+    (e: MouseEvent) => {
+      const target = e.target;
+      if (!(target instanceof Element) || !target.closest('td, th')) {
         setTableContextMenu(null);
         return;
       }
 
-      const resolvedPos = posAtCoords.inside >= 0 ? posAtCoords.inside : posAtCoords.pos;
-      const $pos = view.state.doc.resolve(resolvedPos);
-      const tableInfo = findTable($pos);
-      if (!tableInfo) {
-        setTableContextMenu(null);
-        return;
-      }
+      const editor = getEditor();
+      if (!editor) return;
 
-      e.preventDefault();
+      editor.action((ctx) => {
+        const view = ctx.get(editorViewCtx);
+        const posAtCoords = view.posAtCoords({ left: e.clientX, top: e.clientY });
+        if (!posAtCoords) {
+          setTableContextMenu(null);
+          return;
+        }
 
-      const nextSelection = TextSelection.near($pos);
-      if (!nextSelection.eq(view.state.selection)) {
-        view.dispatch(view.state.tr.setSelection(nextSelection));
-      }
+        const resolvedPos = posAtCoords.inside >= 0 ? posAtCoords.inside : posAtCoords.pos;
+        const $pos = view.state.doc.resolve(resolvedPos);
+        const tableInfo = findTable($pos);
+        if (!tableInfo) {
+          setTableContextMenu(null);
+          return;
+        }
 
-      const rowCount = tableInfo.node.childCount;
-      const colCount = tableInfo.node.firstChild?.childCount || 0;
+        e.preventDefault();
 
-      setTableContextMenu({
-        x: e.clientX,
-        y: e.clientY,
-        canDeleteCol: colCount > 1,
-        canDeleteRow: rowCount > 1,
+        const nextSelection = TextSelection.near($pos);
+        if (!nextSelection.eq(view.state.selection)) {
+          view.dispatch(view.state.tr.setSelection(nextSelection));
+        }
+
+        const rowCount = tableInfo.node.childCount;
+        const colCount = tableInfo.node.firstChild?.childCount || 0;
+
+        setTableContextMenu({
+          x: e.clientX,
+          y: e.clientY,
+          canDeleteCol: colCount > 1,
+          canDeleteRow: rowCount > 1,
+        });
       });
-    });
-  }, [getEditor]);
+    },
+    [getEditor]
+  );
 
   const closeTableContextMenu = useCallback(() => {
     setTableContextMenu(null);

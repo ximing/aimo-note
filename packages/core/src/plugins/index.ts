@@ -29,7 +29,7 @@ export function createPluginSystem() {
       plugin.onLoad?.();
     },
     unloadPlugin(name: string) {
-      const idx = plugins.findIndex(p => p.name === name);
+      const idx = plugins.findIndex((p) => p.name === name);
       if (idx !== -1) {
         plugins[idx].onUnload?.();
         plugins.splice(idx, 1);

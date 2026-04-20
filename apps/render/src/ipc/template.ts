@@ -10,16 +10,26 @@ export interface TemplateIPC {
     templates: TemplateListItem[];
     error?: string;
   }>;
-  read(vaultPath: string, fileName: string): Promise<{
+  read(
+    vaultPath: string,
+    fileName: string
+  ): Promise<{
     success: boolean;
     content?: string;
     error?: string;
   }>;
-  write(vaultPath: string, fileName: string, content: string): Promise<{
+  write(
+    vaultPath: string,
+    fileName: string,
+    content: string
+  ): Promise<{
     success: boolean;
     error?: string;
   }>;
-  delete(vaultPath: string, fileName: string): Promise<{
+  delete(
+    vaultPath: string,
+    fileName: string
+  ): Promise<{
     success: boolean;
     error?: string;
   }>;
@@ -28,7 +38,10 @@ export interface TemplateIPC {
     mappings: Record<string, string>;
     error?: string;
   }>;
-  setMappings(vaultPath: string, mappings: Record<string, string>): Promise<{
+  setMappings(
+    vaultPath: string,
+    mappings: Record<string, string>
+  ): Promise<{
     success: boolean;
     error?: string;
   }>;

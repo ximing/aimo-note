@@ -1,7 +1,7 @@
 ---
 paths:
-  - "apps/client/src/main/**/*.ts"
-  - "apps/client/src/preload/**/*.ts"
+  - 'apps/client/src/main/**/*.ts'
+  - 'apps/client/src/preload/**/*.ts'
 ---
 
 # Electron Main Process Rules

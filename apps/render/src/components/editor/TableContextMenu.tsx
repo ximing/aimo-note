@@ -85,8 +85,18 @@ export function TableContextMenu({
   ];
 
   const deleteItems = [
-    { label: '删除当前列', icon: <Trash2 size={14} />, onClick: onDeleteCol, disabled: !canDeleteCol },
-    { label: '删除当前行', icon: <Trash2 size={14} />, onClick: onDeleteRow, disabled: !canDeleteRow },
+    {
+      label: '删除当前列',
+      icon: <Trash2 size={14} />,
+      onClick: onDeleteCol,
+      disabled: !canDeleteCol,
+    },
+    {
+      label: '删除当前行',
+      icon: <Trash2 size={14} />,
+      onClick: onDeleteRow,
+      disabled: !canDeleteRow,
+    },
   ];
 
   const handleInsertClick = (onClick: () => void) => {

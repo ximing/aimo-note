@@ -42,7 +42,7 @@ export const vault: Vault = {
       vaultPath: `'${vaultPath}'`,
       filePath: `'${filePath}'`,
       contentLength: content.length,
-      contentPreview: content.substring(0, 50)
+      contentPreview: content.substring(0, 50),
     });
     const result = await window.electronAPI!.vault.writeNote(vaultPath, filePath, content);
     console.log('[IPC Client] vault.writeNote result:', result);

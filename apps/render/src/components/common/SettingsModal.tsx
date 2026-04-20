@@ -2,7 +2,11 @@ import { observer, useService } from '@rabjs/react';
 import { X, Sun, Moon, Monitor } from 'lucide-react';
 import { UIService } from '@/services/ui.service';
 import { useImageStorageService } from '@/services/image-storage.service';
-import type { ImageStorageConfig, LocalImageStorageConfig, S3ImageStorageConfig } from '@/types/image-storage';
+import type {
+  ImageStorageConfig,
+  LocalImageStorageConfig,
+  S3ImageStorageConfig,
+} from '@/types/image-storage';
 import { useState, useEffect } from 'react';
 
 type Theme = 'light' | 'dark' | 'system';
@@ -36,10 +40,7 @@ export const SettingsModal = observer(() => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50"
-        onClick={handleClose}
-      />
+      <div className="absolute inset-0 bg-black/50" onClick={handleClose} />
 
       {/* Modal */}
       <div className="relative w-[800px] h-[600px] bg-bg-primary rounded-md shadow-lg flex overflow-hidden">
@@ -69,7 +70,7 @@ export const SettingsModal = observer(() => {
         <div className="flex-1 flex flex-col">
           <div className="flex items-center justify-between p-4 bg-bg-secondary">
             <h3 className="text-sm font-semibold text-text-primary">
-              {settingsCategories.find(c => c.id === activeCategory)?.label}
+              {settingsCategories.find((c) => c.id === activeCategory)?.label}
             </h3>
             <button
               type="button"
@@ -161,9 +162,7 @@ export const SettingsModal = observer(() => {
             )}
 
             {/* Image Storage Section */}
-            {activeCategory === 'image-storage' && (
-              <ImageStorageSettings />
-            )}
+            {activeCategory === 'image-storage' && <ImageStorageSettings />}
           </div>
         </div>
       </div>
@@ -186,7 +185,8 @@ const ImageStorageSettings = observer(() => {
       await imageStorageService.saveConfig(newConfig);
     } else if (updates.type === 'local') {
       const localUpdates = updates.local;
-      const currentLocal = config.type === 'local' ? (config as LocalImageStorageConfig).local : null;
+      const currentLocal =
+        config.type === 'local' ? (config as LocalImageStorageConfig).local : null;
       const newConfig: ImageStorageConfig = {
         type: 'local',
         local: { path: localUpdates?.path ?? currentLocal?.path ?? 'assets/images' },

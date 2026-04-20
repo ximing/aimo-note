@@ -4,14 +4,14 @@ Shared TypeScript interfaces for the renderer process.
 
 ## File Structure
 
-| File | Purpose |
-|------|---------|
-| `index.ts` | Re-exports all types |
-| `note.ts` | Note and note metadata types |
-| `vault.ts` | Vault info and file tree types |
-| `graph.ts` | Knowledge graph node/edge types |
-| `plugin.ts` | Plugin system and API types |
-| `editor.ts` | Editor position and mode types |
+| File        | Purpose                         |
+| ----------- | ------------------------------- |
+| `index.ts`  | Re-exports all types            |
+| `note.ts`   | Note and note metadata types    |
+| `vault.ts`  | Vault info and file tree types  |
+| `graph.ts`  | Knowledge graph node/edge types |
+| `plugin.ts` | Plugin system and API types     |
+| `editor.ts` | Editor position and mode types  |
 
 ## Core Types
 
@@ -49,7 +49,7 @@ interface VaultFile {
   path: string;
   name: string;
   isDirectory: boolean;
-  children?: VaultFile[];  // Recursive tree structure
+  children?: VaultFile[]; // Recursive tree structure
 }
 ```
 

@@ -6,13 +6,13 @@
 
 ## 设计决策
 
-| 决策项 | 选择 |
-|--------|------|
+| 决策项   | 选择                                          |
+| -------- | --------------------------------------------- |
 | 视觉风格 | 现代简约 (Modern Minimal)，类似 Linear/Notion |
-| 暗色色调 | 深灰底 (#1a1a2e) + 冷色调 |
-| 主色 | Vue 绿 (#42b883) |
-| 切换方式 | 仅设置页面 |
-| 实现方案 | 基于现有 UIService 扩展 + CSS 变量 |
+| 暗色色调 | 深灰底 (#1a1a2e) + 冷色调                     |
+| 主色     | Vue 绿 (#42b883)                              |
+| 切换方式 | 仅设置页面                                    |
+| 实现方案 | 基于现有 UIService 扩展 + CSS 变量            |
 
 ## 配色方案
 
@@ -70,14 +70,14 @@ useTheme() Hook (新增)
 
 ## 文件变更
 
-| 文件 | 操作 | 说明 |
-|------|------|------|
-| `src/index.css` | 修改 | 添加 CSS 变量、dark mode 样式 |
-| `src/hooks/useTheme.ts` | 新增 | useTheme hook |
-| `src/services/ui.service.ts` | 修改 | 完善 theme 逻辑、连接 DOM |
-| `src/components/Layout.tsx` | 修改 | 应用 html class |
-| `src/pages/settings/SettingsPage.tsx` | 修改 | 添加主题选择器 |
-| `tailwind.config.js` | 修改 | 映射 CSS 变量到 Tailwind |
+| 文件                                  | 操作 | 说明                          |
+| ------------------------------------- | ---- | ----------------------------- |
+| `src/index.css`                       | 修改 | 添加 CSS 变量、dark mode 样式 |
+| `src/hooks/useTheme.ts`               | 新增 | useTheme hook                 |
+| `src/services/ui.service.ts`          | 修改 | 完善 theme 逻辑、连接 DOM     |
+| `src/components/Layout.tsx`           | 修改 | 应用 html class               |
+| `src/pages/settings/SettingsPage.tsx` | 修改 | 添加主题选择器                |
+| `tailwind.config.js`                  | 修改 | 映射 CSS 变量到 Tailwind      |
 
 ## 组件设计
 
@@ -97,6 +97,7 @@ export function useTheme() {
 ### Settings 页面主题选择器
 
 三个卡片式选项：
+
 - Light（太阳图标）
 - Dark（月亮图标）
 - System（显示器图标）
@@ -135,6 +136,7 @@ extend: {
 ## 暗色模式实现
 
 使用 Tailwind `darkMode: 'class'` 策略：
+
 - HTML 元素添加 `class="dark"` 切换暗色
 - CSS 变量在 `.dark` 选择器下覆盖
 

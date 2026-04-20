@@ -95,17 +95,17 @@ const uiService = useService(UIService);
 
 ### 主要属性
 
-| 属性 | 类型 | 说明 |
-|------|------|------|
-| `leftSidebarOpen` | `boolean` | 左侧边栏是否展开（原 `explorerOpen`） |
-| `statusBarMode` | `'edit' \| 'preview'` | 状态栏当前模式 |
+| 属性              | 类型                  | 说明                                  |
+| ----------------- | --------------------- | ------------------------------------- |
+| `leftSidebarOpen` | `boolean`             | 左侧边栏是否展开（原 `explorerOpen`） |
+| `statusBarMode`   | `'edit' \| 'preview'` | 状态栏当前模式                        |
 
 ### 主要方法
 
-| 方法 | 说明 |
-|------|------|
-| `toggleLeftSidebar()` | 切换左侧边栏展开状态（原 `toggleExplorer()`） |
-| `setStatusBarMode(mode)` | 设置状态栏模式 |
+| 方法                     | 说明                                          |
+| ------------------------ | --------------------------------------------- |
+| `toggleLeftSidebar()`    | 切换左侧边栏展开状态（原 `toggleExplorer()`） |
+| `setStatusBarMode(mode)` | 设置状态栏模式                                |
 
 ### StatusBar 组件
 

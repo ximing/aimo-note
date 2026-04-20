@@ -15,6 +15,7 @@
 ### Task 1: Update CSS Variables in index.css
 
 **Files:**
+
 - Modify: `apps/render/src/index.css:1-31`
 
 - [ ] **Step 1: Replace :root CSS variables**
@@ -54,7 +55,19 @@ Replace the entire `:root` block with the new design tokens:
   --radius-lg: 6px;
   --radius-full: 50%;
 
-  font-family: Menlo, 'Meslo LG', 'Helvetica Neue', Helvetica, Arial, sans-serif, '微软雅黑', monospace, system-ui, -apple-system, 'Segoe UI', Roboto;
+  font-family:
+    Menlo,
+    'Meslo LG',
+    'Helvetica Neue',
+    Helvetica,
+    Arial,
+    sans-serif,
+    '微软雅黑',
+    monospace,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto;
   line-height: 1.5;
   font-weight: 400;
   color-scheme: light;
@@ -84,6 +97,7 @@ git commit -m "feat(theme): update CSS variables to new design tokens"
 ### Task 2: Add Shadow Classes to index.css
 
 **Files:**
+
 - Modify: `apps/render/src/index.css` (append after existing styles)
 
 - [ ] **Step 1: Add shadow utility classes**
@@ -122,6 +136,7 @@ git commit -m "feat(theme): add shadow utility classes"
 ### Task 3: Update Scrollbar Styles in index.css
 
 **Files:**
+
 - Modify: `apps/render/src/index.css:67-91` (replace scrollbar styles)
 
 - [ ] **Step 1: Update scrollbar to use new color system**
@@ -174,11 +189,13 @@ git commit -m "feat(theme): update scrollbar colors to match design system"
 ### Task 4: Update Layout.tsx
 
 **Files:**
+
 - Modify: `apps/render/src/components/Layout.tsx:17-44`
 
 - [ ] **Step 1: Remove title bar bottom border**
 
 Change line 17:
+
 ```tsx
 // Before
 <div className="title-bar flex items-center px-3 py-1 border-b bg-bg-secondary">
@@ -190,6 +207,7 @@ Change line 17:
 - [ ] **Step 2: Remove explorer border**
 
 Change line 29:
+
 ```tsx
 // Before
 <aside className="explorer w-64 border-r flex flex-col bg-bg-primary">
@@ -201,6 +219,7 @@ Change line 29:
 - [ ] **Step 3: Simplify editor container - remove border and margin**
 
 Change line 40:
+
 ```tsx
 // Before
 <div className="editor-container flex-1 border m-2 rounded-md overflow-hidden">
@@ -226,6 +245,7 @@ git commit -m "feat(theme): remove borders from layout components"
 ### Task 5: Update LeftRail.tsx
 
 **Files:**
+
 - Modify: `apps/render/src/components/left-rail/LeftRail.tsx:26`
 
 - [ ] **Step 1: Change background to tertiary and remove border**
@@ -241,12 +261,13 @@ git commit -m "feat(theme): remove borders from layout components"
 - [ ] **Step 2: Update icon button hover to use accent color from spec**
 
 Change line 33:
+
 ```tsx
 // Before
-className="p-2 hover:bg-accent hover:text-white rounded text-gray-400 transition-colors"
+className = 'p-2 hover:bg-accent hover:text-white rounded text-gray-400 transition-colors';
 
 // After
-className="p-2 hover:bg-accent hover:text-white rounded-full text-gray-400 transition-colors"
+className = 'p-2 hover:bg-accent hover:text-white rounded-full text-gray-400 transition-colors';
 ```
 
 - [ ] **Step 3: Verify Left Rail renders with tertiary background**
@@ -266,22 +287,25 @@ git commit -m "feat(theme): update LeftRail background to tertiary"
 ### Task 6: Update EditorTabs.tsx
 
 **Files:**
+
 - Modify: `apps/render/src/components/editor-tabs/EditorTabs.tsx:12-24`
 
 - [ ] **Step 1: Remove border-b from tab container**
 
 Change line 12:
+
 ```tsx
 // Before
-className="editor-tabs flex items-center border-b bg-bg-secondary overflow-x-auto"
+className = 'editor-tabs flex items-center border-b bg-bg-secondary overflow-x-auto';
 
 // After
-className="editor-tabs flex items-center bg-bg-secondary overflow-x-auto"
+className = 'editor-tabs flex items-center bg-bg-secondary overflow-x-auto';
 ```
 
 - [ ] **Step 2: Update active tab styling to use box-shadow accent bar instead of border**
 
 Change lines 22-24:
+
 ```tsx
 // Before
 className={`editor-tab flex items-center gap-2 px-3 py-2 border-r border-border cursor-pointer hover:bg-bg-tertiary ${
@@ -311,11 +335,13 @@ git commit -m "feat(theme): update EditorTabs - remove borders, use box-shadow a
 ### Task 7: Update SidePanel.tsx
 
 **Files:**
+
 - Modify: `apps/render/src/components/side-panel/SidePanel.tsx:17-21`
 
 - [ ] **Step 1: Remove border-l, update background to secondary**
 
 Change line 17-18:
+
 ```tsx
 // Before
 <aside className="side-panel border-l flex flex-col bg-bg-secondary" style={{ width: uiService.sidePanelWidth }}>
@@ -327,6 +353,7 @@ Change line 17-18:
 - [ ] **Step 2: Update side panel header to use tertiary background**
 
 Change line 21:
+
 ```tsx
 // Before
 <div className="side-panel-header flex items-center justify-between px-3 py-2 border-b">
@@ -354,11 +381,13 @@ git commit -m "feat(theme): update SidePanel - remove border, use tertiary heade
 ### Task 8: Update TreeNode.tsx
 
 **Files:**
+
 - Modify: `apps/render/src/components/explorer/TreeNode.tsx:94-112`
 
 - [ ] **Step 1: Update selected state to use left accent bar via box-shadow**
 
 Change line 99:
+
 ```tsx
 // Before
 className={`flex items-center gap-1 w-full px-2 py-1 hover:bg-accent rounded text-left ${nodeIsSelected ? 'bg-accent text-white' : ''}`}
@@ -384,11 +413,13 @@ git commit -m "feat(theme): update TreeNode selected state with left accent bar"
 ### Task 9: Update SettingsModal.tsx
 
 **Files:**
+
 - Modify: `apps/render/src/components/common/SettingsModal.tsx:26-119`
 
 - [ ] **Step 1: Update modal container to use card styling with shadow**
 
 Change lines 33-34:
+
 ```tsx
 // Before
 <div className="relative w-[800px] h-[600px] bg-bg-primary rounded-lg shadow-lg flex overflow-hidden">
@@ -400,6 +431,7 @@ Change lines 33-34:
 - [ ] **Step 2: Update sidebar - remove border, use tertiary background**
 
 Change lines 36-37:
+
 ```tsx
 // Before
 <div className="w-48 bg-bg-secondary border-r border-border">
@@ -411,6 +443,7 @@ Change lines 36-37:
 - [ ] **Step 3: Update sidebar header - remove border, change to secondary background**
 
 Change lines 37-38:
+
 ```tsx
 // Before
 <div className="p-4 border-b border-border">
@@ -422,6 +455,7 @@ Change lines 37-38:
 - [ ] **Step 4: Update content header - remove border**
 
 Change lines 54-55:
+
 ```tsx
 // Before
 <div className="flex items-center justify-between p-4 border-b border-border">
@@ -433,6 +467,7 @@ Change lines 54-55:
 - [ ] **Step 5: Update theme button active state**
 
 Change lines 72-76, 83-87, 96-100:
+
 ```tsx
 // Before (line 72-76)
 className={`flex items-center gap-2 px-4 py-2 rounded border ${
@@ -470,6 +505,7 @@ git commit -m "feat(theme): update SettingsModal to card-style with shadow"
 ### Task 10: Update Tailwind Config Mappings
 
 **Files:**
+
 - Modify: `apps/render/tailwind.config.js`
 
 - [ ] **Step 1: Verify tailwind.config.js exists and read current content**
@@ -479,6 +515,7 @@ Run: `cat apps/render/tailwind.config.js`
 - [ ] **Step 2: If colors need updating, ensure they map to CSS variables**
 
 Current CLAUDE.md shows mapping should be:
+
 ```js
 colors: {
   bg: {
@@ -514,6 +551,7 @@ git commit -m "feat(theme): update Tailwind config with new design tokens"
 Run: `pnpm --filter @aimo-note/render dev`
 
 Verify:
+
 - Title bar has no bottom border (line 17 Layout.tsx)
 - Left rail uses tertiary background (48px wide, icons centered)
 - Explorer has no left border
@@ -527,6 +565,7 @@ Verify:
 - [ ] **Step 2: Check for any remaining border usages that should be removed**
 
 Search for `border-` in components:
+
 ```bash
 grep -r "border-" apps/render/src/components --include="*.tsx" | grep -v "border-radius" | grep -v "shadow"
 ```
@@ -544,12 +583,12 @@ git commit -m "feat(theme): complete theme design implementation"
 
 ## Summary
 
-| Chunk | Tasks | Files Modified |
-|-------|-------|---------------|
-| 1: CSS Variables | 1-3 | `index.css` |
-| 2: Layout | 4-7 | `Layout.tsx`, `LeftRail.tsx`, `EditorTabs.tsx`, `SidePanel.tsx` |
-| 3: Components | 8-9 | `TreeNode.tsx`, `SettingsModal.tsx` |
-| 4: Config | 10 | `tailwind.config.js` |
-| 5: Verification | 11 | - |
+| Chunk            | Tasks | Files Modified                                                  |
+| ---------------- | ----- | --------------------------------------------------------------- |
+| 1: CSS Variables | 1-3   | `index.css`                                                     |
+| 2: Layout        | 4-7   | `Layout.tsx`, `LeftRail.tsx`, `EditorTabs.tsx`, `SidePanel.tsx` |
+| 3: Components    | 8-9   | `TreeNode.tsx`, `SettingsModal.tsx`                             |
+| 4: Config        | 10    | `tailwind.config.js`                                            |
+| 5: Verification  | 11    | -                                                               |
 
 **Total: 11 tasks across 7 files**

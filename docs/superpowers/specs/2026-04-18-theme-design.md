@@ -5,6 +5,7 @@
 基于 Notion 风格的整体视觉重设计，目标是打造一个极简、克制、留白充足的笔记应用界面。
 
 **设计原则**
+
 - 不使用 border 进行区域分隔，优先使用背景色层次
 - 轻阴影代替边框表达层级关系
 - 统一圆角系统，柔和但不娘
@@ -107,24 +108,26 @@
 ### 5.1 整体结构
 
 ```
+
 ┌─────────────────────────────────────────────────────────┐
-│ Title Bar (40px)                                        │
-│ bg: --bg-secondary, no border                           │
+│ Title Bar (40px) │
+│ bg: --bg-secondary, no border │
 ├────┬──────────────┬────────────────────┬───────────────┤
-│    │              │                    │               │
-│ L  │  Explorer    │   Editor Tabs     │  Side Panel   │
-│ e  │  (256px)     │   (36px)          │  (280px)      │
-│ f  │              │                    │               │
-│ t  │ bg: primary  ├────────────────────┤  bg: secondary│
-│    │              │   Editor Container │               │
-│ R  │              │   bg: primary     │               │
-│ a  │              │                    │               │
-│ i  │              │                    │               │
-│ l  │              │                    │               │
-│ 48 │              │                    │               │
-│ px │              │                    │               │
+│ │ │ │ │
+│ L │ Explorer │ Editor Tabs │ Side Panel │
+│ e │ (256px) │ (36px) │ (280px) │
+│ f │ │ │ │
+│ t │ bg: primary ├────────────────────┤ bg: secondary│
+│ │ │ Editor Container │ │
+│ R │ │ bg: primary │ │
+│ a │ │ │ │
+│ i │ │ │ │
+│ l │ │ │ │
+│ 48 │ │ │ │
+│ px │ │ │ │
 └────┴──────────────┴────────────────────┴───────────────┘
-```
+
+````
 
 ### 5.2 Title Bar
 
@@ -133,7 +136,7 @@
 - 底部分隔：移除 border，改用 1px 渐变线（--bg-secondary → --bg-primary）
   ```css
   border-bottom: 1px solid #f7f7f7; /* 单色分隔线即可 */
-  ```
+````
 
 ### 5.3 Left Rail
 
@@ -290,7 +293,9 @@
   border: 1px solid var(--bg-quaternary);
   border-radius: 6px;
   padding: 8px 12px;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .input:focus {
@@ -312,42 +317,47 @@
 
 ```css
 /* 全局过渡 */
-transition: background-color 0.2s ease,
-            color 0.2s ease,
-            box-shadow 0.2s ease,
-            border-color 0.2s ease;
+transition:
+  background-color 0.2s ease,
+  color 0.2s ease,
+  box-shadow 0.2s ease,
+  border-color 0.2s ease;
 ```
 
-| 场景 | 时长 |
-|------|------|
+| 场景                      | 时长  |
+| ------------------------- | ----- |
 | 颜色变化（hover、active） | 150ms |
-| 面板展开/收起 | 200ms |
-| 模态框出现 | 250ms |
-| 下拉菜单 | 150ms |
+| 面板展开/收起             | 200ms |
+| 模态框出现                | 250ms |
+| 下拉菜单                  | 150ms |
 
 ---
 
 ## 八、实现清单
 
 ### 8.1 CSS 变量重构
+
 - [ ] 更新 `--bg-*` 变量值
 - [ ] 更新 `--accent` 为 #4ade80
 - [ ] 新增 `--shadow-*` 变量
 - [ ] 添加暗色模式变量覆盖
 
 ### 8.2 布局组件更新
+
 - [ ] Layout.tsx - 移除所有 border
 - [ ] LeftRail.tsx - 当前使用 `bg-bg-secondary`，应改为 `bg-bg-tertiary`
 - [ ] EditorTabs.tsx - 用 box-shadow 替代 border
 - [ ] SidePanel.tsx - 更新背景色
 
 ### 8.3 通用组件更新
+
 - [ ] 按钮样式统一
 - [ ] TreeNode - 选中态改为左边条
 - [ ] 设置弹窗/对话框 - 卡片化
 - [ ] 输入框样式
 
 ### 8.4 工具类
+
 - [ ] Tailwind 配置映射更新
 - [ ] scrollbar 样式适配
 

@@ -1,7 +1,7 @@
 ---
 paths:
-  - "apps/render/src/services/**/*.ts"
-  - "apps/render/src/pages/**/*.service.ts"
+  - 'apps/render/src/services/**/*.ts'
+  - 'apps/render/src/pages/**/*.service.ts'
 ---
 
 # Renderer Service Rules

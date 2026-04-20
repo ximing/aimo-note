@@ -13,6 +13,7 @@
 ## Chunk 1: Types & IPC Bridge (renderer side)
 
 **Files:**
+
 - Create: `apps/render/src/ipc/clipboard.ts` — IPC wrapper for clipboard operations
 - Create: `apps/render/src/ipc/image-storage.ts` — IPC wrapper for image storage operations
 - Modify: `apps/render/src/ipc/index.ts` — export new modules
@@ -29,7 +30,7 @@ export type ImageStorageType = 'local' | 's3';
 export interface LocalImageStorageConfig {
   type: 'local';
   local: {
-    path: string;  // default: 'assets/images'
+    path: string; // default: 'assets/images'
   };
 }
 
@@ -40,8 +41,8 @@ export interface S3ImageStorageConfig {
     secretKey: string;
     bucket: string;
     region: string;
-    endpoint: string;   // optional
-    keyPrefix: string;  // optional, default ''
+    endpoint: string; // optional
+    keyPrefix: string; // optional, default ''
   };
 }
 
@@ -53,7 +54,7 @@ export interface ClipboardImageData {
 }
 
 export interface ImageStorageUploadResult {
-  url: string;  // relative path for local, full URL for S3
+  url: string; // relative path for local, full URL for S3
 }
 ```
 
@@ -143,6 +144,7 @@ export const imageStorage: ImageStorageAPI = {
 - [ ] **Step 2: Update IPC index to export new modules**
 
 Modify `apps/render/src/ipc/index.ts` to add:
+
 ```typescript
 export { clipboard } from './clipboard';
 export { imageStorage } from './image-storage';
@@ -160,8 +162,9 @@ git commit -m "feat(ipc): add image-storage IPC wrapper"
 ## Chunk 2: Main Process IPC Handlers
 
 **Files:**
+
 - Modify: `apps/client/src/preload/index.ts` — add clipboard and imageStorage APIs
-- Modify: `apps/client/src/main/ipc/handlers.ts` — add clipboard:read-image and image-storage:* handlers
+- Modify: `apps/client/src/main/ipc/handlers.ts` — add clipboard:read-image and image-storage:\* handlers
 
 ### Task 4: Add preload APIs
 
@@ -193,29 +196,33 @@ Add to the `Window` interface declaration in the same file:
 
 ```typescript
 clipboard: {
-  readImage: () => Promise<{
-    success: boolean;
-    data?: { arrayBuffer: ArrayBuffer; mimeType: string };
-    error?: string;
-  }>;
-};
+  readImage: () =>
+    Promise<{
+      success: boolean;
+      data?: { arrayBuffer: ArrayBuffer; mimeType: string };
+      error?: string;
+    }>;
+}
 
 imageStorage: {
-  upload: (data: { arrayBuffer: ArrayBuffer; mimeType: string }) => Promise<{
-    success: boolean;
-    url?: string;
-    error?: string;
-  }>;
-  getConfig: () => Promise<{
-    success: boolean;
-    config?: ImageStorageConfig;
-    error?: string;
-  }>;
-  setConfig: (config: ImageStorageConfig) => Promise<{
-    success: boolean;
-    error?: string;
-  }>;
-};
+  upload: (data: { arrayBuffer: ArrayBuffer; mimeType: string }) =>
+    Promise<{
+      success: boolean;
+      url?: string;
+      error?: string;
+    }>;
+  getConfig: () =>
+    Promise<{
+      success: boolean;
+      config?: ImageStorageConfig;
+      error?: string;
+    }>;
+  setConfig: (config: ImageStorageConfig) =>
+    Promise<{
+      success: boolean;
+      error?: string;
+    }>;
+}
 ```
 
 - [ ] **Step 3: Commit**
@@ -230,11 +237,13 @@ git commit -m "feat(preload): add clipboard and imageStorage APIs"
 - [ ] **Step 1: Add clipboard read handler to handlers.ts**
 
 Add import at top:
+
 ```typescript
 import { clipboard } from 'electron';
 ```
 
 Add new handler in `registerIpcHandlers()`:
+
 ```typescript
 // Clipboard handlers - read image from clipboard
 ipcMain.handle('clipboard:read-image', async () => {
@@ -276,6 +285,7 @@ git commit -m "feat(ipc): add clipboard:read-image handler"
 - [ ] **Step 1: Add image-storage:upload handler to handlers.ts**
 
 Add import at top:
+
 ```typescript
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import path from 'path';
@@ -283,18 +293,22 @@ import { randomUUID } from 'crypto';
 ```
 
 Add to `registerIpcHandlers()`:
+
 ```typescript
 // Image storage handlers
-ipcMain.handle('image-storage:upload', async (event, data: { arrayBuffer: ArrayBuffer; mimeType: string }) => {
-  try {
-    const vaultPath = event.senderFrame?.webContents?.getOwnerBrowserWindow()?.getTitle();
-    // Actually we need to pass vaultPath from renderer - update to accept it
-    // For now, we'll need to pass it explicitly
-    return { success: false, error: 'Vault path not provided' };
-  } catch (error) {
-    return { success: false, error: String(error) };
+ipcMain.handle(
+  'image-storage:upload',
+  async (event, data: { arrayBuffer: ArrayBuffer; mimeType: string }) => {
+    try {
+      const vaultPath = event.senderFrame?.webContents?.getOwnerBrowserWindow()?.getTitle();
+      // Actually we need to pass vaultPath from renderer - update to accept it
+      // For now, we'll need to pass it explicitly
+      return { success: false, error: 'Vault path not provided' };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
   }
-});
+);
 
 ipcMain.handle('image-storage:get-config', async (event, vaultPath: string) => {
   try {
@@ -311,25 +325,28 @@ ipcMain.handle('image-storage:get-config', async (event, vaultPath: string) => {
   }
 });
 
-ipcMain.handle('image-storage:set-config', async (event, vaultPath: string, config: ImageStorageConfig) => {
-  try {
-    const configPath = path.join(vaultPath, '.aimo-note/config.json');
-    let existingConfig: Record<string, unknown> = {};
+ipcMain.handle(
+  'image-storage:set-config',
+  async (event, vaultPath: string, config: ImageStorageConfig) => {
     try {
-      const content = await fs.readFile(configPath, 'utf-8');
-      existingConfig = JSON.parse(content);
-    } catch {
-      // File doesn't exist, will be created
+      const configPath = path.join(vaultPath, '.aimo-note/config.json');
+      let existingConfig: Record<string, unknown> = {};
+      try {
+        const content = await fs.readFile(configPath, 'utf-8');
+        existingConfig = JSON.parse(content);
+      } catch {
+        // File doesn't exist, will be created
+      }
+      existingConfig.imageStorage = config;
+      await fs.mkdir(path.dirname(configPath), { recursive: true });
+      await fs.writeFile(configPath, JSON.stringify(existingConfig, null, 2), 'utf-8');
+      return { success: true };
+    } catch (error) {
+      console.error('[IPC] image-storage:set-config error:', error);
+      return { success: false, error: String(error) };
     }
-    existingConfig.imageStorage = config;
-    await fs.mkdir(path.dirname(configPath), { recursive: true });
-    await fs.writeFile(configPath, JSON.stringify(existingConfig, null, 2), 'utf-8');
-    return { success: true };
-  } catch (error) {
-    console.error('[IPC] image-storage:set-config error:', error);
-    return { success: false, error: String(error) };
   }
-});
+);
 ```
 
 **Correction**: The upload handler needs `vaultPath` passed from renderer. Update the preload API to include vaultPath.
@@ -337,6 +354,7 @@ ipcMain.handle('image-storage:set-config', async (event, vaultPath: string, conf
 - [ ] **Step 2: Fix preload API to include vaultPath**
 
 Update preload `imageStorage.upload` to:
+
 ```typescript
 upload: (data: { arrayBuffer: ArrayBuffer; mimeType: string; vaultPath: string }) =>
   ipcRenderer.invoke('image-storage:upload', data),
@@ -347,61 +365,66 @@ Update renderer IPC wrapper accordingly.
 - [ ] **Step 3: Implement the actual local upload logic**
 
 Replace the stub handler with:
+
 ```typescript
-ipcMain.handle('image-storage:upload', async (event, data: { arrayBuffer: ArrayBuffer; mimeType: string; vaultPath: string }) => {
-  const { arrayBuffer, mimeType, vaultPath } = data;
+ipcMain.handle(
+  'image-storage:upload',
+  async (event, data: { arrayBuffer: ArrayBuffer; mimeType: string; vaultPath: string }) => {
+    const { arrayBuffer, mimeType, vaultPath } = data;
 
-  try {
-    // Get image storage config
-    const configPath = path.join(vaultPath, '.aimo-note/config.json');
-    let config: ImageStorageConfig;
     try {
-      const content = await fs.readFile(configPath, 'utf-8');
-      const parsed = JSON.parse(content);
-      config = parsed.imageStorage || { type: 'local', local: { path: 'assets/images' } };
-    } catch {
-      config = { type: 'local', local: { path: 'assets/images' } };
+      // Get image storage config
+      const configPath = path.join(vaultPath, '.aimo-note/config.json');
+      let config: ImageStorageConfig;
+      try {
+        const content = await fs.readFile(configPath, 'utf-8');
+        const parsed = JSON.parse(content);
+        config = parsed.imageStorage || { type: 'local', local: { path: 'assets/images' } };
+      } catch {
+        config = { type: 'local', local: { path: 'assets/images' } };
+      }
+
+      if (config.type === 's3') {
+        // S3 upload handled separately below
+        return { success: false, error: 'S3 not implemented in this handler' };
+      }
+
+      // Local storage
+      const { local } = config;
+      const uuid = randomUUID();
+      const ext = mimeType.split('/')[1] || 'png';
+      const fileName = `${uuid}.${ext}`;
+      const relativePath = path.join(local.path, fileName);
+      const fullPath = path.join(vaultPath, relativePath);
+
+      // Validate path is within vault (prevent path traversal)
+      const normalizedFull = path.normalize(fullPath);
+      const normalizedVault = path.normalize(vaultPath);
+      if (!normalizedFull.startsWith(normalizedVault)) {
+        return { success: false, error: 'Invalid path: traversal detected' };
+      }
+
+      // Ensure directory exists
+      await fs.mkdir(path.dirname(fullPath), { recursive: true });
+
+      // Write file
+      const buffer = Buffer.from(arrayBuffer);
+      await fs.writeFile(fullPath, buffer);
+
+      // Return relative path as URL
+      return { success: true, url: relativePath.replace(/\\/g, '/') };
+    } catch (error) {
+      console.error('[IPC] image-storage:upload error:', error);
+      return { success: false, error: String(error) };
     }
-
-    if (config.type === 's3') {
-      // S3 upload handled separately below
-      return { success: false, error: 'S3 not implemented in this handler' };
-    }
-
-    // Local storage
-    const { local } = config;
-    const uuid = randomUUID();
-    const ext = mimeType.split('/')[1] || 'png';
-    const fileName = `${uuid}.${ext}`;
-    const relativePath = path.join(local.path, fileName);
-    const fullPath = path.join(vaultPath, relativePath);
-
-    // Validate path is within vault (prevent path traversal)
-    const normalizedFull = path.normalize(fullPath);
-    const normalizedVault = path.normalize(vaultPath);
-    if (!normalizedFull.startsWith(normalizedVault)) {
-      return { success: false, error: 'Invalid path: traversal detected' };
-    }
-
-    // Ensure directory exists
-    await fs.mkdir(path.dirname(fullPath), { recursive: true });
-
-    // Write file
-    const buffer = Buffer.from(arrayBuffer);
-    await fs.writeFile(fullPath, buffer);
-
-    // Return relative path as URL
-    return { success: true, url: relativePath.replace(/\\/g, '/') };
-  } catch (error) {
-    console.error('[IPC] image-storage:upload error:', error);
-    return { success: false, error: String(error) };
   }
-});
+);
 ```
 
 - [ ] **Step 4: Add S3 upload logic**
 
 Add after the local storage block:
+
 ```typescript
 if (config.type === 's3') {
   const { s3 } = config;
@@ -438,6 +461,7 @@ if (config.type === 's3') {
 - [ ] **Step 5: Update preload handler signatures to match**
 
 Update preload `imageStorage.upload` signature:
+
 ```typescript
 upload: (data: { arrayBuffer: ArrayBuffer; mimeType: string; vaultPath: string }) =>
   ipcRenderer.invoke('image-storage:upload', data),
@@ -446,6 +470,7 @@ upload: (data: { arrayBuffer: ArrayBuffer; mimeType: string; vaultPath: string }
 - [ ] **Step 6: Update renderer IPC wrapper**
 
 Update `apps/render/src/ipc/image-storage.ts`:
+
 ```typescript
 async upload(data: { arrayBuffer: ArrayBuffer; mimeType: string; vaultPath: string }): Promise<string>
 ```
@@ -462,6 +487,7 @@ git commit -m "feat(ipc): add image-storage handlers with local and S3 upload su
 ## Chunk 3: ImageStorageService
 
 **Files:**
+
 - Create: `apps/render/src/services/image-storage.service.ts` — main service
 
 ### Task 7: Create ImageStorageService
@@ -534,7 +560,7 @@ export class ImageStorageService extends Service {
     // Read image from clipboard
     const imageData = await clipboard.readImage();
     if (!imageData) {
-      return null;  // No image in clipboard
+      return null; // No image in clipboard
     }
 
     // Upload
@@ -556,6 +582,7 @@ export function useImageStorageService(): ImageStorageService {
 - [ ] **Step 2: Register service in main.tsx**
 
 Add to service registration in `apps/render/src/main.tsx`:
+
 ```typescript
 import { ImageStorageService } from './services/image-storage.service';
 
@@ -574,6 +601,7 @@ git commit -m "feat(service): add ImageStorageService"
 ## Chunk 4: Settings UI
 
 **Files:**
+
 - Modify: `apps/render/src/pages/settings/index.tsx` — add Image Storage section
 
 ### Task 8: Add Image Storage settings section
@@ -587,6 +615,7 @@ cat apps/render/src/pages/settings/index.tsx
 - [ ] **Step 2: Add ImageStorageService to settings page**
 
 Update imports and component:
+
 ```typescript
 import { observer } from '@rabjs/react';
 import { useImageStorageService } from '../../services/image-storage.service';
@@ -621,6 +650,7 @@ export const SettingsPage = observer(() => {
 - [ ] **Step 3: Add Image Storage section to JSX**
 
 Add after the Appearance section:
+
 ```tsx
 <section className="settings-section mb-8">
   <h2 className="text-lg font-semibold mb-4 text-text-primary">Image Storage</h2>
@@ -705,7 +735,9 @@ Add after the Appearance section:
         />
       </div>
       <div>
-        <label className="block text-sm font-medium mb-2 text-text-secondary">Endpoint (optional)</label>
+        <label className="block text-sm font-medium mb-2 text-text-secondary">
+          Endpoint (optional)
+        </label>
         <input
           type="text"
           value={imageStorageService.config.s3.endpoint}
@@ -741,6 +773,7 @@ git commit -m "feat(settings): add image storage configuration section"
 ## Chunk 5: Editor Integration
 
 **Files:**
+
 - Modify: `apps/render/src/components/editor/MilkdownEditorInner.tsx` — integrate paste handling
 
 ### Task 9: Integrate paste handling with Milkdown
@@ -754,11 +787,13 @@ cat apps/render/src/components/editor/MilkdownEditorInner.tsx
 - [ ] **Step 2: Add paste handler**
 
 Add to imports:
+
 ```typescript
 import { useImageStorageService } from '../../services/image-storage.service';
 ```
 
 Add inside the component:
+
 ```typescript
 const imageStorageService = useImageStorageService();
 
@@ -769,7 +804,7 @@ const handlePaste = async (event: ClipboardEvent) => {
 
   for (const item of items) {
     if (item.type.startsWith('image/')) {
-      event.preventDefault();  // Prevent default paste
+      event.preventDefault(); // Prevent default paste
 
       try {
         const url = await imageStorageService.uploadFromClipboard();
@@ -840,6 +875,7 @@ Expected: Config saved to `.aimo-note/config.json`.
 ## Dependencies
 
 Before implementing, install the AWS SDK:
+
 ```bash
 pnpm add @aws-sdk/client-s3
 ```

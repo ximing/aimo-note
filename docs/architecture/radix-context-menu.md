@@ -35,9 +35,7 @@ import * as ContextMenuPrimitive from '@radix-ui/react-context-menu';
     {/* 菜单内容容器 */}
     <ContextMenuPrimitive.Content className="your-content-styles">
       {/* 菜单项 */}
-      <ContextMenuPrimitive.Item className="your-item-styles">
-        菜单项 1
-      </ContextMenuPrimitive.Item>
+      <ContextMenuPrimitive.Item className="your-item-styles">菜单项 1</ContextMenuPrimitive.Item>
 
       {/* 分隔线 */}
       <ContextMenuPrimitive.Separator className="your-separator-styles" />
@@ -47,12 +45,10 @@ import * as ContextMenuPrimitive from '@radix-ui/react-context-menu';
         分组名称
       </ContextMenuPrimitive.Label>
 
-      <ContextMenuPrimitive.Item className="your-item-styles">
-        菜单项 2
-      </ContextMenuPrimitive.Item>
+      <ContextMenuPrimitive.Item className="your-item-styles">菜单项 2</ContextMenuPrimitive.Item>
     </ContextMenuPrimitive.Content>
   </ContextMenuPrimitive.Portal>
-</ContextMenuPrimitive.Root>
+</ContextMenuPrimitive.Root>;
 ```
 
 ## 核心 API
@@ -61,40 +57,40 @@ import * as ContextMenuPrimitive from '@radix-ui/react-context-menu';
 
 根容器组件，管理菜单的打开/关闭状态。
 
-| Prop | 类型 | 说明 |
-|------|------|------|
-| `dir` | `'ltr' \| 'rtl'` | 文本方向 |
-| `modal` | `boolean` | 是否为模态菜单（默认 `true`） |
+| Prop    | 类型             | 说明                          |
+| ------- | ---------------- | ----------------------------- |
+| `dir`   | `'ltr' \| 'rtl'` | 文本方向                      |
+| `modal` | `boolean`        | 是否为模态菜单（默认 `true`） |
 
 ### Trigger
 
 触发区域，右键点击时显示菜单。
 
-| Prop | 类型 | 说明 |
-|------|------|------|
+| Prop      | 类型      | 说明                                      |
+| --------- | --------- | ----------------------------------------- |
 | `asChild` | `boolean` | 是否将 props 传递给子元素而非渲染额外 DOM |
 
 ### Content
 
 菜单内容容器。
 
-| Prop | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `loop` | `boolean` | `false` | 是否循环键盘导航 |
-| `alignOffset` | `number` | `0` | 对齐偏移量 |
-| `avoidCollisions` | `boolean` | `true` | 是否避免碰撞 |
-| `collisionPadding` | `number` | `0` | 碰撞边距 |
-| `onCloseAutoFocus` | `function` | - | 关闭时自动聚焦回调 |
+| Prop               | 类型       | 默认值  | 说明               |
+| ------------------ | ---------- | ------- | ------------------ |
+| `loop`             | `boolean`  | `false` | 是否循环键盘导航   |
+| `alignOffset`      | `number`   | `0`     | 对齐偏移量         |
+| `avoidCollisions`  | `boolean`  | `true`  | 是否避免碰撞       |
+| `collisionPadding` | `number`   | `0`     | 碰撞边距           |
+| `onCloseAutoFocus` | `function` | -       | 关闭时自动聚焦回调 |
 
 ### Item
 
 菜单项。
 
-| Prop | 类型 | 说明 |
-|------|------|------|
-| `disabled` | `boolean` | 是否禁用 |
-| `onSelect` | `function` | 选择时回调 |
-| `textValue` | `string` | 用于搜索的文本值 |
+| Prop        | 类型       | 说明             |
+| ----------- | ---------- | ---------------- |
+| `disabled`  | `boolean`  | 是否禁用         |
+| `onSelect`  | `function` | 选择时回调       |
+| `textValue` | `string`   | 用于搜索的文本值 |
 
 **Data Attributes:**
 
@@ -137,16 +133,16 @@ function TreeNodeContextMenu({
 }: TreeNodeContextMenuProps) {
   return (
     <ContextMenuPrimitive.Root>
-      <ContextMenuPrimitive.Trigger asChild>
-        {children}
-      </ContextMenuPrimitive.Trigger>
+      <ContextMenuPrimitive.Trigger asChild>{children}</ContextMenuPrimitive.Trigger>
       <ContextMenuPrimitive.Portal>
         <ContextMenuPrimitive.Content className={contentClassName} collisionPadding={8}>
           <ContextMenuPrimitive.Item
             className={itemClassName}
             onSelect={() => onNewFile(targetPath)}
           >
-            <span className="w-4"><FileText size={14} /></span>
+            <span className="w-4">
+              <FileText size={14} />
+            </span>
             新建文件
           </ContextMenuPrimitive.Item>
           {/* 更多菜单项... */}
@@ -201,11 +197,7 @@ function ContextMenu({ x, y, onClose, ...props }) {
   }, [onClose]);
 
   return (
-    <div
-      ref={menuRef}
-      className={contentClassName}
-      style={{ left: x, top: y, position: 'fixed' }}
-    >
+    <div ref={menuRef} className={contentClassName} style={{ left: x, top: y, position: 'fixed' }}>
       {/* 菜单项... */}
     </div>
   );
@@ -293,7 +285,8 @@ const itemClassName =
 
 const separatorClassName = 'h-px bg-border my-1 mx-1';
 
-const labelClassName = 'px-3 py-1.5 text-xs font-medium text-text-secondary uppercase tracking-wide';
+const labelClassName =
+  'px-3 py-1.5 text-xs font-medium text-text-secondary uppercase tracking-wide';
 ```
 
 ## 子菜单
@@ -312,9 +305,7 @@ const labelClassName = 'px-3 py-1.5 text-xs font-medium text-text-secondary uppe
 
       {/* 子菜单 */}
       <ContextMenuPrimitive.Sub>
-        <ContextMenuPrimitive.SubTrigger>
-          更多选项 →
-        </ContextMenuPrimitive.SubTrigger>
+        <ContextMenuPrimitive.SubTrigger>更多选项 →</ContextMenuPrimitive.SubTrigger>
 
         <ContextMenuPrimitive.Portal>
           <ContextMenuPrimitive.SubContent>

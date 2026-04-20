@@ -1,645 +1,792 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>aimo-note 主题预览</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --vue-green: #42b883;
-      --vue-green-light: #5fc495;
-      --vue-green-dark: #3a9a6e;
-    }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>aimo-note 主题预览</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --vue-green: #42b883;
+        --vue-green-light: #5fc495;
+        --vue-green-dark: #3a9a6e;
+      }
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
 
-    body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      padding: 40px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 40px;
-    }
+      body {
+        font-family:
+          'Inter',
+          -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
+        padding: 40px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 40px;
+      }
 
-    h1 { font-size: 24px; font-weight: 700; margin-bottom: 20px; }
+      h1 {
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 20px;
+      }
 
-    /* ============ Light Theme ============ */
-    .light {
-      --bg-primary: #ffffff;
-      --bg-secondary: #f8f9fa;
-      --bg-tertiary: #f1f3f5;
-      --text-primary: #1f2937;
-      --text-secondary: #6b7280;
-      --text-muted: #9ca3af;
-      --border: #e5e7eb;
-      --border-light: #f3f4f6;
-      --accent: #42b883;
-      --accent-light: #d1fae5;
-      --accent-hover: #3a9a6e;
-      --shadow: rgba(0, 0, 0, 0.08);
-      --shadow-lg: rgba(0, 0, 0, 0.12);
-    }
+      /* ============ Light Theme ============ */
+      .light {
+        --bg-primary: #ffffff;
+        --bg-secondary: #f8f9fa;
+        --bg-tertiary: #f1f3f5;
+        --text-primary: #1f2937;
+        --text-secondary: #6b7280;
+        --text-muted: #9ca3af;
+        --border: #e5e7eb;
+        --border-light: #f3f4f6;
+        --accent: #42b883;
+        --accent-light: #d1fae5;
+        --accent-hover: #3a9a6e;
+        --shadow: rgba(0, 0, 0, 0.08);
+        --shadow-lg: rgba(0, 0, 0, 0.12);
+      }
 
-    /* ============ Dark Theme ============ */
-    .dark {
-      --bg-primary: #1a1a2e;
-      --bg-secondary: #16162a;
-      --bg-tertiary: #0f0f1a;
-      --text-primary: #e5e7eb;
-      --text-secondary: #9ca3af;
-      --text-muted: #6b7280;
-      --border: #2d2d44;
-      --border-light: #252540;
-      --accent: #5fc495;
-      --accent-light: #1a3a2a;
-      --accent-hover: #6dd5a8;
-      --shadow: rgba(0, 0, 0, 0.3);
-      --shadow-lg: rgba(0, 0, 0, 0.5);
-    }
+      /* ============ Dark Theme ============ */
+      .dark {
+        --bg-primary: #1a1a2e;
+        --bg-secondary: #16162a;
+        --bg-tertiary: #0f0f1a;
+        --text-primary: #e5e7eb;
+        --text-secondary: #9ca3af;
+        --text-muted: #6b7280;
+        --border: #2d2d44;
+        --border-light: #252540;
+        --accent: #5fc495;
+        --accent-light: #1a3a2a;
+        --accent-hover: #6dd5a8;
+        --shadow: rgba(0, 0, 0, 0.3);
+        --shadow-lg: rgba(0, 0, 0, 0.5);
+      }
 
-    .theme-card {
-      width: 100%;
-      max-width: 900px;
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      border-radius: 16px;
-      padding: 32px;
-      box-shadow: 0 4px 24px var(--shadow);
-    }
+      .theme-card {
+        width: 100%;
+        max-width: 900px;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        border-radius: 16px;
+        padding: 32px;
+        box-shadow: 0 4px 24px var(--shadow);
+      }
 
-    .theme-card h2 {
-      font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 24px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
+      .theme-card h2 {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
 
-    .theme-card h2::before {
-      content: '';
-      width: 4px;
-      height: 20px;
-      background: var(--accent);
-      border-radius: 2px;
-    }
+      .theme-card h2::before {
+        content: '';
+        width: 4px;
+        height: 20px;
+        background: var(--accent);
+        border-radius: 2px;
+      }
 
-    .section {
-      margin-bottom: 28px;
-    }
+      .section {
+        margin-bottom: 28px;
+      }
 
-    .section-title {
-      font-size: 12px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--text-muted);
-      margin-bottom: 12px;
-    }
+      .section-title {
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted);
+        margin-bottom: 12px;
+      }
 
-    /* Color Swatches */
-    .color-row {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
+      /* Color Swatches */
+      .color-row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
 
-    .color-swatch {
-      width: 80px;
-      text-align: center;
-    }
+      .color-swatch {
+        width: 80px;
+        text-align: center;
+      }
 
-    .swatch-box {
-      width: 80px;
-      height: 80px;
-      border-radius: 12px;
-      margin-bottom: 8px;
-      box-shadow: 0 2px 8px var(--shadow);
-      border: 1px solid var(--border);
-    }
+      .swatch-box {
+        width: 80px;
+        height: 80px;
+        border-radius: 12px;
+        margin-bottom: 8px;
+        box-shadow: 0 2px 8px var(--shadow);
+        border: 1px solid var(--border);
+      }
 
-    .swatch-label {
-      font-size: 11px;
-      color: var(--text-secondary);
-    }
+      .swatch-label {
+        font-size: 11px;
+        color: var(--text-secondary);
+      }
 
-    .swatch-hex {
-      font-size: 10px;
-      font-family: 'SF Mono', monospace;
-      color: var(--text-muted);
-    }
+      .swatch-hex {
+        font-size: 10px;
+        font-family: 'SF Mono', monospace;
+        color: var(--text-muted);
+      }
 
-    /* UI Components Preview */
-    .ui-row {
-      display: flex;
-      gap: 16px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
+      /* UI Components Preview */
+      .ui-row {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
 
-    .btn {
-      padding: 10px 20px;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s;
-      border: none;
-    }
+      .btn {
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+      }
 
-    .btn-primary {
-      background: var(--accent);
-      color: white;
-    }
+      .btn-primary {
+        background: var(--accent);
+        color: white;
+      }
 
-    .btn-primary:hover {
-      background: var(--accent-hover);
-      transform: translateY(-1px);
-    }
+      .btn-primary:hover {
+        background: var(--accent-hover);
+        transform: translateY(-1px);
+      }
 
-    .btn-secondary {
-      background: var(--bg-tertiary);
-      color: var(--text-primary);
-      border: 1px solid var(--border);
-    }
+      .btn-secondary {
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
+        border: 1px solid var(--border);
+      }
 
-    .btn-secondary:hover {
-      background: var(--border);
-    }
+      .btn-secondary:hover {
+        background: var(--border);
+      }
 
-    .input {
-      padding: 10px 14px;
-      border-radius: 8px;
-      border: 1px solid var(--border);
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      font-size: 14px;
-      outline: none;
-      transition: border-color 0.2s;
-    }
+      .input {
+        padding: 10px 14px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.2s;
+      }
 
-    .input:focus {
-      border-color: var(--accent);
-    }
+      .input:focus {
+        border-color: var(--accent);
+      }
 
-    .input::placeholder {
-      color: var(--text-muted);
-    }
+      .input::placeholder {
+        color: var(--text-muted);
+      }
 
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 4px 10px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 500;
-    }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+      }
 
-    .badge-accent {
-      background: var(--accent-light);
-      color: var(--accent);
-    }
+      .badge-accent {
+        background: var(--accent-light);
+        color: var(--accent);
+      }
 
-    /* Sidebar Preview */
-    .sidebar-preview {
-      display: flex;
-      gap: 12px;
-      background: var(--bg-secondary);
-      border-radius: 12px;
-      padding: 12px;
-      border: 1px solid var(--border);
-    }
+      /* Sidebar Preview */
+      .sidebar-preview {
+        display: flex;
+        gap: 12px;
+        background: var(--bg-secondary);
+        border-radius: 12px;
+        padding: 12px;
+        border: 1px solid var(--border);
+      }
 
-    .sidebar-item {
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 13px;
-      color: var(--text-secondary);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
+      .sidebar-item {
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        color: var(--text-secondary);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
 
-    .sidebar-item.active {
-      background: var(--accent);
-      color: white;
-    }
+      .sidebar-item.active {
+        background: var(--accent);
+        color: white;
+      }
 
-    .sidebar-item:hover:not(.active) {
-      background: var(--bg-tertiary);
-    }
+      .sidebar-item:hover:not(.active) {
+        background: var(--bg-tertiary);
+      }
 
-    /* Card Component */
-    .card {
-      background: var(--bg-secondary);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 16px;
-    }
+      /* Card Component */
+      .card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+      }
 
-    .card-title {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--text-primary);
-      margin-bottom: 6px;
-    }
+      .card-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 6px;
+      }
 
-    .card-desc {
-      font-size: 13px;
-      color: var(--text-secondary);
-    }
+      .card-desc {
+        font-size: 13px;
+        color: var(--text-secondary);
+      }
 
-    /* Divider */
-    .divider {
-      height: 1px;
-      background: var(--border);
-      margin: 20px 0;
-    }
+      /* Divider */
+      .divider {
+        height: 1px;
+        background: var(--border);
+        margin: 20px 0;
+      }
 
-    /* Tab Preview */
-    .tabs {
-      display: flex;
-      gap: 4px;
-      background: var(--bg-tertiary);
-      padding: 4px;
-      border-radius: 8px;
-    }
+      /* Tab Preview */
+      .tabs {
+        display: flex;
+        gap: 4px;
+        background: var(--bg-tertiary);
+        padding: 4px;
+        border-radius: 8px;
+      }
 
-    .tab {
-      padding: 8px 16px;
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text-secondary);
-      cursor: pointer;
-    }
+      .tab {
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-secondary);
+        cursor: pointer;
+      }
 
-    .tab.active {
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      box-shadow: 0 1px 3px var(--shadow);
-    }
+      .tab.active {
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        box-shadow: 0 1px 3px var(--shadow);
+      }
 
-    /* Toggle Preview */
-    .toggle-row {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
+      /* Toggle Preview */
+      .toggle-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
 
-    .toggle {
-      width: 44px;
-      height: 24px;
-      background: var(--border);
-      border-radius: 12px;
-      position: relative;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
+      .toggle {
+        width: 44px;
+        height: 24px;
+        background: var(--border);
+        border-radius: 12px;
+        position: relative;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
 
-    .toggle::after {
-      content: '';
-      position: absolute;
-      width: 18px;
-      height: 18px;
-      background: white;
-      border-radius: 50%;
-      top: 3px;
-      left: 3px;
-      transition: transform 0.2s;
-    }
+      .toggle::after {
+        content: '';
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        background: white;
+        border-radius: 50%;
+        top: 3px;
+        left: 3px;
+        transition: transform 0.2s;
+      }
 
-    .toggle.on {
-      background: var(--accent);
-    }
+      .toggle.on {
+        background: var(--accent);
+      }
 
-    .toggle.on::after {
-      transform: translateX(20px);
-    }
+      .toggle.on::after {
+        transform: translateX(20px);
+      }
 
-    /* Grid Layout for Color Palette */
-    .palette-grid {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 8px;
-    }
+      /* Grid Layout for Color Palette */
+      .palette-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 8px;
+      }
 
-    .palette-item {
-      text-align: center;
-    }
+      .palette-item {
+        text-align: center;
+      }
 
-    .palette-box {
-      height: 48px;
-      border-radius: 8px;
-      margin-bottom: 6px;
-      border: 1px solid var(--border-light);
-    }
+      .palette-box {
+        height: 48px;
+        border-radius: 8px;
+        margin-bottom: 6px;
+        border: 1px solid var(--border-light);
+      }
 
-    .palette-label {
-      font-size: 10px;
-      color: var(--text-muted);
-    }
+      .palette-label {
+        font-size: 10px;
+        color: var(--text-muted);
+      }
 
-    /* Vue Green Shades */
-    .vue-green-50 { background: #f0fdf4; }
-    .vue-green-100 { background: #dcfce7; }
-    .vue-green-200 { background: #bbf7d0; }
-    .vue-green-300 { background: #86efac; }
-    .vue-green-400 { background: #4ade80; }
-    .vue-green-500 { background: #42b883; }
-    .vue-green-600 { background: #3a9a6e; }
-    .vue-green-700 { background: #2f7a5a; }
-    .vue-green-800 { background: #245a46; }
-    .vue-green-900 { background: #164332; }
+      /* Vue Green Shades */
+      .vue-green-50 {
+        background: #f0fdf4;
+      }
+      .vue-green-100 {
+        background: #dcfce7;
+      }
+      .vue-green-200 {
+        background: #bbf7d0;
+      }
+      .vue-green-300 {
+        background: #86efac;
+      }
+      .vue-green-400 {
+        background: #4ade80;
+      }
+      .vue-green-500 {
+        background: #42b883;
+      }
+      .vue-green-600 {
+        background: #3a9a6e;
+      }
+      .vue-green-700 {
+        background: #2f7a5a;
+      }
+      .vue-green-800 {
+        background: #245a46;
+      }
+      .vue-green-900 {
+        background: #164332;
+      }
 
-    /* Preview Footer */
-    .preview-footer {
-      margin-top: 20px;
-      padding-top: 20px;
-      border-top: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
+      /* Preview Footer */
+      .preview-footer {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
 
-    .meta {
-      font-size: 12px;
-      color: var(--text-muted);
-    }
-  </style>
-</head>
-<body>
-
-<!-- Vue Green Palette Reference -->
-<div class="theme-card">
-  <h2>Vue 绿渐变色板</h2>
-  <div class="palette-grid">
-    <div class="palette-item"><div class="palette-box vue-green-50"></div><div class="palette-label">50</div></div>
-    <div class="palette-item"><div class="palette-box vue-green-100"></div><div class="palette-label">100</div></div>
-    <div class="palette-item"><div class="palette-box vue-green-200"></div><div class="palette-label">200</div></div>
-    <div class="palette-item"><div class="palette-box vue-green-300"></div><div class="palette-label">300</div></div>
-    <div class="palette-item"><div class="palette-box vue-green-400"></div><div class="palette-label">400</div></div>
-    <div class="palette-item"><div class="palette-box vue-green-500"></div><div class="palette-label">500</div></div>
-    <div class="palette-item"><div class="palette-box vue-green-600"></div><div class="palette-label">600</div></div>
-    <div class="palette-item"><div class="palette-box vue-green-700"></div><div class="palette-label">700</div></div>
-    <div class="palette-item"><div class="palette-box vue-green-800"></div><div class="palette-label">800</div></div>
-    <div class="palette-item"><div class="palette-box vue-green-900"></div><div class="palette-label">900</div></div>
-  </div>
-  <p class="meta" style="margin-top: 12px;">Primary: #42b883 | Light: #5fc495 | Dark: #3a9a6e</p>
-</div>
-
-<!-- Light Theme -->
-<div class="light">
-  <div class="theme-card">
-    <h2>Light Theme</h2>
-
-    <div class="section">
-      <div class="section-title">Background Colors</div>
-      <div class="color-row">
-        <div class="color-swatch">
-          <div class="swatch-box" style="background: var(--bg-primary)"></div>
-          <div class="swatch-label">Primary</div>
-          <div class="swatch-hex">#ffffff</div>
+      .meta {
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Vue Green Palette Reference -->
+    <div class="theme-card">
+      <h2>Vue 绿渐变色板</h2>
+      <div class="palette-grid">
+        <div class="palette-item">
+          <div class="palette-box vue-green-50"></div>
+          <div class="palette-label">50</div>
         </div>
-        <div class="color-swatch">
-          <div class="swatch-box" style="background: var(--bg-secondary)"></div>
-          <div class="swatch-label">Secondary</div>
-          <div class="swatch-hex">#f8f9fa</div>
+        <div class="palette-item">
+          <div class="palette-box vue-green-100"></div>
+          <div class="palette-label">100</div>
         </div>
-        <div class="color-swatch">
-          <div class="swatch-box" style="background: var(--bg-tertiary)"></div>
-          <div class="swatch-label">Tertiary</div>
-          <div class="swatch-hex">#f1f3f5</div>
+        <div class="palette-item">
+          <div class="palette-box vue-green-200"></div>
+          <div class="palette-label">200</div>
+        </div>
+        <div class="palette-item">
+          <div class="palette-box vue-green-300"></div>
+          <div class="palette-label">300</div>
+        </div>
+        <div class="palette-item">
+          <div class="palette-box vue-green-400"></div>
+          <div class="palette-label">400</div>
+        </div>
+        <div class="palette-item">
+          <div class="palette-box vue-green-500"></div>
+          <div class="palette-label">500</div>
+        </div>
+        <div class="palette-item">
+          <div class="palette-box vue-green-600"></div>
+          <div class="palette-label">600</div>
+        </div>
+        <div class="palette-item">
+          <div class="palette-box vue-green-700"></div>
+          <div class="palette-label">700</div>
+        </div>
+        <div class="palette-item">
+          <div class="palette-box vue-green-800"></div>
+          <div class="palette-label">800</div>
+        </div>
+        <div class="palette-item">
+          <div class="palette-box vue-green-900"></div>
+          <div class="palette-label">900</div>
+        </div>
+      </div>
+      <p class="meta" style="margin-top: 12px">Primary: #42b883 | Light: #5fc495 | Dark: #3a9a6e</p>
+    </div>
+
+    <!-- Light Theme -->
+    <div class="light">
+      <div class="theme-card">
+        <h2>Light Theme</h2>
+
+        <div class="section">
+          <div class="section-title">Background Colors</div>
+          <div class="color-row">
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: var(--bg-primary)"></div>
+              <div class="swatch-label">Primary</div>
+              <div class="swatch-hex">#ffffff</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: var(--bg-secondary)"></div>
+              <div class="swatch-label">Secondary</div>
+              <div class="swatch-hex">#f8f9fa</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: var(--bg-tertiary)"></div>
+              <div class="swatch-label">Tertiary</div>
+              <div class="swatch-hex">#f1f3f5</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Text Colors</div>
+          <div class="color-row">
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: var(--text-primary)"></div>
+              <div class="swatch-label">Primary</div>
+              <div class="swatch-hex">#1f2937</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: var(--text-secondary)"></div>
+              <div class="swatch-label">Secondary</div>
+              <div class="swatch-hex">#6b7280</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: var(--text-muted)"></div>
+              <div class="swatch-label">Muted</div>
+              <div class="swatch-hex">#9ca3af</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Accent (Vue Green)</div>
+          <div class="color-row">
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: var(--accent)"></div>
+              <div class="swatch-label">Accent</div>
+              <div class="swatch-hex">#42b883</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: var(--accent-light)"></div>
+              <div class="swatch-label">Accent Light</div>
+              <div class="swatch-hex">#d1fae5</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: var(--accent-hover)"></div>
+              <div class="swatch-label">Hover</div>
+              <div class="swatch-hex">#3a9a6e</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">UI Components</div>
+          <div class="ui-row">
+            <button class="btn btn-primary">Primary Button</button>
+            <button class="btn btn-secondary">Secondary</button>
+            <input
+              type="text"
+              class="input"
+              placeholder="Input placeholder..."
+              style="width: 200px"
+            />
+            <span class="badge badge-accent">Badge</span>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Sidebar Preview</div>
+          <div class="sidebar-preview">
+            <div class="sidebar-item active">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+              </svg>
+              Home
+            </div>
+            <div class="sidebar-item">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              </svg>
+              Editor
+            </div>
+            <div class="sidebar-item">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="10"></circle>
+              </svg>
+              Graph
+            </div>
+            <div class="sidebar-item">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
+              </svg>
+              Search
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Card & Toggle</div>
+          <div style="display: flex; gap: 16px; align-items: center">
+            <div class="card" style="flex: 1">
+              <div class="card-title">Card Title</div>
+              <div class="card-desc">This is a description text for the card component.</div>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle on"></div>
+              <span style="font-size: 14px; color: var(--text-secondary)">Enable</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Tabs</div>
+          <div class="tabs">
+            <div class="tab active">Tab A</div>
+            <div class="tab">Tab B</div>
+            <div class="tab">Tab C</div>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="section">
-      <div class="section-title">Text Colors</div>
-      <div class="color-row">
-        <div class="color-swatch">
-          <div class="swatch-box" style="background: var(--text-primary)"></div>
-          <div class="swatch-label">Primary</div>
-          <div class="swatch-hex">#1f2937</div>
+    <!-- Dark Theme -->
+    <div class="dark">
+      <div class="theme-card">
+        <h2>Dark Theme</h2>
+
+        <div class="section">
+          <div class="section-title">Background Colors</div>
+          <div class="color-row">
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: var(--bg-primary)"></div>
+              <div class="swatch-label">Primary</div>
+              <div class="swatch-hex">#1a1a2e</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: var(--bg-secondary)"></div>
+              <div class="swatch-label">Secondary</div>
+              <div class="swatch-hex">#16162a</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: var(--bg-tertiary)"></div>
+              <div class="swatch-label">Tertiary</div>
+              <div class="swatch-hex">#0f0f1a</div>
+            </div>
+          </div>
         </div>
-        <div class="color-swatch">
-          <div class="swatch-box" style="background: var(--text-secondary)"></div>
-          <div class="swatch-label">Secondary</div>
-          <div class="swatch-hex">#6b7280</div>
+
+        <div class="section">
+          <div class="section-title">Text Colors</div>
+          <div class="color-row">
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: var(--text-primary)"></div>
+              <div class="swatch-label">Primary</div>
+              <div class="swatch-hex">#e5e7eb</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: var(--text-secondary)"></div>
+              <div class="swatch-label">Secondary</div>
+              <div class="swatch-hex">#9ca3af</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: var(--text-muted)"></div>
+              <div class="swatch-label">Muted</div>
+              <div class="swatch-hex">#6b7280</div>
+            </div>
+          </div>
         </div>
-        <div class="color-swatch">
-          <div class="swatch-box" style="background: var(--text-muted)"></div>
-          <div class="swatch-label">Muted</div>
-          <div class="swatch-hex">#9ca3af</div>
+
+        <div class="section">
+          <div class="section-title">Accent (Vue Green Light)</div>
+          <div class="color-row">
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: var(--accent)"></div>
+              <div class="swatch-label">Accent</div>
+              <div class="swatch-hex">#5fc495</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: var(--accent-light)"></div>
+              <div class="swatch-label">Accent Light</div>
+              <div class="swatch-hex">#1a3a2a</div>
+            </div>
+            <div class="color-swatch">
+              <div class="swatch-box" style="background: var(--accent-hover)"></div>
+              <div class="swatch-label">Hover</div>
+              <div class="swatch-hex">#6dd5a8</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">UI Components</div>
+          <div class="ui-row">
+            <button class="btn btn-primary">Primary Button</button>
+            <button class="btn btn-secondary">Secondary</button>
+            <input
+              type="text"
+              class="input"
+              placeholder="Input placeholder..."
+              style="width: 200px"
+            />
+            <span class="badge badge-accent">Badge</span>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Sidebar Preview</div>
+          <div class="sidebar-preview">
+            <div class="sidebar-item active">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+              </svg>
+              Home
+            </div>
+            <div class="sidebar-item">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              </svg>
+              Editor
+            </div>
+            <div class="sidebar-item">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="10"></circle>
+              </svg>
+              Graph
+            </div>
+            <div class="sidebar-item">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
+              </svg>
+              Search
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Card & Toggle</div>
+          <div style="display: flex; gap: 16px; align-items: center">
+            <div class="card" style="flex: 1">
+              <div class="card-title">Card Title</div>
+              <div class="card-desc">This is a description text for the card component.</div>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle on"></div>
+              <span style="font-size: 14px; color: var(--text-secondary)">Enable</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Tabs</div>
+          <div class="tabs">
+            <div class="tab active">Tab A</div>
+            <div class="tab">Tab B</div>
+            <div class="tab">Tab C</div>
+          </div>
         </div>
       </div>
     </div>
-
-    <div class="section">
-      <div class="section-title">Accent (Vue Green)</div>
-      <div class="color-row">
-        <div class="color-swatch">
-          <div class="swatch-box" style="background: var(--accent)"></div>
-          <div class="swatch-label">Accent</div>
-          <div class="swatch-hex">#42b883</div>
-        </div>
-        <div class="color-swatch">
-          <div class="swatch-box" style="background: var(--accent-light)"></div>
-          <div class="swatch-label">Accent Light</div>
-          <div class="swatch-hex">#d1fae5</div>
-        </div>
-        <div class="color-swatch">
-          <div class="swatch-box" style="background: var(--accent-hover)"></div>
-          <div class="swatch-label">Hover</div>
-          <div class="swatch-hex">#3a9a6e</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-title">UI Components</div>
-      <div class="ui-row">
-        <button class="btn btn-primary">Primary Button</button>
-        <button class="btn btn-secondary">Secondary</button>
-        <input type="text" class="input" placeholder="Input placeholder..." style="width: 200px;">
-        <span class="badge badge-accent">Badge</span>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-title">Sidebar Preview</div>
-      <div class="sidebar-preview">
-        <div class="sidebar-item active">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
-          Home
-        </div>
-        <div class="sidebar-item">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path></svg>
-          Editor
-        </div>
-        <div class="sidebar-item">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle></svg>
-          Graph
-        </div>
-        <div class="sidebar-item">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
-          Search
-        </div>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-title">Card & Toggle</div>
-      <div style="display: flex; gap: 16px; align-items: center;">
-        <div class="card" style="flex: 1;">
-          <div class="card-title">Card Title</div>
-          <div class="card-desc">This is a description text for the card component.</div>
-        </div>
-        <div class="toggle-row">
-          <div class="toggle on"></div>
-          <span style="font-size: 14px; color: var(--text-secondary);">Enable</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-title">Tabs</div>
-      <div class="tabs">
-        <div class="tab active">Tab A</div>
-        <div class="tab">Tab B</div>
-        <div class="tab">Tab C</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Dark Theme -->
-<div class="dark">
-  <div class="theme-card">
-    <h2>Dark Theme</h2>
-
-    <div class="section">
-      <div class="section-title">Background Colors</div>
-      <div class="color-row">
-        <div class="color-swatch">
-          <div class="swatch-box" style="background: var(--bg-primary)"></div>
-          <div class="swatch-label">Primary</div>
-          <div class="swatch-hex">#1a1a2e</div>
-        </div>
-        <div class="color-swatch">
-          <div class="swatch-box" style="background: var(--bg-secondary)"></div>
-          <div class="swatch-label">Secondary</div>
-          <div class="swatch-hex">#16162a</div>
-        </div>
-        <div class="color-swatch">
-          <div class="swatch-box" style="background: var(--bg-tertiary)"></div>
-          <div class="swatch-label">Tertiary</div>
-          <div class="swatch-hex">#0f0f1a</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-title">Text Colors</div>
-      <div class="color-row">
-        <div class="color-swatch">
-          <div class="swatch-box" style="background: var(--text-primary)"></div>
-          <div class="swatch-label">Primary</div>
-          <div class="swatch-hex">#e5e7eb</div>
-        </div>
-        <div class="color-swatch">
-          <div class="swatch-box" style="background: var(--text-secondary)"></div>
-          <div class="swatch-label">Secondary</div>
-          <div class="swatch-hex">#9ca3af</div>
-        </div>
-        <div class="color-swatch">
-          <div class="swatch-box" style="background: var(--text-muted)"></div>
-          <div class="swatch-label">Muted</div>
-          <div class="swatch-hex">#6b7280</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-title">Accent (Vue Green Light)</div>
-      <div class="color-row">
-        <div class="color-swatch">
-          <div class="swatch-box" style="background: var(--accent)"></div>
-          <div class="swatch-label">Accent</div>
-          <div class="swatch-hex">#5fc495</div>
-        </div>
-        <div class="color-swatch">
-          <div class="swatch-box" style="background: var(--accent-light)"></div>
-          <div class="swatch-label">Accent Light</div>
-          <div class="swatch-hex">#1a3a2a</div>
-        </div>
-        <div class="color-swatch">
-          <div class="swatch-box" style="background: var(--accent-hover)"></div>
-          <div class="swatch-label">Hover</div>
-          <div class="swatch-hex">#6dd5a8</div>
-        </div>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-title">UI Components</div>
-      <div class="ui-row">
-        <button class="btn btn-primary">Primary Button</button>
-        <button class="btn btn-secondary">Secondary</button>
-        <input type="text" class="input" placeholder="Input placeholder..." style="width: 200px;">
-        <span class="badge badge-accent">Badge</span>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-title">Sidebar Preview</div>
-      <div class="sidebar-preview">
-        <div class="sidebar-item active">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
-          Home
-        </div>
-        <div class="sidebar-item">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path></svg>
-          Editor
-        </div>
-        <div class="sidebar-item">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle></svg>
-          Graph
-        </div>
-        <div class="sidebar-item">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
-          Search
-        </div>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-title">Card & Toggle</div>
-      <div style="display: flex; gap: 16px; align-items: center;">
-        <div class="card" style="flex: 1;">
-          <div class="card-title">Card Title</div>
-          <div class="card-desc">This is a description text for the card component.</div>
-        </div>
-        <div class="toggle-row">
-          <div class="toggle on"></div>
-          <span style="font-size: 14px; color: var(--text-secondary);">Enable</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-title">Tabs</div>
-      <div class="tabs">
-        <div class="tab active">Tab A</div>
-        <div class="tab">Tab B</div>
-        <div class="tab">Tab C</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-</body>
+  </body>
 </html>

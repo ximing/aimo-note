@@ -19,7 +19,9 @@ const TEMPLATE_EXT = '.md';
 async function rgFiles(args: string[]): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     if (!rgPath) {
-      reject(new Error('Ripgrep binary not found. Please ensure @vscode/ripgrep is properly installed.'));
+      reject(
+        new Error('Ripgrep binary not found. Please ensure @vscode/ripgrep is properly installed.')
+      );
       return;
     }
 
@@ -331,19 +333,26 @@ export function registerIpcHandlers(): void {
     }
   });
 
-  ipcMain.handle('vault:writeNote', async (_event, vaultPath: string, filePath: string, content: string) => {
-    console.log('[IPC] vault:writeNote called', { vaultPath, filePath, contentLength: content.length });
-    try {
-      const fullPath = path.join(vaultPath, filePath);
-      console.log('[IPC] Writing to fullPath:', fullPath);
-      await fs.mkdir(path.dirname(fullPath), { recursive: true });
-      await fs.writeFile(fullPath, content, 'utf-8');
-      return { success: true };
-    } catch (error) {
-      console.error('[IPC] vault:writeNote error:', error);
-      return { success: false, error: String(error) };
+  ipcMain.handle(
+    'vault:writeNote',
+    async (_event, vaultPath: string, filePath: string, content: string) => {
+      console.log('[IPC] vault:writeNote called', {
+        vaultPath,
+        filePath,
+        contentLength: content.length,
+      });
+      try {
+        const fullPath = path.join(vaultPath, filePath);
+        console.log('[IPC] Writing to fullPath:', fullPath);
+        await fs.mkdir(path.dirname(fullPath), { recursive: true });
+        await fs.writeFile(fullPath, content, 'utf-8');
+        return { success: true };
+      } catch (error) {
+        console.error('[IPC] vault:writeNote error:', error);
+        return { success: false, error: String(error) };
+      }
     }
-  });
+  );
 
   ipcMain.handle('vault:delete', async (_event, vaultPath: string, filePath: string) => {
     try {
@@ -355,16 +364,19 @@ export function registerIpcHandlers(): void {
     }
   });
 
-  ipcMain.handle('vault:rename', async (_event, vaultPath: string, oldPath: string, newPath: string) => {
-    try {
-      const fullOldPath = path.join(vaultPath, oldPath);
-      const fullNewPath = path.join(vaultPath, newPath);
-      await fs.rename(fullOldPath, fullNewPath);
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: String(error) };
+  ipcMain.handle(
+    'vault:rename',
+    async (_event, vaultPath: string, oldPath: string, newPath: string) => {
+      try {
+        const fullOldPath = path.join(vaultPath, oldPath);
+        const fullNewPath = path.join(vaultPath, newPath);
+        await fs.rename(fullOldPath, fullNewPath);
+        return { success: true };
+      } catch (error) {
+        return { success: false, error: String(error) };
+      }
     }
-  });
+  );
 
   ipcMain.handle('vault:createFolder', async (_event, vaultPath: string, folderPath: string) => {
     try {
@@ -402,83 +414,89 @@ export function registerIpcHandlers(): void {
   });
 
   // Search handlers (core search operations)
-  ipcMain.handle('search:search', async (_event, options: {
-    query: string;
-    rootPath: string;
-    caseSensitive: boolean;
-    isRegex: boolean;
-  }) => {
-    const { query, rootPath, caseSensitive, isRegex } = options;
+  ipcMain.handle(
+    'search:search',
+    async (
+      _event,
+      options: {
+        query: string;
+        rootPath: string;
+        caseSensitive: boolean;
+        isRegex: boolean;
+      }
+    ) => {
+      const { query, rootPath, caseSensitive, isRegex } = options;
 
-    if (!query || !rootPath) {
-      return { success: true, results: [] };
-    }
-
-    try {
-      const args = [
-        '--heading',
-        '--json',
-        '--max-count=10',
-        '--glob=!.*',  // Skip .* directories
-        '--glob=!node_modules',
-        query,
-        rootPath,
-      ];
-
-      if (!caseSensitive) {
-        args.push('--ignore-case');
+      if (!query || !rootPath) {
+        return { success: true, results: [] };
       }
 
-      if (!isRegex) {
-        args.push('--fixed-strings');
-      }
+      try {
+        const args = [
+          '--heading',
+          '--json',
+          '--max-count=10',
+          '--glob=!.*', // Skip .* directories
+          '--glob=!node_modules',
+          query,
+          rootPath,
+        ];
 
-      // Use high-level rgFiles API from vscode-ripgrep wrapper
-      const output = await rgFiles(args);
-
-      const searchResults: SearchResult[] = [];
-
-      for (const line of output.split('\n')) {
-        if (!line.trim()) continue;
-        try {
-          const parsed = JSON.parse(line);
-          if (parsed.type === 'match') {
-            const resultPath = extractRipgrepPath(parsed.data.path);
-            if (!resultPath) {
-              continue;
-            }
-
-            const relativePath = toVaultRelativePath(rootPath, resultPath);
-            if (!relativePath) {
-              continue;
-            }
-
-            const lineText = parsed.data.lines.text;
-            const submatches = parsed.data.submatches || [];
-            for (const match of submatches) {
-              searchResults.push({
-                path: relativePath,
-                line: parsed.data.line_number,
-                text: lineText,
-                matchedText: extractRipgrepPath(match.match) ?? '',
-                charStart: utf8ByteOffsetToStringIndex(lineText, match.start),
-                charEnd: utf8ByteOffsetToStringIndex(lineText, match.end),
-                byteStart: match.start,
-                byteEnd: match.end,
-              });
-            }
-          }
-        } catch {
-          // Skip invalid JSON lines
+        if (!caseSensitive) {
+          args.push('--ignore-case');
         }
-      }
 
-      return { success: true, results: searchResults };
-    } catch (error) {
-      console.error('[IPC] search:search error:', error);
-      return { success: false, error: String(error), results: [] };
+        if (!isRegex) {
+          args.push('--fixed-strings');
+        }
+
+        // Use high-level rgFiles API from vscode-ripgrep wrapper
+        const output = await rgFiles(args);
+
+        const searchResults: SearchResult[] = [];
+
+        for (const line of output.split('\n')) {
+          if (!line.trim()) continue;
+          try {
+            const parsed = JSON.parse(line);
+            if (parsed.type === 'match') {
+              const resultPath = extractRipgrepPath(parsed.data.path);
+              if (!resultPath) {
+                continue;
+              }
+
+              const relativePath = toVaultRelativePath(rootPath, resultPath);
+              if (!relativePath) {
+                continue;
+              }
+
+              const lineText = parsed.data.lines.text;
+              const submatches = parsed.data.submatches || [];
+              for (const match of submatches) {
+                searchResults.push({
+                  path: relativePath,
+                  line: parsed.data.line_number,
+                  text: lineText,
+                  matchedText: extractRipgrepPath(match.match) ?? '',
+                  charStart: utf8ByteOffsetToStringIndex(lineText, match.start),
+                  charEnd: utf8ByteOffsetToStringIndex(lineText, match.end),
+                  byteStart: match.start,
+                  byteEnd: match.end,
+                });
+              }
+            }
+          } catch {
+            // Skip invalid JSON lines
+          }
+        }
+
+        return { success: true, results: searchResults };
+      } catch (error) {
+        console.error('[IPC] search:search error:', error);
+        return { success: false, error: String(error), results: [] };
+      }
     }
-  });
+  );
 
   ipcMain.handle('search:searchTitle', async (_event, query, _limit) => {
     console.log('[IPC] search:searchTitle', query);
@@ -518,81 +536,84 @@ export function registerIpcHandlers(): void {
   });
 
   // Image storage handlers
-  ipcMain.handle('image-storage:upload', async (_event, data: { arrayBuffer: ArrayBuffer; mimeType: string; vaultPath: string }) => {
-    const { arrayBuffer, mimeType, vaultPath } = data;
+  ipcMain.handle(
+    'image-storage:upload',
+    async (_event, data: { arrayBuffer: ArrayBuffer; mimeType: string; vaultPath: string }) => {
+      const { arrayBuffer, mimeType, vaultPath } = data;
 
-    try {
-      // Get image storage config
-      const configPath = path.join(vaultPath, '.aimo-note/config.json');
-      let config: ImageStorageConfig;
       try {
-        const content = await fs.readFile(configPath, 'utf-8');
-        const parsed = JSON.parse(content);
-        config = parsed.imageStorage || { type: 'local', local: { path: 'assets/images' } };
-      } catch {
-        config = { type: 'local', local: { path: 'assets/images' } };
-      }
-
-      if (config.type === 'local') {
-        // Local storage
-        const { local } = config;
-        const uuid = randomUUID();
-        const ext = mimeType.split('/')[1] || 'png';
-        const fileName = `${uuid}.${ext}`;
-        const relativePath = path.join(local.path, fileName);
-        const fullPath = path.join(vaultPath, relativePath);
-
-        // Validate path is within vault (prevent path traversal)
-        const normalizedFull = path.normalize(fullPath);
-        const normalizedVault = path.normalize(vaultPath);
-        if (!normalizedFull.startsWith(normalizedVault)) {
-          return { success: false, error: 'Invalid path: traversal detected' };
+        // Get image storage config
+        const configPath = path.join(vaultPath, '.aimo-note/config.json');
+        let config: ImageStorageConfig;
+        try {
+          const content = await fs.readFile(configPath, 'utf-8');
+          const parsed = JSON.parse(content);
+          config = parsed.imageStorage || { type: 'local', local: { path: 'assets/images' } };
+        } catch {
+          config = { type: 'local', local: { path: 'assets/images' } };
         }
 
-        // Ensure directory exists
-        await fs.mkdir(path.dirname(fullPath), { recursive: true });
+        if (config.type === 'local') {
+          // Local storage
+          const { local } = config;
+          const uuid = randomUUID();
+          const ext = mimeType.split('/')[1] || 'png';
+          const fileName = `${uuid}.${ext}`;
+          const relativePath = path.join(local.path, fileName);
+          const fullPath = path.join(vaultPath, relativePath);
 
-        // Write file
-        const buffer = Buffer.from(arrayBuffer);
-        await fs.writeFile(fullPath, buffer);
+          // Validate path is within vault (prevent path traversal)
+          const normalizedFull = path.normalize(fullPath);
+          const normalizedVault = path.normalize(vaultPath);
+          if (!normalizedFull.startsWith(normalizedVault)) {
+            return { success: false, error: 'Invalid path: traversal detected' };
+          }
 
-        return { success: true, url: relativePath.replace(/\\/g, '/') };
-      } else {
-        // S3 storage
-        const { s3 } = config;
-        const uuid = randomUUID();
-        const ext = mimeType.split('/')[1] || 'png';
-        const key = `${s3.keyPrefix || ''}${uuid}.${ext}`;
+          // Ensure directory exists
+          await fs.mkdir(path.dirname(fullPath), { recursive: true });
 
-        const s3Client = new S3Client({
-          region: s3.region,
-          credentials: {
-            accessKeyId: s3.accessKey,
-            secretAccessKey: s3.secretKey,
-          },
-          ...(s3.endpoint ? { endpoint: s3.endpoint, forcePathStyle: true } : {}),
-        });
+          // Write file
+          const buffer = Buffer.from(arrayBuffer);
+          await fs.writeFile(fullPath, buffer);
 
-        const command = new PutObjectCommand({
-          Bucket: s3.bucket,
-          Key: key,
-          Body: Buffer.from(arrayBuffer),
-          ContentType: mimeType,
-        });
+          return { success: true, url: relativePath.replace(/\\/g, '/') };
+        } else {
+          // S3 storage
+          const { s3 } = config;
+          const uuid = randomUUID();
+          const ext = mimeType.split('/')[1] || 'png';
+          const key = `${s3.keyPrefix || ''}${uuid}.${ext}`;
 
-        await s3Client.send(command);
+          const s3Client = new S3Client({
+            region: s3.region,
+            credentials: {
+              accessKeyId: s3.accessKey,
+              secretAccessKey: s3.secretKey,
+            },
+            ...(s3.endpoint ? { endpoint: s3.endpoint, forcePathStyle: true } : {}),
+          });
 
-        const url = s3.endpoint
-          ? `${s3.endpoint}/${s3.bucket}/${key}`
-          : `https://${s3.bucket}.s3.${s3.region}.amazonaws.com/${key}`;
+          const command = new PutObjectCommand({
+            Bucket: s3.bucket,
+            Key: key,
+            Body: Buffer.from(arrayBuffer),
+            ContentType: mimeType,
+          });
 
-        return { success: true, url };
+          await s3Client.send(command);
+
+          const url = s3.endpoint
+            ? `${s3.endpoint}/${s3.bucket}/${key}`
+            : `https://${s3.bucket}.s3.${s3.region}.amazonaws.com/${key}`;
+
+          return { success: true, url };
+        }
+      } catch (error) {
+        console.error('[IPC] image-storage:upload error:', error);
+        return { success: false, error: String(error) };
       }
-    } catch (error) {
-      console.error('[IPC] image-storage:upload error:', error);
-      return { success: false, error: String(error) };
     }
-  });
+  );
 
   ipcMain.handle('image-storage:get-config', async (_event, vaultPath: string) => {
     try {
@@ -608,25 +629,28 @@ export function registerIpcHandlers(): void {
     }
   });
 
-  ipcMain.handle('image-storage:set-config', async (_event, vaultPath: string, config: ImageStorageConfig) => {
-    try {
-      const configPath = path.join(vaultPath, '.aimo-note/config.json');
-      let existingConfig: Record<string, unknown> = {};
+  ipcMain.handle(
+    'image-storage:set-config',
+    async (_event, vaultPath: string, config: ImageStorageConfig) => {
       try {
-        const content = await fs.readFile(configPath, 'utf-8');
-        existingConfig = JSON.parse(content);
-      } catch {
-        // File doesn't exist, will be created
+        const configPath = path.join(vaultPath, '.aimo-note/config.json');
+        let existingConfig: Record<string, unknown> = {};
+        try {
+          const content = await fs.readFile(configPath, 'utf-8');
+          existingConfig = JSON.parse(content);
+        } catch {
+          // File doesn't exist, will be created
+        }
+        existingConfig.imageStorage = config;
+        await fs.mkdir(path.dirname(configPath), { recursive: true });
+        await fs.writeFile(configPath, JSON.stringify(existingConfig, null, 2), 'utf-8');
+        return { success: true };
+      } catch (error) {
+        console.error('[IPC] image-storage:set-config error:', error);
+        return { success: false, error: String(error) };
       }
-      existingConfig.imageStorage = config;
-      await fs.mkdir(path.dirname(configPath), { recursive: true });
-      await fs.writeFile(configPath, JSON.stringify(existingConfig, null, 2), 'utf-8');
-      return { success: true };
-    } catch (error) {
-      console.error('[IPC] image-storage:set-config error:', error);
-      return { success: false, error: String(error) };
     }
-  });
+  );
 
   // Shell handlers
   ipcMain.handle('shell:openPath', async (_event, filePath: string) => {
@@ -685,21 +709,24 @@ export function registerIpcHandlers(): void {
     }
   });
 
-  ipcMain.handle('template:write', async (_event, vaultPath: string, fileName: string, content: string) => {
-    try {
-      const templatesDir = path.join(vaultPath, TEMPLATES_DIR);
-      await fs.mkdir(templatesDir, { recursive: true });
-      const fullPath = path.join(templatesDir, fileName);
-      const normalized = path.normalize(fullPath);
-      if (!normalized.startsWith(path.normalize(templatesDir))) {
-        return { success: false, error: 'Invalid path' };
+  ipcMain.handle(
+    'template:write',
+    async (_event, vaultPath: string, fileName: string, content: string) => {
+      try {
+        const templatesDir = path.join(vaultPath, TEMPLATES_DIR);
+        await fs.mkdir(templatesDir, { recursive: true });
+        const fullPath = path.join(templatesDir, fileName);
+        const normalized = path.normalize(fullPath);
+        if (!normalized.startsWith(path.normalize(templatesDir))) {
+          return { success: false, error: 'Invalid path' };
+        }
+        await fs.writeFile(normalized, content, 'utf-8');
+        return { success: true };
+      } catch (error) {
+        return { success: false, error: String(error) };
       }
-      await fs.writeFile(normalized, content, 'utf-8');
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: String(error) };
     }
-  });
+  );
 
   ipcMain.handle('template:delete', async (_event, vaultPath: string, fileName: string) => {
     try {
@@ -726,22 +753,27 @@ export function registerIpcHandlers(): void {
     }
   });
 
-  ipcMain.handle('template:setMappings', async (_event, vaultPath: string, mappings: Record<string, string>) => {
-    try {
-      const configPath = path.join(vaultPath, '.aimo-note/config.json');
-      let existingConfig: Record<string, unknown> = {};
+  ipcMain.handle(
+    'template:setMappings',
+    async (_event, vaultPath: string, mappings: Record<string, string>) => {
       try {
-        const content = await fs.readFile(configPath, 'utf-8');
-        existingConfig = JSON.parse(content);
-      } catch { /* ignore */ }
-      existingConfig.templateMappings = mappings;
-      await fs.mkdir(path.dirname(configPath), { recursive: true });
-      await fs.writeFile(configPath, JSON.stringify(existingConfig, null, 2), 'utf-8');
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: String(error) };
+        const configPath = path.join(vaultPath, '.aimo-note/config.json');
+        let existingConfig: Record<string, unknown> = {};
+        try {
+          const content = await fs.readFile(configPath, 'utf-8');
+          existingConfig = JSON.parse(content);
+        } catch {
+          /* ignore */
+        }
+        existingConfig.templateMappings = mappings;
+        await fs.mkdir(path.dirname(configPath), { recursive: true });
+        await fs.writeFile(configPath, JSON.stringify(existingConfig, null, 2), 'utf-8');
+        return { success: true };
+      } catch (error) {
+        return { success: false, error: String(error) };
+      }
     }
-  });
+  );
 
   console.log('[IPC] Vault/Graph/Search/ImageStorage handlers registered');
 }

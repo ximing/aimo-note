@@ -144,7 +144,9 @@ const buildImageHtml = (attrs: {
   return `<img ${htmlAttrs.join(' ')}>`;
 };
 
-const parsePersistedImageState = (markdown: string): {
+const parsePersistedImageState = (
+  markdown: string
+): {
   cleanMarkdown: string;
   imageStates: PersistedImageState[];
 } => {
@@ -174,30 +176,33 @@ export const migrateImageStateComment = (markdown: string): string => {
 
   let stateIndex = 0;
 
-  return cleanMarkdown.replace(MARKDOWN_IMAGE_RE, (fullMatch, alt = '', rawSrc = '', title = '') => {
-    const src = String(rawSrc || '').trim();
-    const state = imageStates[stateIndex];
+  return cleanMarkdown.replace(
+    MARKDOWN_IMAGE_RE,
+    (fullMatch, alt = '', rawSrc = '', title = '') => {
+      const src = String(rawSrc || '').trim();
+      const state = imageStates[stateIndex];
 
-    if (!state || state.src !== src) {
-      return fullMatch;
+      if (!state || state.src !== src) {
+        return fullMatch;
+      }
+
+      stateIndex += 1;
+
+      const align = normalizeAlign(state.align);
+      const width = normalizeWidth(state.width);
+      if (align === 'center' && width === undefined) {
+        return fullMatch;
+      }
+
+      return buildImageHtml({
+        src,
+        alt: String(alt || ''),
+        title: String(title || ''),
+        align,
+        width,
+      });
     }
-
-    stateIndex += 1;
-
-    const align = normalizeAlign(state.align);
-    const width = normalizeWidth(state.width);
-    if (align === 'center' && width === undefined) {
-      return fullMatch;
-    }
-
-    return buildImageHtml({
-      src,
-      alt: String(alt || ''),
-      title: String(title || ''),
-      align,
-      width,
-    });
-  });
+  );
 };
 
 // Extend the built-in imageSchema to add align and width attributes
@@ -229,9 +234,10 @@ export const customImageSchema = imageSchema.extendSchema((original) => {
                 align: dom.getAttribute('align') || '',
                 'data-align': dom.getAttribute('data-align') || '',
               }),
-              width: parseStyleWidth(dom.getAttribute('style') || undefined)
-                ?? normalizeWidth(dom.getAttribute('width'))
-                ?? null,
+              width:
+                parseStyleWidth(dom.getAttribute('style') || undefined) ??
+                normalizeWidth(dom.getAttribute('width')) ??
+                null,
             };
           },
         },
@@ -308,13 +314,17 @@ export const customImageSchema = imageSchema.extendSchema((original) => {
             return;
           }
 
-          state.addNode('html', undefined, buildImageHtml({
-            src,
-            alt,
-            title,
-            align,
-            width,
-          }));
+          state.addNode(
+            'html',
+            undefined,
+            buildImageHtml({
+              src,
+              alt,
+              title,
+              align,
+              width,
+            })
+          );
         },
       },
     };

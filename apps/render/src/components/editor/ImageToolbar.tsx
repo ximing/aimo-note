@@ -17,25 +17,97 @@ const TRIANGLE_SIZE = 8;
 // SVG Icons for alignment buttons
 const LeftAlignIcon = () => (
   <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-    <line x1="2" y1="4" x2="10" y2="4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    <line x1="2" y1="9" x2="14" y2="9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    <line x1="2" y1="14" x2="8" y2="14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    <line
+      x1="2"
+      y1="4"
+      x2="10"
+      y2="4"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    />
+    <line
+      x1="2"
+      y1="9"
+      x2="14"
+      y2="9"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    />
+    <line
+      x1="2"
+      y1="14"
+      x2="8"
+      y2="14"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    />
   </svg>
 );
 
 const CenterAlignIcon = () => (
   <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-    <line x1="2" y1="4" x2="10" y2="4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    <line x1="4" y1="9" x2="14" y2="9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    <line x1="2" y1="14" x2="10" y2="14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    <line
+      x1="2"
+      y1="4"
+      x2="10"
+      y2="4"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    />
+    <line
+      x1="4"
+      y1="9"
+      x2="14"
+      y2="9"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    />
+    <line
+      x1="2"
+      y1="14"
+      x2="10"
+      y2="14"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    />
   </svg>
 );
 
 const RightAlignIcon = () => (
   <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-    <line x1="8" y1="4" x2="16" y2="4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    <line x1="4" y1="9" x2="16" y2="9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    <line x1="2" y1="14" x2="8" y2="14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    <line
+      x1="8"
+      y1="4"
+      x2="16"
+      y2="4"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    />
+    <line
+      x1="4"
+      y1="9"
+      x2="16"
+      y2="9"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    />
+    <line
+      x1="2"
+      y1="14"
+      x2="8"
+      y2="14"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    />
   </svg>
 );
 
@@ -177,7 +249,8 @@ export const ImageToolbar: React.FC<ImageToolbarProps> = ({
           height: 0,
           borderLeft: `${TRIANGLE_SIZE}px solid transparent`,
           borderRight: `${TRIANGLE_SIZE}px solid transparent`,
-          [positionState.showBelow ? 'borderBottom' : 'borderTop']: `${TRIANGLE_SIZE}px solid #1a1a1a`,
+          [positionState.showBelow ? 'borderBottom' : 'borderTop']:
+            `${TRIANGLE_SIZE}px solid #1a1a1a`,
         }}
       />
 

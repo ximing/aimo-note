@@ -12,14 +12,14 @@
 
 ## File Map
 
-| File | Action | Responsibility |
-|------|--------|----------------|
-| `apps/render/src/index.css` | Modify | CSS variables for light/dark themes |
-| `apps/render/tailwind.config.js` | Modify | Map Tailwind colors to CSS variables |
-| `apps/render/src/services/ui.service.ts` | Modify | resolvedTheme, systemTheme, DOM sync |
-| `apps/render/src/hooks/use-theme.ts` | Create | useTheme hook for components |
-| `apps/render/src/components/Layout.tsx` | Modify | Apply `dark` class to html element |
-| `apps/render/src/pages/settings/index.tsx` | Modify | Theme selector with card UI |
+| File                                       | Action | Responsibility                       |
+| ------------------------------------------ | ------ | ------------------------------------ |
+| `apps/render/src/index.css`                | Modify | CSS variables for light/dark themes  |
+| `apps/render/tailwind.config.js`           | Modify | Map Tailwind colors to CSS variables |
+| `apps/render/src/services/ui.service.ts`   | Modify | resolvedTheme, systemTheme, DOM sync |
+| `apps/render/src/hooks/use-theme.ts`       | Create | useTheme hook for components         |
+| `apps/render/src/components/Layout.tsx`    | Modify | Apply `dark` class to html element   |
+| `apps/render/src/pages/settings/index.tsx` | Modify | Theme selector with card UI          |
 
 ---
 
@@ -50,7 +50,19 @@ Replace the existing `:root` block with CSS variables:
   --shadow: rgba(0, 0, 0, 0.08);
   --shadow-lg: rgba(0, 0, 0, 0.12);
 
-  font-family: Menlo, 'Meslo LG', 'Helvetica Neue', Helvetica, Arial, sans-serif, '微软雅黑', monospace, system-ui, -apple-system, 'Segoe UI', Roboto;
+  font-family:
+    Menlo,
+    'Meslo LG',
+    'Helvetica Neue',
+    Helvetica,
+    Arial,
+    sans-serif,
+    '微软雅黑',
+    monospace,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto;
   line-height: 1.5;
   font-weight: 400;
   color-scheme: light;
@@ -228,7 +240,7 @@ export class UIService extends Service {
       this._resolvedTheme = this.theme;
     }
     this._applyThemeToDOM();
-  };
+  }
 
   private _applyThemeToDOM() {
     if (typeof document !== 'undefined') {
@@ -291,6 +303,7 @@ export function useTheme() {
 - [ ] **Step 2: Export from hooks index (if exists) or create index**
 
 Check if `apps/render/src/hooks/index.ts` exists:
+
 - If yes, add export
 - If no, create the file with export
 
@@ -340,9 +353,10 @@ export function SettingsPage() {
               onClick={() => uiService.setTheme(value)}
               className={`
                 flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all
-                ${currentTheme === value
-                  ? 'border-accent bg-accent-light text-accent'
-                  : 'border-border bg-bg-secondary text-text-secondary hover:border-accent/50'
+                ${
+                  currentTheme === value
+                    ? 'border-accent bg-accent-light text-accent'
+                    : 'border-border bg-bg-secondary text-text-secondary hover:border-accent/50'
                 }
               `}
             >
@@ -393,16 +407,16 @@ cd /Users/ximing/project/mygithub/aimo-note && pnpm --filter @aimo-note/render d
 
 - [ ] **Step 1: Select dark theme**
 - [ ] **Step 2: Refresh page**
-- [ ] **Step 3: Verify dark mode persists (system theme should respect OS setting)
+- [ ] \*\*Step 3: Verify dark mode persists (system theme should respect OS setting)
 
 ---
 
 ## Summary
 
-| Chunk | Tasks | Files |
-|-------|-------|-------|
-| 1 | CSS variables + Tailwind config | `index.css`, `tailwind.config.js` |
-| 2 | UIService enhancement | `ui.service.ts` |
-| 3 | useTheme hook | `use-theme.ts` |
-| 4 | Settings page UI | `SettingsPage` |
-| 5 | Verification | - |
+| Chunk | Tasks                           | Files                             |
+| ----- | ------------------------------- | --------------------------------- |
+| 1     | CSS variables + Tailwind config | `index.css`, `tailwind.config.js` |
+| 2     | UIService enhancement           | `ui.service.ts`                   |
+| 3     | useTheme hook                   | `use-theme.ts`                    |
+| 4     | Settings page UI                | `SettingsPage`                    |
+| 5     | Verification                    | -                                 |

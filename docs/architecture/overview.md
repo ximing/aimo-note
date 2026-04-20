@@ -40,6 +40,7 @@ aimo-note/
 ## Architecture Layers
 
 ### 1. Presentation Layer (apps/render)
+
 React 19 SPA running in Electron renderer. Responsible for UI rendering and user interactions.
 
 - **Components**: Pure UI components, organized by domain (editor, graph, layout)
@@ -48,6 +49,7 @@ React 19 SPA running in Electron renderer. Responsible for UI rendering and user
 - **IPC**: Typed wrappers around IPC calls
 
 ### 2. Native Integration Layer (apps/client)
+
 Electron main process handling OS integration.
 
 - **Window Management**: BrowserWindow lifecycle, state persistence
@@ -56,6 +58,7 @@ Electron main process handling OS integration.
 - **Auto-Updater**: App update lifecycle
 
 ### 3. Domain Logic Layer (packages/core)
+
 Pure Node.js logic running in main process.
 
 - **Vault**: Read/write .md files, frontmatter parsing, file watching
@@ -64,9 +67,11 @@ Pure Node.js logic running in main process.
 - **Plugins**: Plugin loading and hook system
 
 ### 4. Shared Types (packages/dto)
+
 TypeScript interfaces shared across all layers.
 
 ### 5. Infrastructure (packages/logger)
+
 Logging utilities for the entire application.
 
 ## Data Flow
@@ -88,45 +93,49 @@ File System
 ## Key Design Principles
 
 ### Local-First
+
 All data stored locally in vault folders. No cloud dependency.
 
 ### IPC-Based Communication
+
 Renderer never accesses file system directly. All operations via typed IPC channels.
 
 ### Separation of Concerns
+
 - Render: UI only
 - Client: OS integration only
 - Core: Business logic only
 
 ### Plugin Extensibility
+
 Core package provides plugin system with hooks for note lifecycle events.
 
 ## Technology Stack
 
-| Layer | Technology |
-|-------|------------|
-| Frontend | React 19, Vite, Tailwind CSS, React Router |
-| State | @rabjs/react |
-| Desktop | Electron |
-| Domain Logic | Node.js |
-| Search | FlexSearch |
-| Vault Parsing | Gray-Matter |
-| File Watching | Chokidar |
-| Monorepo | pnpm workspaces, Turborepo |
-| Types | TypeScript |
+| Layer         | Technology                                 |
+| ------------- | ------------------------------------------ |
+| Frontend      | React 19, Vite, Tailwind CSS, React Router |
+| State         | @rabjs/react                               |
+| Desktop       | Electron                                   |
+| Domain Logic  | Node.js                                    |
+| Search        | FlexSearch                                 |
+| Vault Parsing | Gray-Matter                                |
+| File Watching | Chokidar                                   |
+| Monorepo      | pnpm workspaces, Turborepo                 |
+| Types         | TypeScript                                 |
 
 ## IPC Channel Convention
 
 All channels follow `domain:action` pattern:
 
-| Domain | Channels |
-|--------|----------|
-| Vault | `vault:open`, `vault:read`, `vault:write`, `vault:delete`, `vault:list` |
-| Graph | `graph:build`, `graph:getBacklinks`, `graph:getOutlinks` |
-| Search | `search:query`, `search:reindex` |
-| Plugin | `plugin:load`, `plugin:unload`, `plugin:list` |
-| Window | `window:minimize`, `window:maximize`, `window:close` |
-| FS | `fs:selectVault` |
+| Domain | Channels                                                                |
+| ------ | ----------------------------------------------------------------------- |
+| Vault  | `vault:open`, `vault:read`, `vault:write`, `vault:delete`, `vault:list` |
+| Graph  | `graph:build`, `graph:getBacklinks`, `graph:getOutlinks`                |
+| Search | `search:query`, `search:reindex`                                        |
+| Plugin | `plugin:load`, `plugin:unload`, `plugin:list`                           |
+| Window | `window:minimize`, `window:maximize`, `window:close`                    |
+| FS     | `fs:selectVault`                                                        |
 
 ## Getting Started
 

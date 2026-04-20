@@ -2,12 +2,14 @@ import { useState, useCallback, useEffect } from 'react';
 import { observer, useService } from '@rabjs/react';
 import { TemplateService } from '@/services/template.service';
 import { TemplateEditor } from '@/components/template/TemplateEditor';
+import { ConfirmDialog } from '@/components/common';
 import type { Template } from '@aimo-note/dto';
 
 export const TemplateSettings = observer(() => {
   const templateService = useService(TemplateService);
   const [editingTemplate, setEditingTemplate] = useState<Template | null | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<'list' | 'mappings'>('list');
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   useEffect(() => {
     templateService.loadTemplates();
@@ -27,9 +29,10 @@ export const TemplateSettings = observer(() => {
     setEditingTemplate(undefined);
   }, [templateService]);
 
-  const handleDeleteTemplate = useCallback(async (fileName: string) => {
-    await templateService.deleteTemplate(fileName);
-  }, [templateService]);
+  const handleDeleteConfirm = useCallback(async () => {
+    if (deleteTarget) await templateService.deleteTemplate(deleteTarget);
+    setDeleteTarget(null);
+  }, [deleteTarget, templateService]);
 
   if (editingTemplate !== undefined) {
     return (
@@ -107,7 +110,7 @@ export const TemplateSettings = observer(() => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleDeleteTemplate(t.fileName)}
+                      onClick={() => setDeleteTarget(t.fileName)}
                       className="px-3 py-1 text-sm text-destructive border border-border rounded hover:bg-destructive/10"
                     >
                       Delete
@@ -122,6 +125,17 @@ export const TemplateSettings = observer(() => {
 
       {activeTab === 'mappings' && (
         <DirectoryMappings />
+      )}
+
+      {deleteTarget && (
+        <ConfirmDialog
+          title="Delete Template"
+          message={`Delete "${deleteTarget}"? This cannot be undone.`}
+          confirmText="Delete"
+          danger
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setDeleteTarget(null)}
+        />
       )}
     </div>
   );

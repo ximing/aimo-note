@@ -5,6 +5,7 @@
 **Goal:** Implement sidebar search with vscode-ripgrep, view switching between file tree and search panel, keyword highlighting, case/regex options.
 
 **Architecture:**
+
 - Main process uses ripgrep via IPC for file system search
 - Renderer manages UI state, debounced input, and result display
 - Sidebar switches between VaultTree and SearchPanel via header icon clicks
@@ -135,75 +136,81 @@ Replace the stub search handler with ripgrep implementation:
 ```typescript
 import rg from 'vscode-ripgrep';
 
-ipcMain.handle('search:search', async (_event, options: {
-  query: string;
-  rootPath: string;
-  caseSensitive: boolean;
-  isRegex: boolean;
-}) => {
-  const { query, rootPath, caseSensitive, isRegex } = options;
+ipcMain.handle(
+  'search:search',
+  async (
+    _event,
+    options: {
+      query: string;
+      rootPath: string;
+      caseSensitive: boolean;
+      isRegex: boolean;
+    }
+  ) => {
+    const { query, rootPath, caseSensitive, isRegex } = options;
 
-  if (!query || !rootPath) {
-    return { success: true, results: [] };
-  }
-
-  try {
-    const args = [
-      '--heading',
-      '--json',
-      '--max-count=10',
-      '--glob=!.*',  // Skip .* directories
-      '--glob=!node_modules',
-      query,
-      rootPath,
-    ];
-
-    if (!caseSensitive) {
-      args.push('--ignore-case');
+    if (!query || !rootPath) {
+      return { success: true, results: [] };
     }
 
-    if (isRegex) {
-      // ripgrep treats input as regex by default with -e, but we pass query directly
-    }
+    try {
+      const args = [
+        '--heading',
+        '--json',
+        '--max-count=10',
+        '--glob=!.*', // Skip .* directories
+        '--glob=!node_modules',
+        query,
+        rootPath,
+      ];
 
-    const results = await rg.rgFiles(args);
-
-    // Parse ripgrep JSON output
-    const searchResults: Array<{
-      path: string;
-      line: number;
-      text: string;
-      matchStart: number;
-      matchEnd: number;
-    }> = [];
-
-    for (const line of results.split('\n')) {
-      if (!line.trim()) continue;
-      try {
-        const parsed = JSON.parse(line);
-        if (parsed.type === 'match') {
-          const submatches = parsed.data.submatches || [];
-          for (const match of submatches) {
-            searchResults.push({
-              path: parsed.data.path,
-              line: parsed.data.line_number,
-              text: parsed.data.lines.text,
-              matchStart: match.start,
-              matchEnd: match.end,
-            });
-          }
-        }
-      } catch {
-        // Skip invalid JSON lines
+      if (!caseSensitive) {
+        args.push('--ignore-case');
       }
-    }
 
-    return { success: true, results: searchResults };
-  } catch (error) {
-    console.error('[IPC] search:search error:', error);
-    return { success: false, error: String(error), results: [] };
+      if (isRegex) {
+        // ripgrep treats input as regex by default with -e, but we pass query directly
+      }
+
+      const results = await rg.rgFiles(args);
+
+      // Parse ripgrep JSON output
+      const searchResults: Array<{
+        path: string;
+        line: number;
+        text: string;
+        matchStart: number;
+        matchEnd: number;
+      }> = [];
+
+      for (const line of results.split('\n')) {
+        if (!line.trim()) continue;
+        try {
+          const parsed = JSON.parse(line);
+          if (parsed.type === 'match') {
+            const submatches = parsed.data.submatches || [];
+            for (const match of submatches) {
+              searchResults.push({
+                path: parsed.data.path,
+                line: parsed.data.line_number,
+                text: parsed.data.lines.text,
+                matchStart: match.start,
+                matchEnd: match.end,
+              });
+            }
+          }
+        } catch {
+          // Skip invalid JSON lines
+        }
+      }
+
+      return { success: true, results: searchResults };
+    } catch (error) {
+      console.error('[IPC] search:search error:', error);
+      return { success: false, error: String(error), results: [] };
+    }
   }
-});
+);
 ```
 
 Run: `cd apps/client && pnpm build` (if build exists) or verify no TypeScript errors
@@ -264,12 +271,13 @@ search: {
     rootPath: string;
     caseSensitive: boolean;
     isRegex: boolean;
-  }) => Promise<{
-    success: boolean;
-    results: SearchResult[];
-    error?: string;
-  }>;
-};
+  }) =>
+    Promise<{
+      success: boolean;
+      results: SearchResult[];
+      error?: string;
+    }>;
+}
 ```
 
 Run: `pnpm --filter @aimo-note/render typecheck` or verify build

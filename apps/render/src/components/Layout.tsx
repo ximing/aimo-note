@@ -90,12 +90,11 @@ export const Layout = observer(() => {
             {/* Left Sidebar (File Tree, Search, Tags, etc.) */}
             {uiService.leftSidebarOpen && (
               <>
-                <aside className="left-sidebar flex flex-col" style={{ width: uiService.leftSidebarWidth }}>
-                  {uiService.sidebarView === 'tree' ? (
-                    <VaultTree />
-                  ) : (
-                    <SearchPanel />
-                  )}
+                <aside
+                  className="left-sidebar flex flex-col"
+                  style={{ width: uiService.leftSidebarWidth }}
+                >
+                  {uiService.sidebarView === 'tree' ? <VaultTree /> : <SearchPanel />}
                 </aside>
                 <ResizeHandle
                   onResize={handleSidebarResize}
