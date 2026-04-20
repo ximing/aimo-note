@@ -86,6 +86,20 @@ const EditorPageContent = observer(() => {
     }
   }, [service.currentNote, service.currentNote?.path]);
 
+  // Sync title changes from frontmatter to filename input
+  useEffect(() => {
+    const handleFrontmatterChanged = (frontmatter: Record<string, unknown>) => {
+      const title = frontmatter.title as string | undefined;
+      if (title && title !== fileName) {
+        setFileName(title);
+      }
+    };
+    service.on('frontmatterChanged', handleFrontmatterChanged);
+    return () => {
+      service.off('frontmatterChanged', handleFrontmatterChanged);
+    };
+  }, [service, fileName]);
+
   const handleFileNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setFileName(e.target.value);
   }, []);

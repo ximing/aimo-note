@@ -3,6 +3,7 @@ import { vault } from '@/ipc/vault';
 import { VaultService } from '@/services/vault.service';
 import type { Position, Selection } from '../types/editor';
 import matter from 'gray-matter';
+import { debounce } from '@/utils/debounce';
 
 export class EditorService extends Service {
   currentNote: { path: string; content: string; frontmatter: Record<string, unknown> } | null = null;
@@ -12,6 +13,8 @@ export class EditorService extends Service {
   isDirty = false;
   isSaving = false;
   lastSaved: Date | null = null;
+
+  private debouncedSaveNote = debounce(() => this.saveNote(), 300);
 
   private get vaultService(): VaultService | null {
     return this.resolve(VaultService);
@@ -129,6 +132,8 @@ export class EditorService extends Service {
     this.currentNote = { ...this.currentNote, frontmatter };
     this.isDirty = true;
     this.emit('frontmatterChanged', frontmatter);
+    // Debounced auto-save 300ms after frontmatter change (blur/deploy)
+    this.debouncedSaveNote();
   }
 
   async createNote(path: string, content: string = ''): Promise<void> {
