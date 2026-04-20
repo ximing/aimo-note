@@ -1,8 +1,5 @@
 import matter from 'gray-matter';
-import type { Template, TemplateField, TemplateFieldType } from '@aimo-note/dto';
-
-const TEMPLATES_DIR = '.aimo-note/templates';
-const TEMPLATE_EXT = '.md';
+import type { Template, TemplateField } from '@aimo-note/dto';
 
 export interface ParsedTemplate {
   fields: TemplateField[];
@@ -19,12 +16,17 @@ export function parseTemplate(content: string, fileName: string): Template {
   const fields: TemplateField[] = [];
 
   for (const [key, value] of Object.entries(data)) {
-    if (key === 'title' || key === 'tags' || key === 'created' || key === 'modified') {
-      continue; // skip reserved fields
+    if (key === 'title') {
+      continue; // title is auto-derived from filename
     }
-    if (typeof value === 'boolean' && (key === 'created' || key === 'modified')) {
-      fields.push({ name: key, type: 'checkbox', autoSet: key });
-    } else if (typeof value === 'string') {
+    if (key === 'tags' || key === 'created' || key === 'modified') {
+      // Reserved fields: boolean true means auto-set, otherwise skip
+      if (typeof value === 'boolean' && value === true) {
+        fields.push({ name: key, type: 'checkbox', autoSet: key as 'created' | 'modified' });
+      }
+      continue;
+    }
+    if (typeof value === 'string') {
       fields.push({ name: key, type: 'text', defaultValue: value });
     } else if (Array.isArray(value)) {
       fields.push({ name: key, type: 'tags', defaultValue: value });
@@ -36,13 +38,6 @@ export function parseTemplate(content: string, fileName: string): Template {
   return { fileName, fields, body };
 }
 
-export function detectFieldType(valueStr: string): TemplateFieldType {
-  if (valueStr === 'true' || valueStr === 'false') return 'checkbox';
-  if (valueStr === '[]') return 'tags';
-  if (/^\d{4}-\d{2}-\d{2}/.test(valueStr)) return 'date';
-  return 'text';
-}
-
 export function buildFrontmatter(
   fields: TemplateField[],
   values: Record<string, unknown>,
@@ -51,23 +46,30 @@ export function buildFrontmatter(
   const fm: Record<string, unknown> = {};
   fm.title = fileName.replace(/\.md$/, '');
 
+  let hasCreated = false;
+  let hasModified = false;
+  let hasTags = false;
+
   for (const field of fields) {
     if (field.autoSet === 'created') {
       fm.created = new Date().toISOString();
+      hasCreated = true;
     } else if (field.autoSet === 'modified') {
       fm.modified = new Date().toISOString();
+      hasModified = true;
     } else {
       fm[field.name] = values[field.name] ?? field.defaultValue ?? '';
+      if (field.name === 'tags') hasTags = true;
     }
   }
 
-  if (!fields.some(f => f.name === 'created')) {
+  if (!hasCreated) {
     fm.created = new Date().toISOString();
   }
-  if (!fields.some(f => f.name === 'modified')) {
+  if (!hasModified) {
     fm.modified = new Date().toISOString();
   }
-  if (!fields.some(f => f.name === 'tags')) {
+  if (!hasTags) {
     fm.tags = [];
   }
 
