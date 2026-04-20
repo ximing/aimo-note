@@ -55,7 +55,7 @@ export const NewNoteDialog = observer(({ parentPath, onConfirm, onCancel }: NewN
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
         <div className="bg-bg-primary rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
-          <h2 className="text-lg font-bold mb-4">Fill Template: {noteName}</h2>
+          <h2 className="text-lg font-bold mb-4">填写模板: {noteName}</h2>
           <div className="space-y-4">
             {template.fields.filter(f => !f.autoSet).map(field => (
               <VariableField
@@ -72,14 +72,14 @@ export const NewNoteDialog = observer(({ parentPath, onConfirm, onCancel }: NewN
               onClick={onCancel}
               className="px-4 py-2 border border-border rounded hover:bg-muted"
             >
-              Cancel
+              取消
             </button>
             <button
               type="button"
               onClick={handleVariableConfirm}
               className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
             >
-              Create
+              创建
             </button>
           </div>
         </div>
@@ -89,10 +89,10 @@ export const NewNoteDialog = observer(({ parentPath, onConfirm, onCancel }: NewN
 
   return (
     <PromptDialog
-      title="New Note"
+      title="新建笔记"
       defaultValue="untitled"
-      placeholder="Enter note name"
-      confirmText="Next"
+      placeholder="输入笔记名称"
+      confirmText="下一步"
       onConfirm={handleNameConfirm}
       onCancel={onCancel}
     />
@@ -114,7 +114,7 @@ function VariableField({ field, value, onChange }: VariableFieldProps) {
           type="text"
           value={String(value ?? '')}
           onChange={e => onChange(e.target.value)}
-          className="w-full px-3 py-2 rounded-lg border border-border bg-bg-secondary text-text-primary"
+          className="w-full px-3 py-2 rounded-md border border-border bg-bg-secondary text-text-primary"
         />
       </div>
     );
@@ -128,7 +128,7 @@ function VariableField({ field, value, onChange }: VariableFieldProps) {
           type="date"
           value={String(value ?? '')}
           onChange={e => onChange(e.target.value)}
-          className="w-full px-3 py-2 rounded-lg border border-border bg-bg-secondary text-text-primary"
+          className="w-full px-3 py-2 rounded-md border border-border bg-bg-secondary text-text-primary"
         />
       </div>
     );
@@ -141,7 +141,7 @@ function VariableField({ field, value, onChange }: VariableFieldProps) {
           type="checkbox"
           checked={Boolean(value)}
           onChange={e => onChange(e.target.checked)}
-          className="w-4 h-4"
+          className="w-4 h-4 accent-accent"
         />
         <span className="text-sm font-medium">{field.name}</span>
       </label>
@@ -183,10 +183,10 @@ function TagsField({ field, value, onChange }: VariableFieldProps) {
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddTag(); } }}
-          className="flex-1 px-3 py-2 rounded-lg border border-border bg-bg-secondary text-text-primary"
-          placeholder="Add tag..."
+          className="flex-1 px-3 py-2 rounded-md border border-border bg-bg-secondary text-text-primary"
+          placeholder="添加标签..."
         />
-        <button type="button" onClick={handleAddTag} className="px-3 py-2 bg-primary text-primary-foreground rounded">+</button>
+        <button type="button" onClick={handleAddTag} className="px-3 py-2 bg-primary text-primary-foreground rounded-md">+</button>
       </div>
     </div>
   );

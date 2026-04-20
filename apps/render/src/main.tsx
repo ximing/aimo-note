@@ -14,7 +14,7 @@ import { PluginService } from './services/plugin.service';
 import { ImageStorageService } from './services/image-storage.service';
 import { TemplateService } from './services/template.service';
 
-// 注册顺序不能乱
+// 注册顺序: UIService → VaultService → GraphService → SearchService → PluginService → ImageStorageService → TemplateService
 register(UIService);
 register(VaultService);
 register(GraphService);

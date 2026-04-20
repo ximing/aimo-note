@@ -47,73 +47,73 @@ export const TemplateSettings = observer(() => {
   return (
     <div className="template-settings">
       {/* Tab Switcher */}
-      <div className="flex gap-4 mb-6 border-b border-border">
+      <div className="flex gap-4 mb-4 border-b border-border">
         <button
           type="button"
           onClick={() => setActiveTab('list')}
-          className={`pb-2 px-1 font-medium ${
+          className={`pb-2 px-1 text-sm font-medium ${
             activeTab === 'list'
               ? 'border-b-2 border-accent text-accent'
               : 'text-muted-foreground hover:text-text-primary'
           }`}
         >
-          Template List
+          模板列表
         </button>
         <button
           type="button"
           onClick={() => setActiveTab('mappings')}
-          className={`pb-2 px-1 font-medium ${
+          className={`pb-2 px-1 text-sm font-medium ${
             activeTab === 'mappings'
               ? 'border-b-2 border-accent text-accent'
               : 'text-muted-foreground hover:text-text-primary'
           }`}
         >
-          Directory Mappings
+          目录映射
         </button>
       </div>
 
       {activeTab === 'list' && (
         <div>
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">Templates</h3>
+          <div className="flex justify-between items-center mb-3">
+            <h4 className="text-sm font-medium text-text-primary">模板</h4>
             <button
               type="button"
               onClick={handleNewTemplate}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90"
+              className="px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90"
             >
-              + New Template
+              + 新建模板
             </button>
           </div>
 
           {templateService.templates.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No templates yet. Create one to get started.</p>
+            <p className="text-sm text-muted-foreground">暂无模板，创建第一个模板开始使用。</p>
           ) : (
             <div className="space-y-2">
               {templateService.templates.map(t => (
                 <div
                   key={t.fileName}
-                  className="flex items-center justify-between p-3 bg-bg-secondary rounded-lg"
+                  className="flex items-center justify-between p-3 bg-bg-secondary rounded-md"
                 >
                   <div>
-                    <p className="font-medium">{t.fileName}</p>
+                    <p className="text-sm font-medium text-text-primary">{t.fileName}</p>
                     <p className="text-xs text-muted-foreground">
-                      {t.fieldCount} fields · {t.preview}
+                      {t.fieldCount} 个字段 · {t.preview}
                     </p>
                   </div>
                   <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => handleEditTemplate(t.fileName)}
-                      className="px-3 py-1 text-sm border border-border rounded hover:bg-muted"
+                      className="px-3 py-1 text-xs border border-border rounded hover:bg-muted"
                     >
-                      Edit
+                      编辑
                     </button>
                     <button
                       type="button"
                       onClick={() => setDeleteTarget(t.fileName)}
-                      className="px-3 py-1 text-sm text-destructive border border-border rounded hover:bg-destructive/10"
+                      className="px-3 py-1 text-xs text-destructive border border-border rounded hover:bg-destructive/10"
                     >
-                      Delete
+                      删除
                     </button>
                   </div>
                 </div>
@@ -129,9 +129,9 @@ export const TemplateSettings = observer(() => {
 
       {deleteTarget && (
         <ConfirmDialog
-          title="Delete Template"
-          message={`Delete "${deleteTarget}"? This cannot be undone.`}
-          confirmText="Delete"
+          title="删除模板"
+          message={`确定删除 "${deleteTarget}" 吗？此操作无法撤销。`}
+          confirmText="删除"
           danger
           onConfirm={handleDeleteConfirm}
           onCancel={() => setDeleteTarget(null)}
@@ -161,15 +161,15 @@ const DirectoryMappings = observer(() => {
 
   return (
     <div>
-      <h3 className="text-lg font-semibold mb-4">Directory → Template Mappings</h3>
+      <h4 className="text-sm font-medium text-text-primary mb-3">目录 → 模板 映射</h4>
 
       {entries.length > 0 && (
-        <div className="space-y-2 mb-6">
+        <div className="space-y-2 mb-4">
           {entries.map(([dir, tmpl]) => (
-            <div key={dir} className="flex items-center gap-3 p-3 bg-bg-secondary rounded-lg">
-              <span className="font-mono text-sm flex-1">{dir || '(root)'}</span>
+            <div key={dir} className="flex items-center gap-3 p-3 bg-bg-secondary rounded-md">
+              <span className="font-mono text-sm flex-1 text-text-primary">{dir || '(根目录)'}</span>
               <span className="text-muted-foreground">→</span>
-              <span className="font-mono text-sm">{tmpl}</span>
+              <span className="font-mono text-sm text-text-primary">{tmpl}</span>
               <button
                 type="button"
                 onClick={() => handleRemoveMapping(dir)}
@@ -184,23 +184,23 @@ const DirectoryMappings = observer(() => {
 
       <div className="flex gap-3 items-end">
         <div className="flex-1">
-          <label className="block text-sm font-medium mb-1">Directory</label>
+          <label className="block text-xs text-text-secondary mb-1">目录</label>
           <input
             type="text"
             value={newDir}
             onChange={e => setNewDir(e.target.value)}
-            placeholder="e.g. journals (empty for root)"
-            className="w-full px-3 py-2 rounded-lg border border-border bg-bg-secondary text-text-primary"
+            placeholder="例如 journals（空表示根目录）"
+            className="w-full px-3 py-2 text-sm rounded-md border border-border bg-bg-secondary text-text-primary"
           />
         </div>
         <div className="flex-1">
-          <label className="block text-sm font-medium mb-1">Template</label>
+          <label className="block text-xs text-text-secondary mb-1">模板</label>
           <select
             value={newTemplate}
             onChange={e => setNewTemplate(e.target.value)}
-            className="w-full px-3 py-2 rounded-lg border border-border bg-bg-secondary text-text-primary"
+            className="w-full px-3 py-2 text-sm rounded-md border border-border bg-bg-secondary text-text-primary"
           >
-            <option value="">Select template...</option>
+            <option value="">选择模板...</option>
             {templateService.templates.map(t => (
               <option key={t.fileName} value={t.fileName}>{t.fileName}</option>
             ))}
@@ -210,9 +210,9 @@ const DirectoryMappings = observer(() => {
           type="button"
           onClick={handleAddMapping}
           disabled={!newDir.trim() || !newTemplate}
-          className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50"
+          className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
         >
-          Add
+          添加
         </button>
       </div>
     </div>

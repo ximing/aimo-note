@@ -9,10 +9,10 @@ interface TemplateEditorProps {
 }
 
 const FIELD_TYPES: { value: TemplateFieldType; label: string }[] = [
-  { value: 'text', label: 'Text' },
-  { value: 'date', label: 'Date' },
-  { value: 'tags', label: 'Tags' },
-  { value: 'checkbox', label: 'Checkbox' },
+  { value: 'text', label: '文本' },
+  { value: 'date', label: '日期' },
+  { value: 'tags', label: '标签' },
+  { value: 'checkbox', label: '复选框' },
 ];
 
 export const TemplateEditor = observer(({ template, onSave, onCancel }: TemplateEditorProps) => {
@@ -47,32 +47,32 @@ export const TemplateEditor = observer(({ template, onSave, onCancel }: Template
   }, [fileName, fields, body, onSave]);
 
   return (
-    <div className="template-editor p-4 max-w-2xl mx-auto">
-      <h2 className="text-xl font-bold mb-4">
-        {template ? `Edit: ${template.fileName}` : 'New Template'}
-      </h2>
+    <div className="template-editor">
+      <h4 className="text-sm font-medium text-text-primary mb-4">
+        {template ? `编辑: ${template.fileName}` : '新建模板'}
+      </h4>
 
       {/* File Name - only for new templates */}
       {!template && (
         <div className="mb-4">
-          <label className="block text-sm font-medium mb-1">Template Name</label>
+          <label className="block text-xs text-text-secondary mb-1">模板名称</label>
           <input
             type="text"
             value={fileName}
             onChange={e => setFileName(e.target.value)}
             placeholder="my-template"
-            className="w-full px-3 py-2 rounded-lg border border-border bg-bg-secondary text-text-primary"
+            className="w-full px-3 py-2 text-sm rounded-md border border-border bg-bg-secondary text-text-primary"
           />
         </div>
       )}
 
       {/* Frontmatter Fields */}
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold mb-2">Frontmatter Fields</h3>
+      <div className="mb-4">
+        <h5 className="text-xs font-medium text-text-secondary mb-2">Frontmatter 字段</h5>
         <div className="space-y-2">
           {fields.map(field => (
-            <div key={field.name} className="flex items-center gap-2 p-2 bg-bg-secondary rounded">
-              <span className="font-mono text-sm flex-1">{field.name}</span>
+            <div key={field.name} className="flex items-center gap-2 p-2 bg-bg-secondary rounded-md">
+              <span className="font-mono text-sm flex-1 text-text-primary">{field.name}</span>
               <span className="text-xs text-muted-foreground px-2 py-0.5 bg-bg-tertiary rounded">{field.type}</span>
               {field.autoSet && (
                 <span className="text-xs text-accent px-2 py-0.5 bg-accent/10 rounded">auto:{field.autoSet}</span>
@@ -91,21 +91,21 @@ export const TemplateEditor = observer(({ template, onSave, onCancel }: Template
         {/* Add Field */}
         <div className="mt-3 flex gap-2 items-end">
           <div>
-            <label className="block text-xs text-muted-foreground mb-1">Field Name</label>
+            <label className="block text-xs text-muted-foreground mb-1">字段名</label>
             <input
               type="text"
               value={newFieldName}
               onChange={e => setNewFieldName(e.target.value)}
               placeholder="custom_field"
-              className="px-3 py-2 rounded border border-border bg-bg-secondary text-text-primary text-sm"
+              className="px-3 py-2 rounded-md border border-border bg-bg-secondary text-text-primary text-sm"
             />
           </div>
           <div>
-            <label className="block text-xs text-muted-foreground mb-1">Type</label>
+            <label className="block text-xs text-muted-foreground mb-1">类型</label>
             <select
               value={newFieldType}
               onChange={e => setNewFieldType(e.target.value as TemplateFieldType)}
-              className="px-3 py-2 rounded border border-border bg-bg-secondary text-text-primary text-sm"
+              className="px-3 py-2 rounded-md border border-border bg-bg-secondary text-text-primary text-sm"
             >
               {FIELD_TYPES.map(ft => (
                 <option key={ft.value} value={ft.value}>{ft.label}</option>
@@ -115,25 +115,25 @@ export const TemplateEditor = observer(({ template, onSave, onCancel }: Template
           <button
             type="button"
             onClick={handleAddField}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
+            className="px-3 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
           >
-            Add
+            添加
           </button>
         </div>
       </div>
 
       {/* Body */}
-      <div className="mb-6">
-        <h3 className="text-lg font-semibold mb-2">Body</h3>
+      <div className="mb-4">
+        <h5 className="text-xs font-medium text-text-secondary mb-2">正文</h5>
         <textarea
           value={body}
           onChange={e => setBody(e.target.value)}
           rows={10}
-          className="w-full px-3 py-2 rounded-lg border border-border bg-bg-secondary text-text-primary font-mono text-sm"
-          placeholder="Use {{fieldName}} for variable substitution..."
+          className="w-full px-3 py-2 rounded-md border border-border bg-bg-secondary text-text-primary font-mono text-sm"
+          placeholder="使用 {{字段名}} 进行变量替换..."
         />
         <p className="text-xs text-muted-foreground mt-1">
-          Use {'{{fieldName}}'} for variable substitution.
+          使用 {'{{字段名}}'} 进行变量替换。
         </p>
       </div>
 
@@ -142,17 +142,17 @@ export const TemplateEditor = observer(({ template, onSave, onCancel }: Template
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 border border-border rounded hover:bg-muted"
+          className="px-4 py-2 text-sm border border-border rounded-md hover:bg-muted"
         >
-          Cancel
+          取消
         </button>
         <button
           type="button"
           onClick={handleSave}
           disabled={!fileName.trim() && !template}
-          className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50"
+          className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
         >
-          Save Template
+          保存模板
         </button>
       </div>
     </div>

@@ -38,7 +38,8 @@ export class TemplateService extends Service {
   async readTemplate(fileName: string): Promise<Template> {
     if (!this.vaultPath) throw new Error('No vault open');
     const result = await template.read(this.vaultPath, fileName);
-    return parseTemplate(result.content!, fileName);
+    if (!result.content) throw new Error('Template content missing for: ' + fileName);
+    return parseTemplate(result.content, fileName);
   }
 
   async saveTemplate(templateObj: Template): Promise<void> {

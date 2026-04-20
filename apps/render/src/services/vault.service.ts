@@ -6,6 +6,7 @@ import type { TreeNode } from '@/ipc/vault';
 import type { RecentVault } from '@/ipc/config';
 import { UIService } from './ui.service';
 import { ImageStorageService } from './image-storage.service';
+import { TemplateService } from './template.service';
 
 function debounce<Args extends unknown[], R>(
   fn: (...args: Args) => R,
@@ -191,6 +192,8 @@ export class VaultService extends Service {
         await this.restoreVaultConfig();
         const imageStorageService = this.resolve(ImageStorageService);
         await imageStorageService.loadConfig();
+        const templateService = this.resolve(TemplateService);
+        await templateService.loadTemplates();
         this.recentVaults = await config.addRecentVault(path);
       }
     } finally {
@@ -223,6 +226,8 @@ export class VaultService extends Service {
         await this.restoreVaultConfig();
         const imageStorageService = this.resolve(ImageStorageService);
         await imageStorageService.loadConfig();
+        const templateService = this.resolve(TemplateService);
+        await templateService.loadTemplates();
         this.recentVaults = await config.addRecentVault(vaultPath);
         return true;
       }

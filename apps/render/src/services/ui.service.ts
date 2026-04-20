@@ -30,7 +30,7 @@ export class UIService extends Service {
 
   // Settings Modal
   settingsModalOpen = false;
-  activeSettingsCategory: 'appearance' | 'editor' | 'shortcuts' | 'image-storage' | 'about' =
+  activeSettingsCategory: 'appearance' | 'editor' | 'shortcuts' | 'image-storage' | 'templates' | 'about' =
     'appearance';
 
   // Legacy (removed, kept for reference during migration)
@@ -168,7 +168,7 @@ export class UIService extends Service {
   }
 
   // Settings
-  openSettings(category?: 'appearance' | 'editor' | 'shortcuts' | 'about'): void {
+  openSettings(category?: 'appearance' | 'editor' | 'shortcuts' | 'image-storage' | 'templates' | 'about'): void {
     if (category) {
       this.activeSettingsCategory = category;
     }
@@ -180,7 +180,7 @@ export class UIService extends Service {
   }
 
   setActiveSettingsCategory(
-    category: 'appearance' | 'editor' | 'shortcuts' | 'image-storage' | 'about'
+    category: 'appearance' | 'editor' | 'shortcuts' | 'image-storage' | 'templates' | 'about'
   ): void {
     this.activeSettingsCategory = category;
   }

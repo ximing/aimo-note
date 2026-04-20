@@ -35,13 +35,26 @@ export function parseTemplate(content: string, fileName: string): Template {
     } else if (typeof value === 'string') {
       fields.push({ name: key, type: 'text', defaultValue: value });
     } else if (Array.isArray(value)) {
-      fields.push({ name: key, type: 'tags', defaultValue: value });
+      const valueStr = JSON.stringify(value);
+      fields.push({ name: key, type: detectFieldType(key, valueStr), defaultValue: value });
     } else {
       fields.push({ name: key, type: 'text', defaultValue: String(value) });
     }
   }
 
   return { fileName, fields, body };
+}
+
+/**
+ * Detect field type from field name and raw YAML value string.
+ */
+export function detectFieldType(fieldName: string, valueStr: string): 'text' | 'date' | 'tags' | 'checkbox' {
+  if (fieldName === 'created' || fieldName === 'modified') return 'checkbox';
+  if (/\b(date|time|year|month|day)\b/i.test(fieldName)) return 'date';
+  if (valueStr === 'true' || valueStr === 'false') return 'checkbox';
+  if (valueStr === '[]') return 'tags';
+  if (/^\d{4}-\d{2}-\d{2}/.test(valueStr)) return 'date';
+  return 'text';
 }
 
 export function buildFrontmatter(
@@ -131,12 +144,19 @@ export function serializeTemplate(template: Template): string {
   const fmLines: string[] = [];
 
   for (const field of template.fields) {
-    if (field.autoSet === 'created') {
+    if (field.type === 'tags') {
+      const items = ((field.defaultValue ?? []) as unknown[]).map(item =>
+        typeof item === 'string' ? `'${item}'` : String(item)
+      );
+      fmLines.push(`${field.name}: [${items.join(', ')}]`);
+    } else if (field.autoSet === 'created') {
       fmLines.push('created: true');
     } else if (field.autoSet === 'modified') {
       fmLines.push('modified: true');
-    } else if (field.type === 'tags') {
-      fmLines.push(`${field.name}: ${JSON.stringify(field.defaultValue ?? [])}`);
+    } else if (field.type === 'date') {
+      fmLines.push(`${field.name}: "${field.defaultValue ?? ''}"`);
+    } else if (field.type === 'checkbox') {
+      fmLines.push(`${field.name}: ${field.defaultValue ? 'true' : 'false'}`);
     } else {
       fmLines.push(`${field.name}: "${field.defaultValue ?? ''}"`);
     }

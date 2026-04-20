@@ -8,15 +8,17 @@ import type {
   S3ImageStorageConfig,
 } from '@/types/image-storage';
 import { useState, useEffect } from 'react';
+import { TemplateSettings } from '@/pages/settings/components/TemplateSettings';
 
 type Theme = 'light' | 'dark' | 'system';
-type SettingsCategory = 'appearance' | 'editor' | 'shortcuts' | 'image-storage' | 'about';
+type SettingsCategory = 'appearance' | 'editor' | 'shortcuts' | 'image-storage' | 'templates' | 'about';
 
 const settingsCategories: { id: SettingsCategory; label: string }[] = [
   { id: 'appearance', label: '外观' },
   { id: 'editor', label: '编辑器' },
   { id: 'shortcuts', label: '快捷键' },
   { id: 'image-storage', label: '图片存储' },
+  { id: 'templates', label: '模板' },
   { id: 'about', label: '关于' },
 ];
 
@@ -163,6 +165,9 @@ export const SettingsModal = observer(() => {
 
             {/* Image Storage Section */}
             {activeCategory === 'image-storage' && <ImageStorageSettings />}
+
+            {/* Templates Section */}
+            {activeCategory === 'templates' && <TemplateSettings />}
           </div>
         </div>
       </div>

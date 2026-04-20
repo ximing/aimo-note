@@ -715,7 +715,9 @@ export function registerIpcHandlers(): void {
       try {
         const templatesDir = path.join(vaultPath, TEMPLATES_DIR);
         await fs.mkdir(templatesDir, { recursive: true });
-        const fullPath = path.join(templatesDir, fileName);
+        // Strip .md suffix if present to avoid double extension (e.g. meeting.md.md)
+        const cleanFileName = fileName.endsWith('.md') ? fileName.slice(0, -3) : fileName;
+        const fullPath = path.join(templatesDir, cleanFileName + '.md');
         const normalized = path.normalize(fullPath);
         if (!normalized.startsWith(path.normalize(templatesDir))) {
           return { success: false, error: 'Invalid path' };
@@ -748,8 +750,8 @@ export function registerIpcHandlers(): void {
       const content = await fs.readFile(configPath, 'utf-8');
       const config = JSON.parse(content);
       return { success: true, mappings: config.templateMappings ?? {} };
-    } catch (error) {
-      return { success: false, error: String(error), mappings: {} };
+    } catch {
+      return { success: true, mappings: {} };
     }
   });
 

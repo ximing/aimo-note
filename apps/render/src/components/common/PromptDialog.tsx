@@ -67,7 +67,7 @@ export function PromptDialog({
             onClick={onCancel}
             className="px-5 py-2.5 text-sm font-medium rounded-lg bg-[--bg-tertiary] text-[--text-primary] hover:bg-[--border] transition-colors"
           >
-            {cancelText}
+            {cancelText || '取消'}
           </button>
           <button
             type="submit"
