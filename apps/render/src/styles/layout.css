@@ -50,7 +50,7 @@
   width: 48px;
   height: 100%;
   background-color: var(--bg-rail);
-  padding-top: 0;
+  padding-top: 10px;
 }
 
 /* ============================================

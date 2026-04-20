@@ -11,7 +11,7 @@ import { SearchPanel } from './left-sidebar/SearchPanel';
 import { SettingsModal } from './common/SettingsModal';
 import { StatusBar } from './common/StatusBar';
 import { ResizeHandle } from './common/ResizeHandle';
-import { Search, PanelLeftClose, PanelLeft, FolderTree } from 'lucide-react';
+import { PanelLeftClose, PanelLeft } from 'lucide-react';
 
 export const Layout = observer(() => {
   const uiService = useUIService();
@@ -58,23 +58,9 @@ export const Layout = observer(() => {
         {/* Left Column: Header Row + Content Area */}
         <div className="left-column flex flex-col overflow-hidden">
           {/* Header Row - pl-12 avoids macOS traffic lights */}
-          <div className="header-row pl-16 flex items-center gap-1 px-3 py-1">
-            {uiService.leftSidebarOpen ? (
-              <>
-                <button
-                  type="button"
-                  className="chrome-icon-button p-1.5 rounded text-sm"
-                  title={uiService.sidebarView === 'tree' ? '切换到搜索' : '切换到目录树'}
-                  onClick={() => uiService.setSidebarView(
-                    uiService.sidebarView === 'tree' ? 'search' : 'tree'
-                  )}
-                >
-                  {uiService.sidebarView === 'tree' ? (
-                    <Search size={16} />
-                  ) : (
-                    <FolderTree size={16} />
-                  )}
-                </button>
+          <div className="header-row pl-16 flex items-center px-3 py-1">
+            <div className="ml-auto flex items-center">
+              {uiService.leftSidebarOpen ? (
                 <button
                   type="button"
                   className="chrome-icon-button p-1.5 rounded text-sm"
@@ -83,17 +69,17 @@ export const Layout = observer(() => {
                 >
                   <PanelLeftClose size={16} />
                 </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                className="chrome-icon-button p-1.5 rounded text-sm"
-                title="展开目录树"
-                onClick={() => uiService.toggleLeftSidebar()}
-              >
-                <PanelLeft size={16} />
-              </button>
-            )}
+              ) : (
+                <button
+                  type="button"
+                  className="chrome-icon-button p-1.5 rounded text-sm"
+                  title="展开目录树"
+                  onClick={() => uiService.toggleLeftSidebar()}
+                >
+                  <PanelLeft size={16} />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Content Area */}

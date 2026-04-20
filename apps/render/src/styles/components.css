@@ -21,6 +21,11 @@
   background-color: var(--hover-soft);
 }
 
+.rail-nav-button.is-active {
+  color: var(--text-primary);
+  background-color: var(--selection-soft);
+}
+
 /* ============================================
    Titlebar Actions
    ============================================ */
