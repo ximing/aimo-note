@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router';
+import { BrowserRouter, HashRouter, Route, Routes } from 'react-router';
 import { Layout } from './components/Layout';
 import { HomePage } from './pages/home';
 import { EditorPage } from './pages/editor';
@@ -6,9 +6,11 @@ import { SettingsPage } from './pages/settings';
 import { GraphPage } from './pages/graph';
 import { SearchPage } from './pages/search';
 
+const Router = window.location.protocol === 'file:' ? HashRouter : BrowserRouter;
+
 export function App() {
   return (
-    <BrowserRouter>
+    <Router>
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route element={<Layout />}>
@@ -19,6 +21,6 @@ export function App() {
         </Route>
         <Route path="/settings" element={<SettingsPage />} />
       </Routes>
-    </BrowserRouter>
+    </Router>
   );
 }
