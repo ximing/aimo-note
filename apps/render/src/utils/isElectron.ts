@@ -175,6 +175,36 @@ declare global {
         setConfig: (vaultPath: string, config: ElectronImageStorageConfig) =>
           Promise<{ success: boolean; error?: string }>;
       };
+      // Template APIs
+      template: {
+        list: (vaultPath: string) => Promise<{
+          success: boolean;
+          templates: { fileName: string; fieldCount: number; preview: string }[];
+          error?: string;
+        }>;
+        read: (vaultPath: string, fileName: string) => Promise<{
+          success: boolean;
+          content?: string;
+          error?: string;
+        }>;
+        write: (vaultPath: string, fileName: string, content: string) => Promise<{
+          success: boolean;
+          error?: string;
+        }>;
+        delete: (vaultPath: string, fileName: string) => Promise<{
+          success: boolean;
+          error?: string;
+        }>;
+        getMappings: (vaultPath: string) => Promise<{
+          success: boolean;
+          mappings: Record<string, string>;
+          error?: string;
+        }>;
+        setMappings: (vaultPath: string, mappings: Record<string, string>) => Promise<{
+          success: boolean;
+          error?: string;
+        }>;
+      };
     };
   }
 }
