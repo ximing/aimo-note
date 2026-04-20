@@ -159,8 +159,9 @@ function TagsField({ field, value, onChange }: VariableFieldProps) {
   const [input, setInput] = useState('');
 
   const handleAddTag = () => {
-    if (!input.trim()) return;
-    onChange([...tags, input.trim()]);
+    const trimmed = input.trim();
+    if (!trimmed || tags.includes(trimmed)) return;
+    onChange([...tags, trimmed]);
     setInput('');
   };
 
