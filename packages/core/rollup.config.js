@@ -1,4 +1,5 @@
 import { nodeResolve } from '@rollup/plugin-node-resolve';
+import commonjs from '@rollup/plugin-commonjs';
 import typescript from '@rollup/plugin-typescript';
 
 export default {
@@ -12,6 +13,7 @@ export default {
     typescript({
       tsconfig: './tsconfig.json',
     }),
+    commonjs(),
     nodeResolve({
       extensions: ['.ts', '.tsx', '.js', '.jsx', '.json'],
     }),

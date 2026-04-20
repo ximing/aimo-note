@@ -135,6 +135,9 @@ importers:
 
   apps/render:
     dependencies:
+      '@aimo-note/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@aimo-note/dto':
         specifier: workspace:*
         version: link:../../packages/dto
@@ -345,6 +348,9 @@ importers:
       '@aimo-note/typescript-config':
         specifier: workspace:*
         version: link:../../config/config-typescript
+      '@rollup/plugin-commonjs':
+        specifier: ^28.0.9
+        version: 28.0.9(rollup@4.57.1)
       '@rollup/plugin-node-resolve':
         specifier: ^15.2.3
         version: 15.3.1(rollup@4.57.1)
