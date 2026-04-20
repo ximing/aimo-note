@@ -1,5 +1,6 @@
 export { MilkdownEditor } from './MilkdownEditor';
 export { EditorStatus } from './EditorStatus';
+export { FrontmatterPanel } from './FrontmatterPanel';
 export { ImageResizeHandles } from './ImageResizeHandles';
 export { ImageToolbar } from './ImageToolbar';
 export { TableContextMenu } from './TableContextMenu';

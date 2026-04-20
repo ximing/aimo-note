@@ -326,8 +326,9 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('vault:readNote', async (_event, vaultPath: string, filePath: string) => {
     try {
       const fullPath = path.join(vaultPath, filePath);
-      const content = await fs.readFile(fullPath, 'utf-8');
-      return { success: true, content };
+      const rawContent = await fs.readFile(fullPath, 'utf-8');
+      const { data, content: body } = matter(rawContent);
+      return { success: true, content: body, frontmatter: data };
     } catch (error) {
       return { success: false, error: String(error) };
     }

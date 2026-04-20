@@ -16,6 +16,7 @@
     "@aimo-note/core": "workspace:*",
     "@aimo-note/dto": "workspace:*",
     "@headlessui/react": "^2.2.9",
+    "gray-matter": "^4.0.3",
     "@milkdown/kit": "^7.0.0",
     "@milkdown/plugin-history": "^7.0.0",
     "@milkdown/plugin-listener": "^7.0.0",

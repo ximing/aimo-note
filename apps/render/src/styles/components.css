@@ -460,3 +460,26 @@
 html.dark .search-highlight {
   background-color: var(--search-highlight-dark);
 }
+
+/* ============================================
+   Frontmatter Panel
+   ============================================ */
+
+.frontmatter-panel {
+  background-color: color-mix(in srgb, var(--bg-primary) 50%, transparent);
+}
+
+.frontmatter-empty {
+  background-color: color-mix(in srgb, var(--bg-primary) 50%, transparent);
+}
+
+.frontmatter-panel input[type="text"],
+.frontmatter-panel input[type="date"],
+.frontmatter-panel select {
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.frontmatter-panel input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.5);
+}

@@ -2,9 +2,10 @@ import { resolve, Service } from '@rabjs/react';
 import { vault } from '@/ipc/vault';
 import { VaultService } from '@/services/vault.service';
 import type { Position, Selection } from '../types/editor';
+import matter from 'gray-matter';
 
 export class EditorService extends Service {
-  currentNote: { path: string; content: string } | null = null;
+  currentNote: { path: string; content: string; frontmatter: Record<string, unknown> } | null = null;
   content = '';
   cursor: Position = { line: 1, column: 1 };
   selection: Selection | null = null;
@@ -46,7 +47,7 @@ export class EditorService extends Service {
       throw new Error('Vault not open');
     }
     const note = await vault.readNote(vaultPath, path);
-    this.currentNote = { path, content: note.content };
+    this.currentNote = { path, content: note.content, frontmatter: note.frontmatter };
     this.content = note.content;
     this.isDirty = false;
     this.cursor = { line: 1, column: 1 };
@@ -106,7 +107,11 @@ export class EditorService extends Service {
         notePath: note.path,
         contentLength: this.content.length,
       });
-      await vault.writeNote(vaultPath, note.path, this.content);
+      const frontmatter = this.currentNote?.frontmatter;
+      const finalContent = frontmatter && Object.keys(frontmatter).length > 0
+        ? matter.stringify(this.content, frontmatter)
+        : this.content;
+      await vault.writeNote(vaultPath, note.path, finalContent);
       this.currentNote = { ...note, content: this.content };
       this.isDirty = false;
       this.lastSaved = new Date();
@@ -115,10 +120,21 @@ export class EditorService extends Service {
     }
   }
 
+  getFrontmatter(): Record<string, unknown> {
+    return this.currentNote?.frontmatter ?? {};
+  }
+
+  updateFrontmatter(frontmatter: Record<string, unknown>): void {
+    if (!this.currentNote) return;
+    this.currentNote = { ...this.currentNote, frontmatter };
+    this.isDirty = true;
+    this.emit('frontmatterChanged', frontmatter);
+  }
+
   async createNote(path: string, content: string = ''): Promise<void> {
     const vaultPath = this.vaultService?.path ?? '';
     await vault.writeNote(vaultPath, path, content);
-    this.currentNote = { path, content };
+    this.currentNote = { path, content, frontmatter: {} };
     this.content = content;
     this.isDirty = false;
 

@@ -1,7 +1,7 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { bindServices, observer, useService } from '@rabjs/react';
-import { MilkdownEditor } from '../../components/editor/MilkdownEditor';
+import { MilkdownEditor, FrontmatterPanel } from '../../components/editor';
 import { EditorService } from '../../services/editor.service';
 import { useVaultService } from '@/services/vault.service';
 import { useUIService } from '@/services/ui.service';
@@ -121,6 +121,9 @@ const EditorPageContent = observer(() => {
 
       // Update URL
       navigate(`/editor/${encodeURIComponent(newPath)}`, { replace: true });
+
+      // Sync filename to frontmatter title
+      service.updateFrontmatter({ ...service.getFrontmatter(), title: fileName.trim() });
     } catch (error) {
       console.error('Failed to rename file:', error);
       // Restore old name on error
@@ -242,6 +245,7 @@ const EditorPageContent = observer(() => {
           />
         </div>
       )}
+      {service.currentNote && <FrontmatterPanel />}
       <div className="editor-content flex-1 overflow-auto" onContextMenu={handleContextMenu}>
         <MilkdownEditor
           key={service.currentNote?.path || 'empty'}
