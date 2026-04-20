@@ -227,6 +227,43 @@ contextBridge.exposeInMainWorld('electronAPI', {
       error?: string;
     }>,
   },
+
+  // Template operations
+  template: {
+    list: (vaultPath: string) =>
+      ipcRenderer.invoke('template:list', vaultPath) as Promise<{
+        success: boolean;
+        templates: Array<{ fileName: string; fieldCount: number; preview: string }>;
+        error?: string;
+      }>,
+    read: (vaultPath: string, fileName: string) =>
+      ipcRenderer.invoke('template:read', vaultPath, fileName) as Promise<{
+        success: boolean;
+        content?: string;
+        error?: string;
+      }>,
+    write: (vaultPath: string, fileName: string, content: string) =>
+      ipcRenderer.invoke('template:write', vaultPath, fileName, content) as Promise<{
+        success: boolean;
+        error?: string;
+      }>,
+    delete: (vaultPath: string, fileName: string) =>
+      ipcRenderer.invoke('template:delete', vaultPath, fileName) as Promise<{
+        success: boolean;
+        error?: string;
+      }>,
+    getMappings: (vaultPath: string) =>
+      ipcRenderer.invoke('template:getMappings', vaultPath) as Promise<{
+        success: boolean;
+        mappings: Record<string, string>;
+        error?: string;
+      }>,
+    setMappings: (vaultPath: string, mappings: Record<string, string>) =>
+      ipcRenderer.invoke('template:setMappings', vaultPath, mappings) as Promise<{
+        success: boolean;
+        error?: string;
+      }>,
+  },
 });
 
 // --------- Type definitions for Renderer process ---------
@@ -299,6 +336,36 @@ declare global {
         }) => Promise<{
           success: boolean;
           results: SearchResult[];
+          error?: string;
+        }>;
+      };
+      // Template operations
+      template: {
+        list: (vaultPath: string) => Promise<{
+          success: boolean;
+          templates: Array<{ fileName: string; fieldCount: number; preview: string }>;
+          error?: string;
+        }>;
+        read: (vaultPath: string, fileName: string) => Promise<{
+          success: boolean;
+          content?: string;
+          error?: string;
+        }>;
+        write: (vaultPath: string, fileName: string, content: string) => Promise<{
+          success: boolean;
+          error?: string;
+        }>;
+        delete: (vaultPath: string, fileName: string) => Promise<{
+          success: boolean;
+          error?: string;
+        }>;
+        getMappings: (vaultPath: string) => Promise<{
+          success: boolean;
+          mappings: Record<string, string>;
+          error?: string;
+        }>;
+        setMappings: (vaultPath: string, mappings: Record<string, string>) => Promise<{
+          success: boolean;
           error?: string;
         }>;
       };
