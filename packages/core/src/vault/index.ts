@@ -19,3 +19,5 @@ export interface VaultEvent {
   type: 'create' | 'update' | 'delete';
   path: string;
 }
+
+export * from './template.js';
