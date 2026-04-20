@@ -77,9 +77,9 @@ esac
 
 echo ""
 echo "新版本: $NEW_VERSION"
-read -p "确认发布? [y/N]: " confirm
+read -p "确认发布? [Y/n]: " confirm
 
-if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+if [[ "$confirm" != "y" && "$confirm" != "Y" && -n "$confirm" ]]; then
   echo "已取消"
   exit 0
 fi
