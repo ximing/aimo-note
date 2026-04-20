@@ -186,10 +186,10 @@ const ImageStorageSettings = observer(() => {
       await imageStorageService.saveConfig(newConfig);
     } else if (updates.type === 'local') {
       const localUpdates = updates.local;
-      const currentLocal = (config as LocalImageStorageConfig).local;
+      const currentLocal = config.type === 'local' ? (config as LocalImageStorageConfig).local : null;
       const newConfig: ImageStorageConfig = {
         type: 'local',
-        local: { path: localUpdates?.path ?? currentLocal.path },
+        local: { path: localUpdates?.path ?? currentLocal?.path ?? 'assets/images' },
       };
       setConfig(newConfig);
       await imageStorageService.saveConfig(newConfig);
