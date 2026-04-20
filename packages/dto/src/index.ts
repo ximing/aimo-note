@@ -15,3 +15,4 @@ export interface VaultStats {
 export * from './search.js';
 export * from './response.js';
 export * from './template.js';
+export * from './sync.js';

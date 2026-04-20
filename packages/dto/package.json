@@ -25,9 +25,6 @@
     "typecheck": "tsc --noEmit",
     "test": "jest"
   },
-  "jest": {
-    "preset": "@soiljs/jest-presets/node"
-  },
   "devDependencies": {
     "@aimo-note/eslint-config": "workspace:*",
     "@aimo-note/jest-presets": "workspace:*",
