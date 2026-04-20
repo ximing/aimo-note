@@ -23,10 +23,16 @@ export function parseTemplate(content: string, fileName: string): Template {
       // Reserved fields: boolean true means auto-set, otherwise skip
       if (typeof value === 'boolean' && value === true) {
         fields.push({ name: key, type: 'checkbox', autoSet: key as 'created' | 'modified' });
+      } else if (key === 'tags' && Array.isArray(value)) {
+        fields.push({ name: 'tags', type: 'tags', defaultValue: value });
       }
       continue;
     }
-    if (typeof value === 'string') {
+    if (typeof value === 'boolean') {
+      fields.push({ name: key, type: 'checkbox', defaultValue: value });
+    } else if (value instanceof Date) {
+      fields.push({ name: key, type: 'date', defaultValue: value.toISOString().split('T')[0] });
+    } else if (typeof value === 'string') {
       fields.push({ name: key, type: 'text', defaultValue: value });
     } else if (Array.isArray(value)) {
       fields.push({ name: key, type: 'tags', defaultValue: value });
@@ -130,7 +136,7 @@ export function serializeTemplate(template: Template): string {
     } else if (field.autoSet === 'modified') {
       fmLines.push('modified: true');
     } else if (field.type === 'tags') {
-      fmLines.push(`${field.name}: []`);
+      fmLines.push(`${field.name}: ${JSON.stringify(field.defaultValue ?? [])}`);
     } else {
       fmLines.push(`${field.name}: "${field.defaultValue ?? ''}"`);
     }

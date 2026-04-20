@@ -52,6 +52,18 @@ export class TemplateService extends Service {
     if (!this.vaultPath) throw new Error('No vault open');
     await template.delete(this.vaultPath, fileName);
     await this.loadTemplates();
+    // Remove stale mappings for the deleted template
+    const validTemplateFileNames = new Set(this.templates.map(t => t.fileName));
+    const cleanedMappings: Record<string, string> = {};
+    for (const [dir, tmplFileName] of Object.entries(this.mappings)) {
+      if (validTemplateFileNames.has(tmplFileName)) {
+        cleanedMappings[dir] = tmplFileName;
+      }
+    }
+    if (Object.keys(cleanedMappings).length !== Object.keys(this.mappings).length) {
+      this.mappings = cleanedMappings;
+      await template.setMappings(this.vaultPath, cleanedMappings);
+    }
   }
 
   async setMapping(directory: string, templateFileName: string): Promise<void> {

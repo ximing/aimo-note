@@ -748,8 +748,8 @@ export function registerIpcHandlers(): void {
       const content = await fs.readFile(configPath, 'utf-8');
       const config = JSON.parse(content);
       return { success: true, mappings: config.templateMappings ?? {} };
-    } catch {
-      return { success: true, mappings: {} };
+    } catch (error) {
+      return { success: false, error: String(error), mappings: {} };
     }
   });
 

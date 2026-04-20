@@ -23,6 +23,7 @@ export const NewNoteDialog = observer(({ parentPath, onConfirm, onCancel }: NewN
 
   const handleNameConfirm = useCallback(async (name: string) => {
     setNoteName(name);
+    await templateService.loadTemplates();
     const tmpl = await templateService.findTemplateForDirectory(parentPath);
     if (tmpl) {
       setTemplate(tmpl);
