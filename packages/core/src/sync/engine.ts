@@ -67,6 +67,34 @@ export class SyncEngine {
       this.changeLogger.markSynced(ids);
     }
 
+    // Step 7: Persist local manifest to remote so other devices see these changes
+    // Only save if there were actual uploads or downloads (not just conflicts)
+    if (result.uploaded.length > 0 || result.downloaded.length > 0) {
+      const finalManifest = await this.buildLocalManifest();
+      // Include files that were just uploaded/downloaded in this sync cycle
+      for (const filePath of result.uploaded) {
+        const latest = this.versionManager.getLatestVersion(filePath);
+        if (latest) {
+          finalManifest.files[filePath] = {
+            hash: latest.hash,
+            version: latest.version,
+            updatedAt: latest.createdAt,
+          };
+        }
+      }
+      for (const filePath of result.downloaded) {
+        const latest = this.versionManager.getLatestVersion(filePath);
+        if (latest) {
+          finalManifest.files[filePath] = {
+            hash: latest.hash,
+            version: latest.version,
+            updatedAt: latest.createdAt,
+          };
+        }
+      }
+      await this.manifestManager.save(finalManifest);
+    }
+
     return result;
   }
 
