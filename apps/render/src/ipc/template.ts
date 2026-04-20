@@ -57,6 +57,7 @@ export const template: TemplateIPC = {
   },
   async getMappings(vaultPath: string) {
     const result = await window.electronAPI!.template.getMappings(vaultPath);
+    if (!result.success) throw new Error(result.error);
     return result;
   },
   async setMappings(vaultPath: string, mappings: Record<string, string>) {
