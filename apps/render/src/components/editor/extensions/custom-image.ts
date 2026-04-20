@@ -202,6 +202,7 @@ export const migrateImageStateComment = (markdown: string): string => {
 
 // Extend the built-in imageSchema to add align and width attributes
 export const customImageSchema = imageSchema.extendSchema((original) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (ctx: any) => {
     const originalSchema = original(ctx);
     return {
@@ -235,6 +236,7 @@ export const customImageSchema = imageSchema.extendSchema((original) => {
           },
         },
       ],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       toDOM: (node: any) => {
         const align = normalizeAlign(node.attrs.align);
         const width = normalizeWidth(node.attrs.width);
@@ -253,6 +255,7 @@ export const customImageSchema = imageSchema.extendSchema((original) => {
         ];
       },
       parseMarkdown: {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         match: (node: any) => {
           if (node.type === 'image') {
             return true;
@@ -264,6 +267,7 @@ export const customImageSchema = imageSchema.extendSchema((original) => {
 
           return false;
         },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         runner: (state: any, node: any, type: any) => {
           if (node.type === 'image') {
             state.addNode(type, {
@@ -285,7 +289,9 @@ export const customImageSchema = imageSchema.extendSchema((original) => {
         },
       },
       toMarkdown: {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         match: (node: any) => node.type.name === 'image',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         runner: (state: any, node: any) => {
           const src = String(node.attrs.src || '');
           const alt = String(node.attrs.alt || '');

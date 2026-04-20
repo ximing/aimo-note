@@ -198,6 +198,7 @@ export const useImageEditing = ({ getEditor, editorRootRef, vaultPath }: UseImag
   }, [updateImageOverlayPosition]);
 
   const handleResizeEnd = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     (width: number, _height: number) => {
       const editor = getEditor();
       if (!editor || selectedImageNodePos === null) return;
