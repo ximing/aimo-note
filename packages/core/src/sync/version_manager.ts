@@ -74,7 +74,7 @@ export class VersionManager {
   getFileHistory(filePath: string): SyncFileVersion[] {
     const rows = this.db
       .prepare(
-        'SELECT * FROM sync_file_versions WHERE file_path = ? ORDER BY created_at DESC'
+        'SELECT * FROM sync_file_versions WHERE file_path = ? ORDER BY created_at DESC, id DESC'
       )
       .all(filePath) as SyncFileVersionRow[];
 
@@ -84,7 +84,7 @@ export class VersionManager {
   getLatestVersion(filePath: string): SyncFileVersion | null {
     const row = this.db
       .prepare(
-        'SELECT * FROM sync_file_versions WHERE file_path = ? AND is_deleted = 0 ORDER BY created_at DESC LIMIT 1'
+        'SELECT * FROM sync_file_versions WHERE file_path = ? AND is_deleted = 0 ORDER BY created_at DESC, id DESC LIMIT 1'
       )
       .get(filePath) as SyncFileVersionRow | undefined;
 
@@ -107,7 +107,8 @@ export class VersionManager {
 
     try {
       return readFileSync(versionRecord.contentPath, 'utf-8');
-    } catch {
+    } catch (err) {
+      console.error(`Failed to read version content for ${filePath}@${version}:`, err);
       return null;
     }
   }

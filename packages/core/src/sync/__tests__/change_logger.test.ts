@@ -1,5 +1,6 @@
 import BetterSqlite3 from 'better-sqlite3';
 import { initDatabase, setDatabase } from '../db';
+import { DeviceManager } from '../device';
 import { ChangeLogger } from '../change_logger';
 import type { SyncChangeLogEntry, SyncOperation } from '@aimo-note/dto';
 
@@ -11,6 +12,8 @@ describe('ChangeLogger', () => {
     db = new BetterSqlite3(':memory:');
     initDatabase(db);
     setDatabase(db);
+    const deviceManager = new DeviceManager(db);
+    deviceManager.register('device-001', 'Test Device');
     changeLogger = new ChangeLogger(db, 'device-001');
   });
 

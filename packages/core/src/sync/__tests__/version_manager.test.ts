@@ -1,16 +1,20 @@
 import BetterSqlite3 from 'better-sqlite3';
 import { initDatabase, setDatabase } from '../db';
+import { DeviceManager } from '../device';
 import { VersionManager } from '../version_manager';
 import type { SyncFileVersion } from '@aimo-note/dto';
 
 describe('VersionManager', () => {
   let db: InstanceType<typeof BetterSqlite3>;
   let versionManager: VersionManager;
+  let deviceManager: DeviceManager;
 
   beforeEach(() => {
     db = new BetterSqlite3(':memory:');
     initDatabase(db);
     setDatabase(db);
+    deviceManager = new DeviceManager(db);
+    deviceManager.register('device-001', 'Test Device');
     versionManager = new VersionManager(db, 'device-001', '/tmp/aimo-test-versions');
   });
 

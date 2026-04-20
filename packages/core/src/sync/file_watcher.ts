@@ -13,11 +13,13 @@ export class Watcher {
   private watcher: FSWatcher | null = null;
   private vaultPath: string;
   private callback: VaultEventCallback;
+  private onError?: (err: Error) => void;
 
-  constructor(vaultPath: string, callback: VaultEventCallback) {
+  constructor(vaultPath: string, callback: VaultEventCallback, onError?: (err: Error) => void) {
     // Normalize vaultPath by removing trailing slash
     this.vaultPath = vaultPath.endsWith('/') ? vaultPath.slice(0, -1) : vaultPath;
     this.callback = callback;
+    this.onError = onError;
 
     this.watcher = watch(this.vaultPath, {
       persistent: true,
@@ -46,6 +48,9 @@ export class Watcher {
 
     this.watcher.on('error', (error: Error) => {
       console.error('File watcher error:', error);
+      if (this.onError) {
+        this.onError(error);
+      }
     });
   }
 

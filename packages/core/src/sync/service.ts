@@ -1,10 +1,10 @@
 import type { Database } from 'better-sqlite3';
 import type { SyncDevice } from '@aimo-note/dto';
-import { DeviceManager } from './device.js';
-import { ChangeLogger } from './change_logger.js';
-import { VersionManager } from './version_manager.js';
-import { Watcher } from './file_watcher.js';
-import { initDatabase } from './db.js';
+import { DeviceManager } from './device';
+import { ChangeLogger } from './change_logger';
+import { VersionManager } from './version_manager';
+import { Watcher } from './file_watcher';
+import { initDatabase } from './db';
 
 export interface SyncServiceConfig {
   vaultPath: string;
@@ -50,7 +50,12 @@ export class SyncService {
   async start(): Promise<void> {
     if (this.isRunning) return;
     this.isRunning = true;
-    this.startWatching(this.vaultPath);
+    try {
+      this.startWatching(this.vaultPath);
+    } catch (err) {
+      this.isRunning = false;
+      throw err;
+    }
   }
 
   async stop(): Promise<void> {
