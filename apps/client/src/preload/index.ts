@@ -72,6 +72,7 @@ export interface VaultResult {
   path?: string;
   tree?: TreeNode[];
   content?: string;
+  frontmatter?: Record<string, unknown>;
   error?: string;
 }
 

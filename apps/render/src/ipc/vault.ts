@@ -1,3 +1,5 @@
+import matter from 'gray-matter';
+
 export interface TreeNode {
   path: string;
   name: string;
@@ -7,7 +9,7 @@ export interface TreeNode {
 
 export interface Vault {
   open(path: string): Promise<{ path: string; tree: TreeNode[] }>;
-  readNote(vaultPath: string, path: string): Promise<{ path: string; content: string }>;
+  readNote(vaultPath: string, path: string): Promise<{ path: string; content: string; frontmatter: Record<string, unknown> }>;
   writeNote(vaultPath: string, path: string, content: string): Promise<void>;
   deleteNote(vaultPath: string, path: string): Promise<void>;
   list(path: string): Promise<TreeNode[]>;
@@ -35,7 +37,9 @@ export const vault: Vault = {
     if (!result.success) {
       throw new Error(result.error);
     }
-    return { path: filePath, content: result.content || '' };
+    const rawContent = (result.content || '') as string;
+    const { data, content: body } = matter(rawContent);
+    return { path: filePath, content: body, frontmatter: data };
   },
   async writeNote(vaultPath: string, filePath: string, content: string) {
     console.log('[IPC Client] vault.writeNote called', {
