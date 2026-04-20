@@ -14,3 +14,4 @@ export interface VaultStats {
 // Core types
 export * from './search.js';
 export * from './response.js';
+export * from './template.js';
