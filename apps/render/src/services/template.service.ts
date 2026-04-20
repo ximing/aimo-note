@@ -3,7 +3,6 @@ import { template } from '@/ipc/template';
 import { VaultService } from './vault.service';
 import type { Template } from '@aimo-note/dto';
 import {
-  parseTemplate,
   applyTemplate,
   serializeTemplate,
   findTemplateForDirectory,
@@ -38,8 +37,8 @@ export class TemplateService extends Service {
   async readTemplate(fileName: string): Promise<Template> {
     if (!this.vaultPath) throw new Error('No vault open');
     const result = await template.read(this.vaultPath, fileName);
-    if (!result.content) throw new Error('Template content missing for: ' + fileName);
-    return parseTemplate(result.content, fileName);
+    if (!result.template) throw new Error('Template not found: ' + fileName);
+    return result.template as Template;
   }
 
   async saveTemplate(templateObj: Template): Promise<void> {

@@ -15,7 +15,7 @@ export interface TemplateIPC {
     fileName: string
   ): Promise<{
     success: boolean;
-    content?: string;
+    template?: { fileName: string; fields: Array<{ name: string; type: string; defaultValue?: unknown; autoSet?: string }>; body: string };
     error?: string;
   }>;
   write(

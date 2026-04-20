@@ -6,7 +6,7 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { randomUUID } from 'crypto';
 import { spawn } from 'child_process';
 import { rgPath } from '@vscode/ripgrep';
-import type { SearchResult } from '@aimo-note/dto';
+import type { SearchResult, Template, TemplateField } from '@aimo-note/dto';
 import matter from 'gray-matter';
 
 const TEMPLATES_DIR = '.aimo-note/templates';
@@ -703,7 +703,34 @@ export function registerIpcHandlers(): void {
         return { success: false, error: 'Invalid path' };
       }
       const content = await fs.readFile(normalized, 'utf-8');
-      return { success: true, content };
+      const { data, content: body } = matter(content);
+      const fields: TemplateField[] = [];
+
+      for (const [key, value] of Object.entries(data)) {
+        if (key === 'title') continue;
+        if (key === 'tags' || key === 'created' || key === 'modified') {
+          if (typeof value === 'boolean' && value === true) {
+            fields.push({ name: key, type: 'checkbox', autoSet: key as 'created' | 'modified' });
+          } else if (key === 'tags' && Array.isArray(value)) {
+            fields.push({ name: 'tags', type: 'tags', defaultValue: value });
+          }
+          continue;
+        }
+        if (typeof value === 'boolean') {
+          fields.push({ name: key, type: 'checkbox', defaultValue: value });
+        } else if (value instanceof Date) {
+          fields.push({ name: key, type: 'date', defaultValue: value.toISOString().split('T')[0] });
+        } else if (typeof value === 'string') {
+          fields.push({ name: key, type: 'text', defaultValue: value });
+        } else if (Array.isArray(value)) {
+          fields.push({ name: key, type: 'text', defaultValue: String(value) });
+        } else {
+          fields.push({ name: key, type: 'text', defaultValue: String(value) });
+        }
+      }
+
+      const template: Template = { fileName, fields, body };
+      return { success: true, template };
     } catch (error) {
       return { success: false, error: String(error) };
     }
