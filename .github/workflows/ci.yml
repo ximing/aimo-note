@@ -52,8 +52,8 @@ jobs:
 
       - name: Build dependencies (required for typecheck)
         run: |
-          pnpm --filter @aimo/dto build
-          pnpm --filter @aimo/logger build
+          pnpm --filter @aimo-note/dto build
+          pnpm --filter @aimo-note/logger build
 
       - name: Typecheck render
         run: cd apps/render && pnpm typecheck
