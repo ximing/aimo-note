@@ -15,10 +15,11 @@ export class Watcher {
   private callback: VaultEventCallback;
 
   constructor(vaultPath: string, callback: VaultEventCallback) {
-    this.vaultPath = vaultPath;
+    // Normalize vaultPath by removing trailing slash
+    this.vaultPath = vaultPath.endsWith('/') ? vaultPath.slice(0, -1) : vaultPath;
     this.callback = callback;
 
-    this.watcher = watch(vaultPath, {
+    this.watcher = watch(this.vaultPath, {
       persistent: true,
       ignoreInitial: true,
       followSymlinks: false,
@@ -42,6 +43,14 @@ export class Watcher {
     this.watcher.on('unlink', (filePath: string) => {
       this.callback({ type: 'delete', path: this.getRelativePath(filePath) });
     });
+
+    this.watcher.on('error', (error: Error) => {
+      console.error('File watcher error:', error);
+    });
+  }
+
+  isWatching(): boolean {
+    return this.watcher !== null;
   }
 
   private getRelativePath(filePath: string): string {
