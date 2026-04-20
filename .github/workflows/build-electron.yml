@@ -45,8 +45,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build DTO package
-        run: pnpm --filter @aimo-note/dto build
+      - name: Build all packages
+        run: pnpm --filter "@aimo-note/*" build
 
       - name: Upload packages artifacts
         uses: actions/upload-artifact@v4
