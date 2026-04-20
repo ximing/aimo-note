@@ -1,5 +1,3 @@
-import matter from 'gray-matter';
-
 export interface TreeNode {
   path: string;
   name: string;
@@ -37,9 +35,7 @@ export const vault: Vault = {
     if (!result.success) {
       throw new Error(result.error);
     }
-    const rawContent = (result.content || '') as string;
-    const { data, content: body } = matter(rawContent);
-    return { path: filePath, content: body, frontmatter: data };
+    return { path: filePath, content: result.content || '', frontmatter: result.frontmatter || {} };
   },
   async writeNote(vaultPath: string, filePath: string, content: string) {
     console.log('[IPC Client] vault.writeNote called', {

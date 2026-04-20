@@ -42,7 +42,7 @@ export const FrontmatterPanel = observer(() => {
 
   const handleFieldChange = useCallback((key: string, value: string, type: FieldDef['type']) => {
     let parsedValue: unknown = value;
-    if (type === 'array') parsedValue = value.split(',').map((s) => s.trim()).filter(Boolean);
+    if (type === 'array') parsedValue = value.split(',').map((s) => s.trim()).filter(s => s.trim() !== '');
     const newFm = { ...frontmatter, [key]: parsedValue };
     service.updateFrontmatter(newFm);
   }, [frontmatter, service]);

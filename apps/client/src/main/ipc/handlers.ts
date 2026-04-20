@@ -330,7 +330,16 @@ export function registerIpcHandlers(): void {
       const { data, content: body } = matter(rawContent);
       return { success: true, content: body, frontmatter: data };
     } catch (error) {
-      return { success: false, error: String(error) };
+      // YAML parse failure: silent fallback per spec
+      try {
+        const fullPath = path.join(vaultPath, filePath);
+        const rawContent = await fs.readFile(fullPath, 'utf-8');
+        // Strip the --- YAML block so subsequent saves with matter.stringify() produce clean output
+        const stripped = rawContent.replace(/^---\n[\s\S]*?\n---\n/, '');
+        return { success: true, content: stripped, frontmatter: {} };
+      } catch {
+        return { success: false, error: String(error) };
+      }
     }
   });
 

@@ -72,7 +72,17 @@ export class ManifestManager {
       } else if (localEntry && !remoteEntry) {
         toUpload.push(file);
       } else if (localEntry && remoteEntry) {
-        if (localEntry.hash !== remoteEntry.hash) {
+        const localDeleted = localEntry.isDeleted === true;
+        const remoteDeleted = remoteEntry.isDeleted === true;
+        if (localDeleted && remoteDeleted) {
+          // Both deleted — no-op
+        } else if (localDeleted && !remoteDeleted) {
+          // Local deleted, remote still exists — propagate deletion upward
+          toUpload.push(file);
+        } else if (!localDeleted && remoteDeleted) {
+          // Remote deleted, local still exists — apply deletion downward
+          toDownload.push(file);
+        } else if (localEntry.hash !== remoteEntry.hash) {
           conflicts.push(file);
         } else if (localEntry.version !== remoteEntry.version) {
           toUpload.push(file);

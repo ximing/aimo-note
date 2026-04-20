@@ -90,6 +90,21 @@ export class S3Adapter {
     }
   }
 
+  /**
+   * Get the changelog.json from S3.
+   * Returns null if the changelog does not exist yet.
+   */
+  async getChangelog(): Promise<string | null> {
+    return this.getObject('.aimo/changelog.json');
+  }
+
+  /**
+   * Put the changelog.json to S3.
+   */
+  async putChangelog(body: string): Promise<void> {
+    await this.putObject('.aimo/changelog.json', body);
+  }
+
   private resolveKey(key: string): string {
     if (key.startsWith(this.vaultPrefix)) return key;
     return `${this.vaultPrefix}${key.replace(/^\.aimo\//, '')}`;

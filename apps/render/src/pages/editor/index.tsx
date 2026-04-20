@@ -22,6 +22,7 @@ const EditorPageContent = observer(() => {
   const lineParam = searchParams.get('line');
   const targetLine = lineParam ? Number.parseInt(lineParam, 10) : undefined;
   const editorRef = useRef<{ dom: HTMLElement | null }>({ dom: null });
+  const isSyncingTitleRef = useRef(false);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const [newFileDialog, setNewFileDialog] = useState(false);
   const [newFolderDialog, setNewFolderDialog] = useState(false);
@@ -91,14 +92,20 @@ const EditorPageContent = observer(() => {
     const handleFrontmatterChanged = (frontmatter: Record<string, unknown>) => {
       const title = frontmatter.title as string | undefined;
       if (title && title !== fileName) {
+        isSyncingTitleRef.current = true;
         setFileName(title);
+        // Defer reset until after React commits the state update, avoiding the
+        // timing window where blur sees the old fileName before the new one commits.
+        queueMicrotask(() => {
+          isSyncingTitleRef.current = false;
+        });
       }
     };
     service.on('frontmatterChanged', handleFrontmatterChanged);
     return () => {
       service.off('frontmatterChanged', handleFrontmatterChanged);
     };
-  }, [service, fileName]);
+  }, [service]);
 
   const handleFileNameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setFileName(e.target.value);
@@ -136,8 +143,11 @@ const EditorPageContent = observer(() => {
       // Update URL
       navigate(`/editor/${encodeURIComponent(newPath)}`, { replace: true });
 
-      // Sync filename to frontmatter title
-      service.updateFrontmatter({ ...service.getFrontmatter(), title: fileName.trim() });
+      // Sync filename to frontmatter title (only if title actually differs and not during title sync)
+      const title = fileName.trim();
+      if (!isSyncingTitleRef.current && title !== service.getFrontmatter().title) {
+        service.updateFrontmatter({ ...service.getFrontmatter(), title });
+      }
     } catch (error) {
       console.error('Failed to rename file:', error);
       // Restore old name on error
@@ -160,6 +170,18 @@ const EditorPageContent = observer(() => {
     },
     [service.currentNote]
   );
+
+  // Ctrl+S save shortcut
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        service.saveNote();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [service]);
 
   const handleChange = useCallback(
     (markdown: string) => {

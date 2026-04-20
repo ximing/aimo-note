@@ -480,6 +480,6 @@ html.dark .search-highlight {
   color: var(--text-primary);
 }
 
-.frontmatter-panel input[type="date"]::-webkit-calendar-picker-indicator {
+html.dark .frontmatter-panel input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(0.5);
 }

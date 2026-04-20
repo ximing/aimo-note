@@ -103,7 +103,7 @@ declare global {
         readNote: (
           vaultPath: string,
           notePath: string
-        ) => Promise<{ success: boolean; content?: string; error?: string }>;
+        ) => Promise<{ success: boolean; content?: string; frontmatter?: Record<string, unknown>; error?: string }>;
         writeNote: (
           vaultPath: string,
           notePath: string,

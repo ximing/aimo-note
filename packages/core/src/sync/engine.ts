@@ -27,7 +27,22 @@ export class SyncEngine {
   async sync(): Promise<SyncResult> {
     const result: SyncResult = { uploaded: [], downloaded: [], conflicts: [], errors: [] };
 
-    // Step 1: Load remote manifest
+    // Step 1: Load remote changelog (before manifest per sync protocol)
+    let remoteChangelog: any[] = [];
+    try {
+      const changelogRaw = await this.adapter.getChangelog();
+      if (changelogRaw) {
+        try {
+          remoteChangelog = JSON.parse(changelogRaw);
+        } catch {
+          remoteChangelog = [];
+        }
+      }
+    } catch (err) {
+      result.errors.push(`getChangelog: ${err}`);
+    }
+
+    // Step 2: Load remote manifest
     const remoteManifest = await this.manifestManager.load();
 
     // Step 2: Build local manifest from VersionManager
@@ -51,7 +66,11 @@ export class SyncEngine {
     // Step 5: Download remote versions
     for (const filePath of toDownload) {
       try {
-        const version = remoteManifest.files[filePath].version;
+        const version = remoteManifest.files[filePath]?.version;
+        if (!version) {
+          result.errors.push(`download ${filePath}: no version in remote manifest`);
+          continue;
+        }
         await this.downloadVersion(filePath, version);
         result.downloaded.push(filePath);
       } catch (err) {
@@ -59,49 +78,70 @@ export class SyncEngine {
       }
     }
 
-    // Step 6: Mark change log entries as synced for uploaded files
+    // Step 6: Persist merged manifest so other devices see these changes
+    let markSyncedIds: number[] = [];
     if (result.uploaded.length > 0) {
       const entries = this.changeLogger.getUnsyncedEntries();
       const uploadedEntries = entries.filter((e) => result.uploaded.includes(e.filePath));
-      const ids = uploadedEntries.map((e) => e.id!).filter(Boolean);
-      this.changeLogger.markSynced(ids);
+      markSyncedIds = uploadedEntries.map((e) => e.id!).filter(Boolean);
     }
 
-    // Step 7: Persist local manifest to remote so other devices see these changes
-    // Only save if there were actual uploads or downloads (not just conflicts)
-    if (result.uploaded.length > 0 || result.downloaded.length > 0) {
-      const finalManifest = await this.buildLocalManifest();
-      // Include files that were just uploaded/downloaded in this sync cycle
-      for (const filePath of result.uploaded) {
-        const latest = this.versionManager.getLatestVersion(filePath);
-        if (latest) {
-          finalManifest.files[filePath] = {
-            hash: latest.hash,
-            version: latest.version,
-            updatedAt: latest.createdAt,
-          };
+    try {
+      if (result.uploaded.length > 0 || result.downloaded.length > 0 || result.conflicts.length > 0) {
+        // Start from a shallow copy of remoteManifest so we don't drop remote-only files
+        const finalManifest: SyncManifest = { ...remoteManifest };
+        // Merge in latest local version for each uploaded file
+        for (const filePath of result.uploaded) {
+          const latest = this.versionManager.getLatestVersion(filePath);
+          if (latest) {
+            finalManifest.files[filePath] = {
+              hash: latest.hash,
+              version: latest.version,
+              updatedAt: latest.createdAt,
+            };
+          }
+        }
+        // Merge in authoritative remote state for each downloaded file
+        for (const filePath of result.downloaded) {
+          const remoteEntry = remoteManifest.files[filePath];
+          if (remoteEntry) {
+            finalManifest.files[filePath] = remoteEntry;
+          }
+        }
+        await this.manifestManager.save(finalManifest);
+
+        // Mark change log entries as synced only after manifest save succeeds
+        if (markSyncedIds.length > 0) {
+          this.changeLogger.markSynced(markSyncedIds);
+        }
+      } else {
+        // No changes to persist — still mark synced if we uploaded nothing but have IDs
+        // (can happen when all files conflicted and nothing was uploaded)
+        if (markSyncedIds.length > 0) {
+          this.changeLogger.markSynced(markSyncedIds);
         }
       }
-      for (const filePath of result.downloaded) {
-        const latest = this.versionManager.getLatestVersion(filePath);
-        if (latest) {
-          finalManifest.files[filePath] = {
-            hash: latest.hash,
-            version: latest.version,
-            updatedAt: latest.createdAt,
-          };
-        }
+    } catch (err) {
+      result.errors.push(`manifest save: ${err}`);
+    }
+
+    // Step 7: Save remote changelog (last step of exchange)
+    // Merge remote changelog with our local unsynced entries and push back
+    try {
+      const localEntries = this.changeLogger.getUnsyncedEntries();
+      const mergedChangelog = [...remoteChangelog];
+      for (const entry of localEntries) {
+        mergedChangelog.push(entry);
       }
-      await this.manifestManager.save(finalManifest);
+      await this.adapter.putChangelog(JSON.stringify(mergedChangelog, null, 2));
+    } catch (err) {
+      result.errors.push(`putChangelog: ${err}`);
     }
 
     return result;
   }
 
   async buildLocalManifest(): Promise<SyncManifest> {
-    // Phase 2: Build manifest from VersionManager
-    // This queries the local database for all file versions
-    // In Phase 3, this will be enhanced with vault file scanning
     const manifest: SyncManifest = {
       version: '1',
       updatedAt: new Date().toISOString(),
@@ -109,9 +149,8 @@ export class SyncEngine {
       files: {},
     };
 
-    // Get all unique file paths from the change log
-    const unsyncedEntries = this.changeLogger.getUnsyncedEntries();
-    const filePaths = [...new Set(unsyncedEntries.map((e) => e.filePath))];
+    // Get ALL tracked file paths from the version manager (not just unsynced)
+    const filePaths = this.versionManager.getAllTrackedPaths();
 
     // For each file, get the latest version from VersionManager
     for (const filePath of filePaths) {
@@ -130,10 +169,14 @@ export class SyncEngine {
 
   private async uploadVersion(filePath: string): Promise<void> {
     const latest = this.versionManager.getLatestVersion(filePath);
-    if (!latest) return;
+    if (!latest) {
+      throw new Error(`No local version found for ${filePath}`);
+    }
 
     const content = this.versionManager.getVersionContent(filePath, latest.version);
-    if (content === null) return;
+    if (content === null) {
+      throw new Error(`Version content is null for ${filePath}@${latest.version}`);
+    }
 
     // Upload content
     const contentKey = `.aimo/versions/${filePath}/${latest.version}.content`;
@@ -158,13 +201,34 @@ export class SyncEngine {
 
     const metaKey = `.aimo/versions/${filePath}/${version}.json`;
     const metaRaw = await this.adapter.getObject(metaKey);
-    const meta = metaRaw ? JSON.parse(metaRaw) : {
-      hash: '',
-      version,
-      createdAt: new Date().toISOString(),
-      deviceId: this.deviceId,
-      message: '',
+    let meta: {
+      hash: string;
+      version: string;
+      createdAt: string;
+      deviceId: string;
+      message: string;
     };
+    if (metaRaw) {
+      try {
+        meta = JSON.parse(metaRaw);
+      } catch {
+        meta = {
+          hash: '',
+          version,
+          createdAt: new Date().toISOString(),
+          deviceId: this.deviceId,
+          message: '',
+        };
+      }
+    } else {
+      meta = {
+        hash: '',
+        version,
+        createdAt: new Date().toISOString(),
+        deviceId: this.deviceId,
+        message: '',
+      };
+    }
 
     this.versionManager.createVersion(filePath, version, meta.hash ?? '', content, meta.message ?? '');
   }

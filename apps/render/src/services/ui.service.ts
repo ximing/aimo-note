@@ -190,6 +190,30 @@ export class UIService extends Service {
       this._mediaQuery.removeEventListener('change', this._handleSystemThemeChange);
     }
   }
+
+  showToast(message: string, duration = 3000): void {
+    if (typeof document === 'undefined') return;
+    const el = document.createElement('div');
+    el.style.cssText = [
+      'position:fixed',
+      'bottom:24px',
+      'right:24px',
+      'z-index:9999',
+      'padding:10px 16px',
+      'background:#1a1a1a',
+      'color:#fff',
+      'border-radius:6px',
+      'font-size:13px',
+      'max-width:320px',
+      'box-shadow:0 2px 8px rgba(0,0,0,0.3)',
+      'pointer-events:none',
+    ].join(';');
+    el.textContent = message;
+    document.body.appendChild(el);
+    setTimeout(() => {
+      el.remove();
+    }, duration);
+  }
 }
 
 export function useUIService(): UIService {

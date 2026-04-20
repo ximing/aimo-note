@@ -72,8 +72,11 @@ export interface VaultResult {
   path?: string;
   tree?: TreeNode[];
   content?: string;
-  frontmatter?: Record<string, unknown>;
   error?: string;
+}
+
+export interface ReadNoteResult extends VaultResult {
+  frontmatter: Record<string, unknown>;
 }
 
 // Search types are imported from @aimo-note/dto
@@ -159,7 +162,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     open: (vaultPath: string) =>
       ipcRenderer.invoke('vault:open', vaultPath) as Promise<VaultResult>,
     readNote: (vaultPath: string, filePath: string) =>
-      ipcRenderer.invoke('vault:readNote', vaultPath, filePath) as Promise<VaultResult>,
+      ipcRenderer.invoke('vault:readNote', vaultPath, filePath) as Promise<ReadNoteResult>,
     writeNote: (vaultPath: string, filePath: string, content: string) =>
       ipcRenderer.invoke('vault:writeNote', vaultPath, filePath, content) as Promise<VaultResult>,
     delete: (vaultPath: string, filePath: string) =>
@@ -301,7 +304,7 @@ declare global {
         selectFolder: () => Promise<VaultResult>;
         create: (vaultPath: string) => Promise<VaultResult>;
         open: (vaultPath: string) => Promise<VaultResult>;
-        readNote: (vaultPath: string, filePath: string) => Promise<VaultResult>;
+        readNote: (vaultPath: string, filePath: string) => Promise<ReadNoteResult>;
         writeNote: (vaultPath: string, filePath: string, content: string) => Promise<VaultResult>;
         delete: (vaultPath: string, filePath: string) => Promise<VaultResult>;
         rename: (vaultPath: string, oldPath: string, newPath: string) => Promise<VaultResult>;

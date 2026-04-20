@@ -27,7 +27,6 @@ export class SyncService {
   private s3Config?: S3Config;
   private adapter: S3Adapter | null = null;
   private syncEngine: SyncEngine | null = null;
-  private manifestManager: ManifestManager | null = null;
 
   constructor(
     config: SyncServiceConfig,
@@ -65,7 +64,6 @@ export class SyncService {
     if (config.s3) {
       this.s3Config = config.s3;
       this.adapter = new S3Adapter(config.s3);
-      this.manifestManager = new ManifestManager(this.adapter, config.deviceId);
       this.syncEngine = new SyncEngine(
         this.adapter,
         this.versionManager,
@@ -126,10 +124,6 @@ export class SyncService {
 
   getSyncEngine(): SyncEngine | null {
     return this.syncEngine;
-  }
-
-  getManifestManager(): ManifestManager | null {
-    return this.manifestManager;
   }
 
   // Start watching for file changes

@@ -79,6 +79,15 @@ export class VersionManager {
     return rows.map((row) => this.mapRow(row));
   }
 
+  getAllTrackedPaths(): string[] {
+    const rows = this.db
+      .prepare(
+        'SELECT DISTINCT file_path FROM sync_file_versions WHERE is_deleted = 0'
+      )
+      .all() as { file_path: string }[];
+    return rows.map((row) => row.file_path);
+  }
+
   getLatestVersion(filePath: string): SyncFileVersion | null {
     const row = this.db
       .prepare(

@@ -1,6 +1,7 @@
 import { resolve, Service } from '@rabjs/react';
 import { vault } from '@/ipc/vault';
 import { VaultService } from '@/services/vault.service';
+import { UIService } from '@/services/ui.service';
 import type { Position, Selection } from '../types/editor';
 import matter from 'gray-matter';
 import { debounce } from '@/utils/debounce';
@@ -14,10 +15,14 @@ export class EditorService extends Service {
   isSaving = false;
   lastSaved: Date | null = null;
 
-  private debouncedSaveNote = debounce(() => this.saveNote(), 300);
+  private debouncedSave = debounce(() => this.saveNote(), 300);
 
   private get vaultService(): VaultService | null {
     return this.resolve(VaultService);
+  }
+
+  private get uiService(): UIService | null {
+    return this.resolve(UIService);
   }
 
   async initialize(): Promise<void> {
@@ -38,6 +43,8 @@ export class EditorService extends Service {
       currentNote: this.currentNote,
       vaultPath: this.vaultService?.path,
     });
+    this.debouncedSave.cancel();
+    this.isSaving = false;
     if (this.isDirty && this.currentNote) {
       await this.saveNote();
     }
@@ -76,8 +83,8 @@ export class EditorService extends Service {
     // Only mark dirty and save if we have an open note
     if (this.currentNote) {
       this.isDirty = true;
-      // Save immediately on every change to prevent data loss
-      this.saveNote();
+      // Debounced auto-save 300ms after content change
+      this.debouncedSave();
     } else {
       console.log('[EditorService] updateContent: no note open, not saving');
     }
@@ -111,13 +118,30 @@ export class EditorService extends Service {
         contentLength: this.content.length,
       });
       const frontmatter = this.currentNote?.frontmatter;
-      const finalContent = frontmatter && Object.keys(frontmatter).length > 0
-        ? matter.stringify(this.content, frontmatter)
-        : this.content;
+      let finalContent: string;
+      if (frontmatter && Object.keys(frontmatter).length > 0) {
+        try {
+          finalContent = matter.stringify(this.content, frontmatter);
+        } catch (stringifyError) {
+          console.error('[EditorService] stringify failed:', stringifyError);
+          this.isDirty = false;
+          this.uiService?.showToast(
+            `保存失败: ${stringifyError instanceof Error ? stringifyError.message : String(stringifyError)}\n请重试。`
+          );
+          return;
+        }
+      } else {
+        finalContent = this.content;
+      }
       await vault.writeNote(vaultPath, note.path, finalContent);
-      this.currentNote = { ...note, content: this.content };
+      this.currentNote = { ...note, content: finalContent };
       this.isDirty = false;
       this.lastSaved = new Date();
+    } catch (error) {
+      console.error('[EditorService] saveNote failed:', error);
+      this.uiService?.showToast(
+        `保存失败: ${error instanceof Error ? error.message : String(error)}\n请重试。`
+      );
     } finally {
       this.isSaving = false;
     }
@@ -133,7 +157,7 @@ export class EditorService extends Service {
     this.isDirty = true;
     this.emit('frontmatterChanged', frontmatter);
     // Debounced auto-save 300ms after frontmatter change (blur/deploy)
-    this.debouncedSaveNote();
+    this.debouncedSave();
   }
 
   async createNote(path: string, content: string = ''): Promise<void> {
