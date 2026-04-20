@@ -13,6 +13,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@aimo-note/core": "workspace:*",
     "@aimo-note/dto": "workspace:*",
     "@headlessui/react": "^2.2.9",
     "@milkdown/kit": "^7.0.0",
