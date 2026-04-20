@@ -674,7 +674,11 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('template:read', async (_event, vaultPath: string, fileName: string) => {
     try {
       const fullPath = path.join(vaultPath, TEMPLATES_DIR, fileName);
-      const content = await fs.readFile(fullPath, 'utf-8');
+      const normalized = path.normalize(fullPath);
+      if (!normalized.startsWith(path.normalize(path.join(vaultPath, TEMPLATES_DIR)))) {
+        return { success: false, error: 'Invalid path' };
+      }
+      const content = await fs.readFile(normalized, 'utf-8');
       return { success: true, content };
     } catch (error) {
       return { success: false, error: String(error) };
@@ -686,7 +690,11 @@ export function registerIpcHandlers(): void {
       const templatesDir = path.join(vaultPath, TEMPLATES_DIR);
       await fs.mkdir(templatesDir, { recursive: true });
       const fullPath = path.join(templatesDir, fileName);
-      await fs.writeFile(fullPath, content, 'utf-8');
+      const normalized = path.normalize(fullPath);
+      if (!normalized.startsWith(path.normalize(templatesDir))) {
+        return { success: false, error: 'Invalid path' };
+      }
+      await fs.writeFile(normalized, content, 'utf-8');
       return { success: true };
     } catch (error) {
       return { success: false, error: String(error) };
@@ -696,7 +704,11 @@ export function registerIpcHandlers(): void {
   ipcMain.handle('template:delete', async (_event, vaultPath: string, fileName: string) => {
     try {
       const fullPath = path.join(vaultPath, TEMPLATES_DIR, fileName);
-      await fs.rm(fullPath);
+      const normalized = path.normalize(fullPath);
+      if (!normalized.startsWith(path.normalize(path.join(vaultPath, TEMPLATES_DIR)))) {
+        return { success: false, error: 'Invalid path' };
+      }
+      await fs.rm(normalized);
       return { success: true };
     } catch (error) {
       return { success: false, error: String(error) };
