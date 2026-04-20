@@ -116,7 +116,38 @@ export class SyncEngine {
     // Step 6: Download remote versions
     for (const filePath of toDownload) {
       try {
-        const version = remoteManifest.files[filePath].version;
+        const remoteEntry = remoteManifest.files[filePath];
+        const version = remoteEntry.version;
+
+        // Check if we already have a local version with a different hash (silent conflict)
+        const localLatest = this.versionManager.getLatestVersion(filePath);
+        if (localLatest && localLatest.hash !== remoteEntry.hash) {
+          // Silent conflict: remote changed while we had local changes
+          // Record it and save local version to a conflict file before overwriting
+          if (this.conflictManager) {
+            const conflictFilename = this.conflictManager.generateConflictFilename(filePath);
+            // Save local version to conflict file
+            const localContent = this.versionManager.getVersionContent(filePath, localLatest.version);
+            if (localContent !== null) {
+              const vaultPath = this.vaultPath ?? '';
+              const conflictPath = join(vaultPath, conflictFilename);
+              const dir = dirname(conflictPath);
+              if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+              writeFileSync(conflictPath, localContent, 'utf-8');
+            }
+            // Record the conflict
+            const record = this.conflictManager.record({
+              filePath,
+              localVersion: localLatest.version,
+              remoteVersion: version,
+              localHash: localLatest.hash,
+              remoteHash: remoteEntry.hash,
+            });
+            // Mark as resolved with the conflict filename
+            this.conflictManager.resolve(record.id, conflictFilename);
+          }
+        }
+
         await this.downloadVersion(filePath, version);
         result.downloaded.push(filePath);
       } catch (err) {
