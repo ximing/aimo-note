@@ -265,7 +265,7 @@ const EditorPageContent = observer(() => {
   }, []);
 
   return (
-    <div className="editor-page h-full flex flex-col">
+    <div className="editor-page h-full flex flex-col overflow-auto">
       {/* File Name Input */}
       {service.currentNote && (
         <div className="file-name-header">
@@ -282,7 +282,7 @@ const EditorPageContent = observer(() => {
         </div>
       )}
       {service.currentNote && <FrontmatterPanel />}
-      <div className="editor-content flex-1 overflow-auto" onContextMenu={handleContextMenu}>
+      <div className="editor-content flex-1" onContextMenu={handleContextMenu}>
         <MilkdownEditor
           key={service.currentNote?.path || 'empty'}
           onChange={handleChange}
