@@ -71,6 +71,9 @@ export class SearchService extends Service {
             path: result.path,
             line: result.line,
             text: result.text,
+            matchedText: result.matchedText,
+            charStart: result.charStart,
+            charEnd: result.charEnd,
             byteStart: result.byteStart,
             byteEnd: result.byteEnd,
           });

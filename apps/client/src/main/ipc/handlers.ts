@@ -70,6 +70,27 @@ function toVaultRelativePath(rootPath: string, candidatePath: string): string | 
   return relativePath.split(path.sep).join('/');
 }
 
+function utf8ByteOffsetToStringIndex(text: string, byteOffset: number): number {
+  if (byteOffset <= 0) {
+    return 0;
+  }
+
+  let currentByteOffset = 0;
+  let stringIndex = 0;
+
+  for (const char of text) {
+    const nextByteOffset = currentByteOffset + Buffer.byteLength(char, 'utf8');
+    if (nextByteOffset > byteOffset) {
+      break;
+    }
+
+    currentByteOffset = nextByteOffset;
+    stringIndex += char.length;
+  }
+
+  return stringIndex;
+}
+
 import { checkForUpdates, downloadUpdate, installUpdate } from '../updater';
 
 // Image storage config type (duplicated from render types to avoid cross-package dependency)
@@ -428,12 +449,16 @@ export function registerIpcHandlers(): void {
               continue;
             }
 
+            const lineText = parsed.data.lines.text;
             const submatches = parsed.data.submatches || [];
             for (const match of submatches) {
               searchResults.push({
                 path: relativePath,
                 line: parsed.data.line_number,
-                text: parsed.data.lines.text,
+                text: lineText,
+                matchedText: extractRipgrepPath(match.match) ?? '',
+                charStart: utf8ByteOffsetToStringIndex(lineText, match.start),
+                charEnd: utf8ByteOffsetToStringIndex(lineText, match.end),
                 byteStart: match.start,
                 byteEnd: match.end,
               });

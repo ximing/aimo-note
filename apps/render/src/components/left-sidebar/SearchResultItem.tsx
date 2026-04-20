@@ -7,37 +7,22 @@ interface SearchResultItemProps {
   onResultClick: (filePath: string, line?: number) => void;
 }
 
-function utf8ByteOffsetToStringIndex(text: string, byteOffset: number): number {
-  if (byteOffset <= 0) {
-    return 0;
-  }
-
-  const encoder = new TextEncoder();
-  let currentByteOffset = 0;
-  let stringIndex = 0;
-
-  for (const char of text) {
-    const nextByteOffset = currentByteOffset + encoder.encode(char).length;
-    if (nextByteOffset > byteOffset) {
-      break;
-    }
-
-    currentByteOffset = nextByteOffset;
-    stringIndex += char.length;
-  }
-
-  return stringIndex;
-}
-
-function highlightMatch(text: string, byteStart: number, byteEnd: number) {
-  const stringStart = utf8ByteOffsetToStringIndex(text, byteStart);
-  const stringEnd = utf8ByteOffsetToStringIndex(text, byteEnd);
+function highlightMatch(text: string, charStart: number, charEnd: number, matchedText: string) {
+  const safeStart = Math.max(0, Math.min(charStart, text.length));
+  const normalizedMatchedText = matchedText || text.slice(safeStart, charEnd);
+  const safeEnd = Math.max(safeStart, Math.min(text.length, safeStart + normalizedMatchedText.length));
+  const contextLength = 24;
+  const snippetStart = Math.max(0, safeStart - contextLength);
+  const snippetEnd = Math.min(text.length, safeEnd + contextLength);
+  const prefix = snippetStart > 0 ? `...${text.slice(snippetStart, safeStart)}` : text.slice(0, safeStart);
+  const highlightText = text.slice(safeStart, safeEnd);
+  const suffix = snippetEnd < text.length ? `${text.slice(safeEnd, snippetEnd)}...` : text.slice(safeEnd);
 
   return (
     <>
-      {text.slice(0, stringStart)}
-      <mark className="search-highlight">{text.slice(stringStart, stringEnd)}</mark>
-      {text.slice(stringEnd)}
+      {prefix}
+      <mark className="search-highlight">{highlightText}</mark>
+      {suffix}
     </>
   );
 }
@@ -70,7 +55,7 @@ export function SearchResultItem({ filePath, matches, onResultClick }: SearchRes
             >
               <span className="search-result-line-number">{match.line}</span>
               <span className="search-result-line-text">
-                {highlightMatch(displayText, match.byteStart, match.byteEnd)}
+                {highlightMatch(displayText, match.charStart, match.charEnd, match.matchedText)}
               </span>
             </div>
           );

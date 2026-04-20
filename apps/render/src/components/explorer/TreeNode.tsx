@@ -1,8 +1,7 @@
-import { useState } from 'react';
 import type { TreeNode as TreeNodeType } from '@/ipc/vault';
 import { useService } from '@rabjs/react';
 import { useNavigate } from 'react-router';
-import { ContextMenu } from '../common/ContextMenu';
+import { TreeNodeContextMenu } from '../common/ContextMenu';
 import { VaultService } from '@/services/vault.service';
 import { useUIService } from '@/services/ui.service';
 import { File, Folder, ChevronRight, ChevronDown } from 'lucide-react';
@@ -20,12 +19,6 @@ interface TreeNodeProps {
   onDelete?: (node: TreeNodeType) => void;
 }
 
-interface ContextMenuState {
-  show: boolean;
-  x: number;
-  y: number;
-}
-
 export function TreeNode({
   node,
   depth = 0,
@@ -38,7 +31,6 @@ export function TreeNode({
   onRename,
   onDelete,
 }: TreeNodeProps) {
-  const [contextMenu, setContextMenu] = useState<ContextMenuState>({ show: false, x: 0, y: 0 });
   const vaultService = useService(VaultService);
   const uiService = useUIService();
   const navigate = useNavigate();
@@ -64,11 +56,6 @@ export function TreeNode({
     }
   };
 
-  const handleContextMenu = (e: React.MouseEvent) => {
-    e.preventDefault();
-    setContextMenu({ show: true, x: e.clientX, y: e.clientY });
-  };
-
   const handleNewFile = (parentPath: string) => {
     onNewFile?.(parentPath);
   };
@@ -85,32 +72,43 @@ export function TreeNode({
     onDelete?.(n);
   };
 
-  const closeContextMenu = () => {
-    setContextMenu({ show: false, x: 0, y: 0 });
-  };
+  // 渲染节点按钮内容
+  const nodeContent = (
+    <button
+      type="button"
+      onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
+      className={`tree-node-button flex items-center gap-1 w-full px-2 py-1 rounded text-left transition-colors ${nodeIsSelected ? 'is-selected' : ''}`}
+      style={{ paddingLeft: depth * 16 + 8 }}
+    >
+      {isFolder && (
+        <span className="w-4 text-center text-muted-foreground">
+          {isExpanded || hasExpandedDescendant ? (
+            <ChevronDown size={14} />
+          ) : (
+            <ChevronRight size={14} />
+          )}
+        </span>
+      )}
+      {isFolder ? <Folder size={14} className="text-muted-foreground" /> : <File size={14} className="text-muted-foreground" />}
+      <span className="truncate text-sm">{node.name.replace(/\.md$/i, '')}</span>
+    </button>
+  );
 
   return (
     <div className="tree-node relative">
-      <button
-        type="button"
-        onClick={handleClick}
-        onDoubleClick={handleDoubleClick}
-        onContextMenu={handleContextMenu}
-        className={`tree-node-button flex items-center gap-1 w-full px-2 py-1 rounded text-left transition-colors ${nodeIsSelected ? 'is-selected' : ''}`}
-        style={{ paddingLeft: depth * 16 + 8 }}
+      {/* 使用 Radix UI Context Menu 包裹节点 */}
+      <TreeNodeContextMenu
+        node={node}
+        onNewFile={handleNewFile}
+        onNewFolder={handleNewFolder}
+        onRename={handleRename}
+        onDelete={handleDelete}
       >
-        {isFolder && (
-          <span className="w-4 text-center text-muted-foreground">
-            {isExpanded || hasExpandedDescendant ? (
-              <ChevronDown size={14} />
-            ) : (
-              <ChevronRight size={14} />
-            )}
-          </span>
-        )}
-        {isFolder ? <Folder size={14} className="text-muted-foreground" /> : <File size={14} className="text-muted-foreground" />}
-        <span className="truncate text-sm">{node.name.replace(/\.md$/i, '')}</span>
-      </button>
+        {nodeContent}
+      </TreeNodeContextMenu>
+
+      {/* 子节点 */}
       {isFolder && (isExpanded || hasExpandedDescendant) && node.children && (
         <div className="children">
           {node.children.map((child) => (
@@ -129,18 +127,6 @@ export function TreeNode({
             />
           ))}
         </div>
-      )}
-      {contextMenu.show && (
-        <ContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          node={node}
-          onClose={closeContextMenu}
-          onNewFile={handleNewFile}
-          onNewFolder={handleNewFolder}
-          onRename={handleRename}
-          onDelete={handleDelete}
-        />
       )}
     </div>
   );

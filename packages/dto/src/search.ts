@@ -6,6 +6,9 @@ export interface SearchMatch {
   path: string;
   line: number;
   text: string;
+  matchedText: string;
+  charStart: number;
+  charEnd: number;
   byteStart: number;
   byteEnd: number;
 }
@@ -14,6 +17,9 @@ export interface SearchResult {
   path: string;
   line: number;
   text: string;
+  matchedText: string;
+  charStart: number;
+  charEnd: number;
   byteStart: number;
   byteEnd: number;
 }

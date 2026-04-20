@@ -146,6 +146,13 @@ const EditorPageContent = observer(() => {
   }, [service]);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    const target = e.target;
+    const editorDom = editorRef.current.dom;
+
+    if (target instanceof Node && editorDom?.contains(target)) {
+      return;
+    }
+
     e.preventDefault();
     setContextMenu({ x: e.clientX, y: e.clientY });
   }, []);

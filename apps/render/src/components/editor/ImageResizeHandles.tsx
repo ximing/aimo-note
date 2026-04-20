@@ -37,13 +37,16 @@ interface ResizeState {
   startY: number;
   styleWidth: number;
   styleHeight: number;
-  origMarginLeft: number;
-  origMarginTop: number;
   origWidth: number;
   origHeight: number;
   maxWidth: number;
+  maxHeight: number;
   handle: HandlePosition;
 }
+
+const clamp = (value: number, min: number, max: number): number => {
+  return Math.max(min, Math.min(max, value));
+};
 
 const doResize = (
   imageEl: HTMLImageElement,
@@ -53,75 +56,54 @@ const doResize = (
   shiftKey: boolean,
   onResize: (width: number, height: number) => void
 ) => {
-  let newWidth: number;
-  let newHeight: number;
+  let newWidth = state.styleWidth;
+  let newHeight = state.styleHeight;
 
   switch (state.handle) {
-    case 'se':
-      newWidth = Math.max(MIN_WIDTH, Math.min(state.maxWidth, state.styleWidth + dx));
-      if (shiftKey) {
-        const ratio = state.origWidth / state.origHeight;
-        imageEl.style.width = `${newWidth}px`;
-        imageEl.style.height = `${newWidth / ratio}px`;
-      } else {
-        newHeight = Math.max(MIN_HEIGHT, state.styleHeight + dy);
-        imageEl.style.width = `${newWidth}px`;
-        imageEl.style.height = `${newHeight}px`;
-      }
-      break;
-    case 's':
-      newHeight = Math.max(MIN_HEIGHT, state.styleHeight + dy);
-      imageEl.style.height = `${newHeight}px`;
-      break;
     case 'e':
-      newWidth = Math.max(MIN_WIDTH, Math.min(state.maxWidth, state.styleWidth + dx));
-      imageEl.style.width = `${newWidth}px`;
-      break;
-    case 'sw':
-      newWidth = Math.max(MIN_WIDTH, Math.min(state.maxWidth, state.styleWidth - dx));
-      imageEl.style.width = `${newWidth}px`;
-      imageEl.style.marginLeft = `${state.origMarginLeft + dx}px`;
+    case 'se':
+    case 'ne':
+      newWidth = clamp(state.styleWidth + dx, MIN_WIDTH, state.maxWidth);
       break;
     case 'w':
-      newWidth = Math.max(MIN_WIDTH, Math.min(state.maxWidth, state.styleWidth - dx));
-      imageEl.style.width = `${newWidth}px`;
-      imageEl.style.marginLeft = `${state.origMarginLeft + dx}px`;
-      break;
+    case 'sw':
     case 'nw':
-      newWidth = Math.max(MIN_WIDTH, Math.min(state.maxWidth, state.styleWidth - dx));
-      if (shiftKey) {
-        const ratio = state.origWidth / state.origHeight;
-        imageEl.style.width = `${newWidth}px`;
-        imageEl.style.height = `${newWidth / ratio}px`;
-      } else {
-        newHeight = Math.max(MIN_HEIGHT, state.styleHeight - dy);
-        imageEl.style.width = `${newWidth}px`;
-        imageEl.style.height = `${newHeight}px`;
-      }
-      imageEl.style.marginLeft = `${state.origMarginLeft + dx}px`;
-      imageEl.style.marginTop = `${state.origMarginTop + dy}px`;
+      newWidth = clamp(state.styleWidth - dx, MIN_WIDTH, state.maxWidth);
       break;
-    case 'n':
-      newHeight = Math.max(MIN_HEIGHT, state.styleHeight - dy);
-      imageEl.style.height = `${newHeight}px`;
-      imageEl.style.marginTop = `${state.origMarginTop + dy}px`;
-      break;
-    case 'ne':
-      newWidth = Math.max(MIN_WIDTH, Math.min(state.maxWidth, state.styleWidth + dx));
-      if (shiftKey) {
-        const ratio = state.origWidth / state.origHeight;
-        imageEl.style.width = `${newWidth}px`;
-        imageEl.style.height = `${newWidth / ratio}px`;
-      } else {
-        newHeight = Math.max(MIN_HEIGHT, state.styleHeight - dy);
-        imageEl.style.width = `${newWidth}px`;
-        imageEl.style.height = `${newHeight}px`;
-      }
-      imageEl.style.marginTop = `${state.origMarginTop + dy}px`;
+    default:
       break;
   }
 
-  onResize(imageEl.offsetWidth, imageEl.offsetHeight);
+  switch (state.handle) {
+    case 's':
+    case 'se':
+    case 'sw':
+      newHeight = clamp(state.styleHeight + dy, MIN_HEIGHT, state.maxHeight);
+      break;
+    case 'n':
+    case 'ne':
+    case 'nw':
+      newHeight = clamp(state.styleHeight - dy, MIN_HEIGHT, state.maxHeight);
+      break;
+    default:
+      break;
+  }
+
+  if (shiftKey && state.origWidth > 0 && state.origHeight > 0) {
+    const ratio = state.origWidth / state.origHeight;
+    const widthDriven = Math.abs(dx) >= Math.abs(dy) || state.handle === 'e' || state.handle === 'w';
+    if (widthDriven) {
+      newHeight = clamp(Math.round(newWidth / ratio), MIN_HEIGHT, state.maxHeight);
+    } else {
+      newWidth = clamp(Math.round(newHeight * ratio), MIN_WIDTH, state.maxWidth);
+    }
+  }
+
+  imageEl.style.marginLeft = '';
+  imageEl.style.marginTop = '';
+  imageEl.style.width = `${newWidth}px`;
+  imageEl.style.height = `${newHeight}px`;
+  onResize(newWidth, newHeight);
 };
 
 interface InitResizeParams {
@@ -142,17 +124,21 @@ const initResize = (
   const { imageEl, clientX, clientY, pointerId, handle, onResizeStart, onResize, onResizeEnd } = params;
 
   onResizeStart();
+  imageEl.style.marginLeft = '';
+  imageEl.style.marginTop = '';
+
+  const maxWidth = imageEl.parentElement?.offsetWidth || 800;
+  const maxHeight = Math.max(imageEl.parentElement?.offsetHeight || imageEl.offsetHeight || 800, MIN_HEIGHT);
 
   const state: ResizeState = {
     startX: clientX,
     startY: clientY,
     styleWidth: parseInt(imageEl.style.width, 10) || imageEl.offsetWidth,
     styleHeight: parseInt(imageEl.style.height, 10) || imageEl.offsetHeight,
-    origMarginLeft: parseInt(imageEl.style.marginLeft || '0', 10),
-    origMarginTop: parseInt(imageEl.style.marginTop || '0', 10),
     origWidth: imageEl.naturalWidth,
     origHeight: imageEl.naturalHeight,
-    maxWidth: imageEl.parentElement?.offsetWidth || 800,
+    maxWidth,
+    maxHeight,
     handle,
   };
 
@@ -199,7 +185,6 @@ export const ImageResizeHandles: React.FC<ImageResizeHandlesProps> = ({
     onResizeStartRef.current = onResizeStart;
   }, [onResize, onResizeEnd, onResizeStart]);
 
-  // Cleanup active listeners on unmount to prevent memory leaks
   useEffect(() => {
     return () => {
       if (activeListenersRef.current) {
