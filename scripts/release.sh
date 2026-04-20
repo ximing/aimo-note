@@ -113,7 +113,7 @@ echo "Tag: $TAG_NAME"
 echo ""
 
 # 询问是否推送
-read -p "是否推送到远端 (代码和 tag)? [y/N]: " push_confirm
+read -p "是否推送到远端 (代码和 tag)? [Y/n]: " push_confirm
 if [[ "$push_confirm" == "y" || "$push_confirm" == "Y" ]]; then
   echo "推送代码和 tag 到远端..."
   git push origin HEAD
