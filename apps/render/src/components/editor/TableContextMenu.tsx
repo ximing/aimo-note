@@ -105,7 +105,7 @@ export function TableContextMenu({
     <div
       ref={menuRef}
       role="menu"
-      className="context-menu absolute z-50 min-w-[180px] bg-bg-primary border border-border rounded-lg shadow-[0_4px_16px_rgba(0,0,0,0.2)] py-1"
+      className="context-menu fixed z-50 min-w-[180px] bg-bg-primary border border-border rounded-lg shadow-[0_4px_16px_rgba(0,0,0,0.2)] py-1"
       style={{ left: adjustedX, top: adjustedY }}
     >
       {insertItems.map((item, index) => (
