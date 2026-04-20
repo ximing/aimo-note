@@ -94,6 +94,12 @@ fs.writeFileSync('$PACKAGE_JSON', JSON.stringify(pkg, null, 2) + '\n');
 console.log('已更新 $PACKAGE_JSON 版本为 $NEW_VERSION');
 "
 
+# 提交 package.json 修改
+echo ""
+echo "提交 package.json 修改..."
+git add apps/client/package.json
+git commit -m "chore: release v$NEW_VERSION"
+
 # 创建 tag
 TAG_NAME="v$NEW_VERSION"
 echo ""
