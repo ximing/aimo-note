@@ -22,7 +22,8 @@
     "dist:all": "electron-builder -mwl",
     "dist:mac": "electron-builder --mac",
     "dist:win": "electron-builder --win",
-    "dist:linux": "electron-builder --linux"
+    "dist:linux": "electron-builder --linux",
+    "release": "../../scripts/release.sh"
   },
   "dependencies": {
     "@aimo-note/dto": "workspace:*",
