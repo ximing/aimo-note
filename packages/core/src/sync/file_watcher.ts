@@ -59,11 +59,14 @@ export class Watcher {
   }
 
   private getRelativePath(filePath: string): string {
+    // Normalize Windows backslashes to forward slashes for consistent comparison
+    const normalizedPath = filePath.replace(/\\/g, '/');
+    const normalizedVaultPath = this.vaultPath.replace(/\\/g, '/');
     // Remove vaultPath prefix to get relative path
-    if (filePath.startsWith(this.vaultPath + '/')) {
-      return filePath.slice(this.vaultPath.length + 1);
+    if (normalizedPath.startsWith(normalizedVaultPath + '/')) {
+      return normalizedPath.slice(normalizedVaultPath.length + 1);
     }
-    return filePath;
+    return normalizedPath;
   }
 
   stop(): void {

@@ -4,7 +4,6 @@ import { DeviceManager } from './device';
 import { ChangeLogger } from './change_logger';
 import { VersionManager } from './version_manager';
 import { Watcher } from './file_watcher';
-import { initDatabase } from './db';
 
 export interface SyncServiceConfig {
   vaultPath: string;
@@ -25,8 +24,15 @@ export class SyncService {
     config: SyncServiceConfig,
     db: Database
   ) {
-    // Initialize schema
-    initDatabase(db);
+    // Validate schema is initialized before proceeding
+    try {
+      db.prepare('SELECT 1 FROM sync_devices').get();
+    } catch {
+      throw new Error(
+        'Database schema not initialized. ' +
+        'Call initDatabase(db) before creating SyncService.'
+      );
+    }
 
     // Store deviceId for later use
     this.deviceId = config.deviceId;

@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 import type { SyncFileVersion } from '@aimo-note/dto';
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { createHash } from 'crypto';
 
@@ -41,11 +41,9 @@ export class VersionManager {
     const now = new Date().toISOString();
     const contentPath = this.getContentPath(filePath, version);
 
-    // Ensure directory exists
+    // Ensure directory exists (recursive: true is idempotent, no existsSync check needed)
     const dir = join(this.versionsRoot, filePath);
-    if (!existsSync(dir)) {
-      mkdirSync(dir, { recursive: true });
-    }
+    mkdirSync(dir, { recursive: true });
 
     // Write content file
     writeFileSync(contentPath, content, 'utf-8');
@@ -121,11 +119,9 @@ export class VersionManager {
     const now = new Date().toISOString();
     const contentPath = this.getContentPath(filePath, version);
 
-    // Ensure directory exists
+    // Ensure directory exists (recursive: true is idempotent, no existsSync check needed)
     const dir = join(this.versionsRoot, filePath);
-    if (!existsSync(dir)) {
-      mkdirSync(dir, { recursive: true });
-    }
+    mkdirSync(dir, { recursive: true });
 
     // Write placeholder for deleted file
     writeFileSync(contentPath, '', 'utf-8');
