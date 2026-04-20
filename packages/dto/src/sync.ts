@@ -46,3 +46,26 @@ export interface SyncState {
   key: string;
   value: string;
 }
+
+export interface S3Config {
+  bucket: string;
+  region: string;
+  endpoint?: string;
+  forcePathStyle?: boolean;
+  accessKeyId?: string;
+  secretAccessKey?: string;
+}
+
+export interface SyncManifestFileEntry {
+  hash: string;
+  version: string;
+  updatedAt: string;
+  isDeleted?: boolean;
+}
+
+export interface SyncManifest {
+  version: string;
+  updatedAt: string;
+  deviceId: string;
+  files: Record<string, SyncManifestFileEntry>;
+}
