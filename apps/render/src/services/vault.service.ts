@@ -7,7 +7,10 @@ import type { RecentVault } from '@/ipc/config';
 import { UIService } from './ui.service';
 import { ImageStorageService } from './image-storage.service';
 
-function debounce<Args extends unknown[], R>(fn: (...args: Args) => R, ms: number): (...args: Args) => void {
+function debounce<Args extends unknown[], R>(
+  fn: (...args: Args) => R,
+  ms: number
+): (...args: Args) => void {
   let timer: ReturnType<typeof setTimeout> | null = null;
   return (...args: Args) => {
     if (timer) clearTimeout(timer);
@@ -333,10 +336,11 @@ export class VaultService extends Service {
     return this.path;
   }
 
-  async createNote(parentPath: string, name: string): Promise<void> {
+  async createNote(parentPath: string, name: string, content?: string): Promise<string> {
     const fullPath = `${parentPath}/${name}`;
-    await vault.writeNote(this.path!, fullPath, `# ${name}\n\n`);
+    await vault.writeNote(this.path!, fullPath, content ?? `# ${name}\n\n`);
     await this.refreshTree();
+    return fullPath;
   }
 
   async createFolder(parentPath: string, name: string): Promise<void> {

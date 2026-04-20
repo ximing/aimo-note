@@ -3,8 +3,9 @@ import { observer, useService } from '@rabjs/react';
 import type { TreeNode as TreeNodeType } from '@/ipc/vault';
 import { TreeNode } from './TreeNode';
 import { SidebarHeader } from './SidebarHeader';
-import { PromptDialog, ConfirmDialog } from '@/components/common';
+import { PromptDialog, ConfirmDialog, NewNoteDialog } from '@/components/common';
 import { VaultService } from '@/services/vault.service';
+import { UIService } from '@/services/ui.service';
 
 interface DialogState {
   type: 'newFile' | 'newFolder' | 'rename' | 'delete' | null;
@@ -30,6 +31,7 @@ function getAllFolderPaths(nodes: TreeNodeType[]): string[] {
 
 export const VaultTree = observer(() => {
   const vaultService = useService(VaultService);
+  const uiService = useService(UIService);
   const { tree, path, expandedPaths } = vaultService;
   const [sortBy, setSortBy] = useState<'name' | 'created' | 'modified'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -43,10 +45,13 @@ export const VaultTree = observer(() => {
     vaultService.collapseAll();
   }, [vaultService]);
 
-  const handleSortChange = useCallback((newSortBy: 'name' | 'created' | 'modified', newSortOrder: 'asc' | 'desc') => {
-    setSortBy(newSortBy);
-    setSortOrder(newSortOrder);
-  }, []);
+  const handleSortChange = useCallback(
+    (newSortBy: 'name' | 'created' | 'modified', newSortOrder: 'asc' | 'desc') => {
+      setSortBy(newSortBy);
+      setSortOrder(newSortOrder);
+    },
+    []
+  );
 
   const handleNewFile = useCallback((parentPath = '') => {
     setDialog({ type: 'newFile', parentPath });
@@ -88,31 +93,36 @@ export const VaultTree = observer(() => {
     setDialog({ type: null });
   }, [dialog, vaultService]);
 
+  const handleNewNoteConfirm = useCallback(
+    async (name: string, content: string) => {
+      const fullPath = await vaultService.createNote(dialog.parentPath || '', name, content);
+      uiService.openTab(fullPath, name);
+      setDialog({ type: null });
+    },
+    [dialog, vaultService, uiService]
+  );
+
   if (!path) {
-    return (
-      <div className="vault-tree p-4 text-center text-muted-foreground">
-        No vault open
-      </div>
-    );
+    return <div className="vault-tree p-4 text-center text-muted-foreground">No vault open</div>;
   }
 
   // Sort tree, filtering out .aimo-note config directory
   const sortedTree = [...tree]
-    .filter(node => node.name !== '.aimo-note')
+    .filter((node) => node.name !== '.aimo-note')
     .sort((a, b) => {
-    // Folders always first
-    if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+      // Folders always first
+      if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
 
-    let comparison = 0;
-    if (sortBy === 'name') {
-      const nameA = a.name.replace(/\.md$/i, '');
-      const nameB = b.name.replace(/\.md$/i, '');
-      comparison = nameA.localeCompare(nameB);
-    }
-    // created/modified would need timestamps - not implemented yet
+      let comparison = 0;
+      if (sortBy === 'name') {
+        const nameA = a.name.replace(/\.md$/i, '');
+        const nameB = b.name.replace(/\.md$/i, '');
+        comparison = nameA.localeCompare(nameB);
+      }
+      // created/modified would need timestamps - not implemented yet
 
-    return sortOrder === 'asc' ? comparison : -comparison;
-  });
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
 
   return (
     <div className="vault-tree flex flex-col h-full">
@@ -122,10 +132,10 @@ export const VaultTree = observer(() => {
         sortBy={sortBy}
         sortOrder={sortOrder}
         onSortChange={handleSortChange}
-        isAllExpanded={getAllFolderPaths(tree).every(p => expandedPaths.has(p))}
+        isAllExpanded={getAllFolderPaths(tree).every((p) => expandedPaths.has(p))}
         onToggleAll={() => {
           const allFolderPaths = getAllFolderPaths(tree);
-          const isAllExpanded = allFolderPaths.every(p => expandedPaths.has(p));
+          const isAllExpanded = allFolderPaths.every((p) => expandedPaths.has(p));
           if (isAllExpanded) {
             handleCollapseAll();
           } else {
@@ -135,9 +145,7 @@ export const VaultTree = observer(() => {
       />
       <div className="left-sidebar-content flex-1 overflow-auto py-1">
         {sortedTree.length === 0 ? (
-          <div className="p-4 text-center text-muted-foreground text-sm">
-            Vault is empty
-          </div>
+          <div className="p-4 text-center text-muted-foreground text-sm">Vault is empty</div>
         ) : (
           sortedTree.map((node) => (
             <TreeNode
@@ -158,13 +166,9 @@ export const VaultTree = observer(() => {
       </div>
 
       {dialog.type === 'newFile' && (
-        <PromptDialog
-          title="新建文件"
-          defaultValue="untitled"
-          placeholder="输入文件名"
-          cancelText="取消"
-          confirmText="创建"
-          onConfirm={handleDialogConfirm}
+        <NewNoteDialog
+          parentPath={dialog.parentPath || ''}
+          onConfirm={handleNewNoteConfirm}
           onCancel={() => setDialog({ type: null })}
         />
       )}
