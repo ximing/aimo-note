@@ -59,7 +59,7 @@ export class VersionManager {
     const result = stmt.run(filePath, version, hash, contentPath, now, this.deviceId, message);
 
     return {
-      id: result.lastInsertRowid as number,
+      id: result.lastInsertRowid,
       filePath,
       version,
       hash,
@@ -137,7 +137,7 @@ export class VersionManager {
     const result = stmt.run(filePath, version, hash, contentPath, now, this.deviceId);
 
     return {
-      id: result.lastInsertRowid as number,
+      id: result.lastInsertRowid,
       filePath,
       version,
       hash,

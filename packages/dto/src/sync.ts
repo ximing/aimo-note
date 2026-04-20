@@ -19,7 +19,7 @@ export interface SyncChangeLogEntry {
 }
 
 export interface SyncFileVersion {
-  id?: number;
+  id?: number | bigint;
   filePath: string;
   version: string;
   hash: string;
