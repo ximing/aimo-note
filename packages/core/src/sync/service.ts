@@ -1,14 +1,18 @@
 import type { Database } from 'better-sqlite3';
-import type { SyncDevice } from '@aimo-note/dto';
+import type { SyncDevice, S3Config } from '@aimo-note/dto';
 import { DeviceManager } from './device';
 import { ChangeLogger } from './change_logger';
 import { VersionManager } from './version_manager';
 import { Watcher } from './file_watcher';
+import { S3Adapter } from './adapter';
+import { ManifestManager } from './manifest';
+import { SyncEngine } from './engine';
 
 export interface SyncServiceConfig {
   vaultPath: string;
   deviceId: string;
   deviceName: string;
+  s3?: S3Config; // Optional — Phase 2 sync disabled if not provided
 }
 
 export class SyncService {
@@ -19,6 +23,11 @@ export class SyncService {
   private isRunning = false;
   private deviceId: string;
   private vaultPath: string;
+  // NEW Phase 2 fields:
+  private s3Config?: S3Config;
+  private adapter: S3Adapter | null = null;
+  private syncEngine: SyncEngine | null = null;
+  private manifestManager: ManifestManager | null = null;
 
   constructor(
     config: SyncServiceConfig,
@@ -51,6 +60,19 @@ export class SyncService {
 
     // Register this device
     this.deviceManager.register(config.deviceId, config.deviceName);
+
+    // Phase 2: Initialize S3 if config provided
+    if (config.s3) {
+      this.s3Config = config.s3;
+      this.adapter = new S3Adapter(config.s3);
+      this.manifestManager = new ManifestManager(this.adapter, config.deviceId);
+      this.syncEngine = new SyncEngine(
+        this.adapter,
+        this.versionManager,
+        this.changeLogger,
+        config.deviceId
+      );
+    }
   }
 
   async start(): Promise<void> {
@@ -90,6 +112,24 @@ export class SyncService {
 
   getDeviceManager(): DeviceManager {
     return this.deviceManager;
+  }
+
+  // NEW Phase 2 methods:
+
+  isSyncConfigured(): boolean {
+    return this.s3Config !== undefined;
+  }
+
+  getAdapter(): S3Adapter | null {
+    return this.adapter;
+  }
+
+  getSyncEngine(): SyncEngine | null {
+    return this.syncEngine;
+  }
+
+  getManifestManager(): ManifestManager | null {
+    return this.manifestManager;
   }
 
   // Start watching for file changes

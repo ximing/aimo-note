@@ -50,8 +50,8 @@ export interface SyncState {
 export interface S3Config {
   bucket: string;
   region: string;
-  endpoint?: string;
-  forcePathStyle?: boolean;
+  endpoint?: string;       // For S3-compatible storages (Cloudflare R2, MinIO, self-hosted)
+  forcePathStyle?: boolean; // Required for some S3-compatible backends
   accessKeyId?: string;
   secretAccessKey?: string;
 }
@@ -64,7 +64,7 @@ export interface SyncManifestFileEntry {
 }
 
 export interface SyncManifest {
-  version: string;
+  version: string; // Manifest format version
   updatedAt: string;
   deviceId: string;
   files: Record<string, SyncManifestFileEntry>;
