@@ -54,6 +54,7 @@ jobs:
         run: |
           pnpm --filter @aimo-note/dto build
           pnpm --filter @aimo-note/logger build
+          pnpm --filter @aimo-note/core build
 
       - name: Typecheck render
         run: cd apps/render && pnpm typecheck
