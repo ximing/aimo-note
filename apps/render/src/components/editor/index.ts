@@ -6,3 +6,7 @@ export { TableContextMenu } from './TableContextMenu';
 export type { HandlePosition, ImageResizeHandlesProps } from './ImageResizeHandles';
 export type { ImageToolbarProps } from './ImageToolbar';
 export type { TableContextMenuProps } from './TableContextMenu';
+export { migrateHtmlImageNodes } from './image/migrate-html-image-nodes';
+export { useImageEditing } from './image/use-image-editing';
+export { useHighlightScroll } from './hooks/use-highlight-scroll';
+export { useTableContextMenu } from './hooks/use-table-context-menu';
