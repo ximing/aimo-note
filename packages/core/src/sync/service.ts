@@ -19,6 +19,7 @@ export class SyncService {
   private watcher: Watcher | null = null;
   private isRunning = false;
   private deviceId: string;
+  private vaultPath: string;
 
   constructor(
     config: SyncServiceConfig,
@@ -29,6 +30,9 @@ export class SyncService {
 
     // Store deviceId for later use
     this.deviceId = config.deviceId;
+
+    // Store vaultPath for later use
+    this.vaultPath = config.vaultPath;
 
     // Initialize managers
     this.deviceManager = new DeviceManager(db);
@@ -46,8 +50,7 @@ export class SyncService {
   async start(): Promise<void> {
     if (this.isRunning) return;
     this.isRunning = true;
-
-    // File watcher will be started when needed
+    this.startWatching(this.vaultPath);
   }
 
   async stop(): Promise<void> {
@@ -56,6 +59,10 @@ export class SyncService {
       this.watcher.stop();
       this.watcher = null;
     }
+  }
+
+  [Symbol.dispose](): void {
+    this.stop();
   }
 
   getDevice(): SyncDevice | null {
@@ -76,6 +83,8 @@ export class SyncService {
 
   // Start watching for file changes
   startWatching(vaultPath: string): void {
+    if (!this.isRunning) return;
+
     if (this.watcher) {
       this.watcher.stop();
     }
