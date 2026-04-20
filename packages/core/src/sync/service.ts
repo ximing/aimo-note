@@ -1,5 +1,5 @@
 import type { Database } from 'better-sqlite3';
-import type { SyncDevice, S3Config } from '@aimo-note/dto';
+import type { SyncDevice, S3Config, SyncConflictRecord, RollbackResult } from '@aimo-note/dto';
 import { DeviceManager } from './device';
 import { ChangeLogger } from './change_logger';
 import { VersionManager } from './version_manager';
@@ -7,6 +7,8 @@ import { Watcher } from './file_watcher';
 import { S3Adapter } from './adapter';
 import { ManifestManager } from './manifest';
 import { SyncEngine } from './engine';
+import { ConflictManager } from './conflicts';
+import { VersionRollback } from './rollback';
 
 export interface SyncServiceConfig {
   vaultPath: string;
@@ -27,6 +29,9 @@ export class SyncService {
   private s3Config?: S3Config;
   private adapter: S3Adapter | null = null;
   private syncEngine: SyncEngine | null = null;
+  private manifestManager: ManifestManager | null = null;
+  private conflictManager: ConflictManager;
+  private versionRollback: VersionRollback;
 
   constructor(
     config: SyncServiceConfig,
@@ -60,15 +65,26 @@ export class SyncService {
     // Register this device
     this.deviceManager.register(config.deviceId, config.deviceName);
 
+    // Initialize ConflictManager and VersionRollback
+    this.conflictManager = new ConflictManager(db);
+    this.versionRollback = new VersionRollback(
+      this.versionManager,
+      this.adapter,  // S3Adapter (null if sync not configured)
+      config.vaultPath
+    );
+
     // Phase 2: Initialize S3 if config provided
     if (config.s3) {
       this.s3Config = config.s3;
       this.adapter = new S3Adapter(config.s3);
+      this.manifestManager = new ManifestManager(this.adapter, config.deviceId);
       this.syncEngine = new SyncEngine(
         this.adapter,
         this.versionManager,
         this.changeLogger,
-        config.deviceId
+        config.deviceId,
+        this.conflictManager,  // NEW
+        config.vaultPath        // NEW
       );
     }
   }
@@ -124,6 +140,41 @@ export class SyncService {
 
   getSyncEngine(): SyncEngine | null {
     return this.syncEngine;
+  }
+
+  getManifestManager(): ManifestManager | null {
+    return this.manifestManager;
+  }
+
+  // Phase 3 methods:
+
+  /**
+   * Get all unresolved conflicts.
+   */
+  getConflicts(): SyncConflictRecord[] {
+    return this.conflictManager.getUnresolved();
+  }
+
+  /**
+   * Get unresolved conflicts for a specific file.
+   */
+  getConflictsForFile(filePath: string): SyncConflictRecord[] {
+    return this.conflictManager.getUnresolvedForFile(filePath);
+  }
+
+  /**
+   * Mark a conflict as resolved.
+   */
+  resolveConflict(conflictId: number, resolutionPath: string): void {
+    this.conflictManager.resolve(conflictId, resolutionPath);
+  }
+
+  /**
+   * Rollback a file to a specific version.
+   * Non-destructive: creates a new version entry.
+   */
+  async rollback(filePath: string, targetVersion: string): Promise<RollbackResult> {
+    return this.versionRollback.rollback(filePath, targetVersion);
   }
 
   // Start watching for file changes

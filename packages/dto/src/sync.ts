@@ -69,3 +69,22 @@ export interface SyncManifest {
   deviceId: string;
   files: Record<string, SyncManifestFileEntry>;
 }
+
+export interface SyncConflictRecord {
+  id: number;
+  filePath: string;
+  localVersion: string;
+  remoteVersion: string;
+  localHash: string;
+  remoteHash: string;
+  createdAt: string;
+  resolved: boolean;
+  resolutionPath: string | null;
+}
+
+export interface RollbackResult {
+  filePath: string;
+  restoredVersion: string;
+  newVersion: string;
+  content: string;
+}

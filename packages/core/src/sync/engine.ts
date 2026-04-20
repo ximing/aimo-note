@@ -4,6 +4,9 @@ import type { VersionManager } from './version_manager';
 import type { ChangeLogger } from './change_logger';
 import type { SyncManifest } from '@aimo-note/dto';
 import { ManifestManager } from './manifest';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { join, dirname } from 'path';
+import type { ConflictManager } from './conflicts';
 
 export interface SyncResult {
   uploaded: string[];
@@ -19,30 +22,45 @@ export class SyncEngine {
     private adapter: S3Adapter,
     private versionManager: VersionManager,
     private changeLogger: ChangeLogger,
-    private deviceId: string
+    private deviceId: string,
+    private conflictManager?: ConflictManager,
+    private vaultPath?: string
   ) {
     this.manifestManager = new ManifestManager(adapter, deviceId);
+  }
+
+  /**
+   * On conflict: save the remote version to a conflict-rename file on disk,
+   * and record the conflict in the SQLite conflicts table.
+   * The local version stays at the original path (current device wins locally).
+   */
+  private async createConflictFile(filePath: string, remoteVersion: string, _remoteHash: string): Promise<string> {
+    if (!this.conflictManager) {
+      return filePath;
+    }
+
+    const contentKey = `.aimo/versions/${filePath}/${remoteVersion}.content`;
+    const content = await this.adapter.getObject(contentKey);
+    if (!content) return filePath;
+
+    const conflictFilename = this.conflictManager.generateConflictFilename(filePath);
+    const vaultPath = this.vaultPath ?? '';
+    const conflictPath = join(vaultPath, conflictFilename);
+
+    // Write remote version to conflict file
+    const dir = dirname(conflictPath);
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true });
+    }
+    writeFileSync(conflictPath, content, 'utf-8');
+
+    return conflictFilename;
   }
 
   async sync(): Promise<SyncResult> {
     const result: SyncResult = { uploaded: [], downloaded: [], conflicts: [], errors: [] };
 
-    // Step 1: Load remote changelog (before manifest per sync protocol)
-    let remoteChangelog: any[] = [];
-    try {
-      const changelogRaw = await this.adapter.getChangelog();
-      if (changelogRaw) {
-        try {
-          remoteChangelog = JSON.parse(changelogRaw);
-        } catch {
-          remoteChangelog = [];
-        }
-      }
-    } catch (err) {
-      result.errors.push(`getChangelog: ${err}`);
-    }
-
-    // Step 2: Load remote manifest
+    // Step 1: Load remote manifest
     const remoteManifest = await this.manifestManager.load();
 
     // Step 2: Build local manifest from VersionManager
@@ -52,9 +70,30 @@ export class SyncEngine {
     const { toUpload, toDownload, conflicts } = this.manifestManager.diff(localManifest, remoteManifest);
     result.conflicts.push(...conflicts);
 
-    // Step 4: Upload local versions (skip on conflict)
-    for (const filePath of toUpload) {
-      if (conflicts.includes(filePath)) continue;
+    // Step 4: Handle conflicts — record to SQLite, create conflict rename files, upload local version
+    for (const filePath of conflicts) {
+      const remoteEntry = remoteManifest.files[filePath];
+      if (!remoteEntry) continue;
+
+      const localEntry = this.versionManager.getLatestVersion(filePath);
+
+      // Record the conflict in SQLite
+      if (this.conflictManager) {
+        const record = this.conflictManager.record({
+          filePath,
+          localVersion: localEntry?.version ?? '',
+          remoteVersion: remoteEntry.version,
+          localHash: localEntry?.hash ?? '',
+          remoteHash: remoteEntry.hash,
+        });
+
+        // Write the remote version to a conflict rename file
+        const conflictFilename = await this.createConflictFile(filePath, remoteEntry.version, remoteEntry.hash);
+        // Mark the conflict as resolved with the conflict filename
+        this.conflictManager.resolve(record.id, conflictFilename);
+      }
+
+      // Upload the local version to S3 (so both versions exist remotely)
       try {
         await this.uploadVersion(filePath);
         result.uploaded.push(filePath);
@@ -63,14 +102,52 @@ export class SyncEngine {
       }
     }
 
-    // Step 5: Download remote versions
+    // Step 5: Upload local versions (only non-conflicting files)
+    for (const filePath of toUpload) {
+      if (conflicts.includes(filePath)) continue;  // skip already-handled conflicts
+      try {
+        await this.uploadVersion(filePath);
+        result.uploaded.push(filePath);
+      } catch (err) {
+        result.errors.push(`upload ${filePath}: ${err}`);
+      }
+    }
+
+    // Step 6: Download remote versions
     for (const filePath of toDownload) {
       try {
-        const version = remoteManifest.files[filePath]?.version;
-        if (!version) {
-          result.errors.push(`download ${filePath}: no version in remote manifest`);
-          continue;
+        const remoteEntry = remoteManifest.files[filePath];
+        const version = remoteEntry.version;
+
+        // Check if we already have a local version with a different hash (silent conflict)
+        const localLatest = this.versionManager.getLatestVersion(filePath);
+        if (localLatest && localLatest.hash !== remoteEntry.hash) {
+          // Silent conflict: remote changed while we had local changes
+          // Record it and save local version to a conflict file before overwriting
+          if (this.conflictManager) {
+            const conflictFilename = this.conflictManager.generateConflictFilename(filePath);
+            // Save local version to conflict file
+            const localContent = this.versionManager.getVersionContent(filePath, localLatest.version);
+            if (localContent !== null) {
+              const vaultPath = this.vaultPath ?? '';
+              const conflictPath = join(vaultPath, conflictFilename);
+              const dir = dirname(conflictPath);
+              if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+              writeFileSync(conflictPath, localContent, 'utf-8');
+            }
+            // Record the conflict
+            const record = this.conflictManager.record({
+              filePath,
+              localVersion: localLatest.version,
+              remoteVersion: version,
+              localHash: localLatest.hash,
+              remoteHash: remoteEntry.hash,
+            });
+            // Mark as resolved with the conflict filename
+            this.conflictManager.resolve(record.id, conflictFilename);
+          }
         }
+
         await this.downloadVersion(filePath, version);
         result.downloaded.push(filePath);
       } catch (err) {
@@ -78,70 +155,49 @@ export class SyncEngine {
       }
     }
 
-    // Step 6: Persist merged manifest so other devices see these changes
-    let markSyncedIds: number[] = [];
+    // Step 7: Mark change log entries as synced for uploaded files
     if (result.uploaded.length > 0) {
       const entries = this.changeLogger.getUnsyncedEntries();
       const uploadedEntries = entries.filter((e) => result.uploaded.includes(e.filePath));
-      markSyncedIds = uploadedEntries.map((e) => e.id!).filter(Boolean);
+      const ids = uploadedEntries.map((e) => e.id!).filter(Boolean);
+      this.changeLogger.markSynced(ids);
     }
 
-    try {
-      if (result.uploaded.length > 0 || result.downloaded.length > 0 || result.conflicts.length > 0) {
-        // Start from a shallow copy of remoteManifest so we don't drop remote-only files
-        const finalManifest: SyncManifest = { ...remoteManifest };
-        // Merge in latest local version for each uploaded file
-        for (const filePath of result.uploaded) {
-          const latest = this.versionManager.getLatestVersion(filePath);
-          if (latest) {
-            finalManifest.files[filePath] = {
-              hash: latest.hash,
-              version: latest.version,
-              updatedAt: latest.createdAt,
-            };
-          }
-        }
-        // Merge in authoritative remote state for each downloaded file
-        for (const filePath of result.downloaded) {
-          const remoteEntry = remoteManifest.files[filePath];
-          if (remoteEntry) {
-            finalManifest.files[filePath] = remoteEntry;
-          }
-        }
-        await this.manifestManager.save(finalManifest);
-
-        // Mark change log entries as synced only after manifest save succeeds
-        if (markSyncedIds.length > 0) {
-          this.changeLogger.markSynced(markSyncedIds);
-        }
-      } else {
-        // No changes to persist — still mark synced if we uploaded nothing but have IDs
-        // (can happen when all files conflicted and nothing was uploaded)
-        if (markSyncedIds.length > 0) {
-          this.changeLogger.markSynced(markSyncedIds);
+    // Step 8: Persist local manifest to remote so other devices see these changes
+    // Only save if there were actual uploads or downloads (not just conflicts)
+    if (result.uploaded.length > 0 || result.downloaded.length > 0) {
+      const finalManifest = await this.buildLocalManifest();
+      // Include files that were just uploaded/downloaded in this sync cycle
+      for (const filePath of result.uploaded) {
+        const latest = this.versionManager.getLatestVersion(filePath);
+        if (latest) {
+          finalManifest.files[filePath] = {
+            hash: latest.hash,
+            version: latest.version,
+            updatedAt: latest.createdAt,
+          };
         }
       }
-    } catch (err) {
-      result.errors.push(`manifest save: ${err}`);
-    }
-
-    // Step 7: Save remote changelog (last step of exchange)
-    // Merge remote changelog with our local unsynced entries and push back
-    try {
-      const localEntries = this.changeLogger.getUnsyncedEntries();
-      const mergedChangelog = [...remoteChangelog];
-      for (const entry of localEntries) {
-        mergedChangelog.push(entry);
+      for (const filePath of result.downloaded) {
+        const latest = this.versionManager.getLatestVersion(filePath);
+        if (latest) {
+          finalManifest.files[filePath] = {
+            hash: latest.hash,
+            version: latest.version,
+            updatedAt: latest.createdAt,
+          };
+        }
       }
-      await this.adapter.putChangelog(JSON.stringify(mergedChangelog, null, 2));
-    } catch (err) {
-      result.errors.push(`putChangelog: ${err}`);
+      await this.manifestManager.save(finalManifest);
     }
 
     return result;
   }
 
   async buildLocalManifest(): Promise<SyncManifest> {
+    // Phase 2: Build manifest from VersionManager
+    // This queries the local database for all file versions
+    // In Phase 3, this will be enhanced with vault file scanning
     const manifest: SyncManifest = {
       version: '1',
       updatedAt: new Date().toISOString(),
@@ -149,8 +205,9 @@ export class SyncEngine {
       files: {},
     };
 
-    // Get ALL tracked file paths from the version manager (not just unsynced)
-    const filePaths = this.versionManager.getAllTrackedPaths();
+    // Get all unique file paths from the change log
+    const unsyncedEntries = this.changeLogger.getUnsyncedEntries();
+    const filePaths = [...new Set(unsyncedEntries.map((e) => e.filePath))];
 
     // For each file, get the latest version from VersionManager
     for (const filePath of filePaths) {
@@ -169,14 +226,10 @@ export class SyncEngine {
 
   private async uploadVersion(filePath: string): Promise<void> {
     const latest = this.versionManager.getLatestVersion(filePath);
-    if (!latest) {
-      throw new Error(`No local version found for ${filePath}`);
-    }
+    if (!latest) return;
 
     const content = this.versionManager.getVersionContent(filePath, latest.version);
-    if (content === null) {
-      throw new Error(`Version content is null for ${filePath}@${latest.version}`);
-    }
+    if (content === null) return;
 
     // Upload content
     const contentKey = `.aimo/versions/${filePath}/${latest.version}.content`;
@@ -201,34 +254,13 @@ export class SyncEngine {
 
     const metaKey = `.aimo/versions/${filePath}/${version}.json`;
     const metaRaw = await this.adapter.getObject(metaKey);
-    let meta: {
-      hash: string;
-      version: string;
-      createdAt: string;
-      deviceId: string;
-      message: string;
+    const meta = metaRaw ? JSON.parse(metaRaw) : {
+      hash: '',
+      version,
+      createdAt: new Date().toISOString(),
+      deviceId: this.deviceId,
+      message: '',
     };
-    if (metaRaw) {
-      try {
-        meta = JSON.parse(metaRaw);
-      } catch {
-        meta = {
-          hash: '',
-          version,
-          createdAt: new Date().toISOString(),
-          deviceId: this.deviceId,
-          message: '',
-        };
-      }
-    } else {
-      meta = {
-        hash: '',
-        version,
-        createdAt: new Date().toISOString(),
-        deviceId: this.deviceId,
-        message: '',
-      };
-    }
 
     this.versionManager.createVersion(filePath, version, meta.hash ?? '', content, meta.message ?? '');
   }

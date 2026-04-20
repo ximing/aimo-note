@@ -14,7 +14,6 @@ const mockVersionManager = {
   getVersion: jest.fn(),
   getFileHistory: jest.fn(),
   createVersion: jest.fn(),
-  getAllTrackedPaths: jest.fn(),
 };
 
 const mockChangeLogger = {
@@ -42,7 +41,6 @@ describe('SyncEngine', () => {
       mockAdapter.getObject.mockResolvedValue(JSON.stringify(manifest));
       mockAdapter.listObjects.mockResolvedValue([]);
       mockChangeLogger.getUnsyncedEntries.mockReturnValue([]);
-      mockVersionManager.getAllTrackedPaths.mockReturnValue([]);
 
       const result = await engine.sync();
 
@@ -65,18 +63,20 @@ describe('SyncEngine', () => {
       mockChangeLogger.getUnsyncedEntries.mockReturnValue([
         { id: 1, filePath: 'note1.md', operation: 'upsert' as const, version: 'v1', hash: 'sha256:local', createdAt: '2026-04-20T10:00:00Z', deviceId, synced: false },
       ]);
-      mockVersionManager.getAllTrackedPaths.mockReturnValue(['note1.md']);
       mockVersionManager.getLatestVersion.mockReturnValue({
         filePath: 'note1.md',
         hash: 'sha256:local',
         version: 'v1',
       });
+      mockVersionManager.getVersionContent.mockReturnValue('local content');
 
       const result = await engine.sync();
 
       expect(result.conflicts).toContain('note1.md');
-      // Manifest must be saved even on conflicts-only cycles (Fix #3)
+      // With ConflictManager wired in, the local version IS uploaded during conflict
+      // so both versions exist remotely (local at original path, remote at conflict file)
       expect(mockAdapter.putObject).toHaveBeenCalled();
+      expect(result.uploaded).toContain('note1.md');
     });
 
     it('should upload local-only files', async () => {
@@ -91,7 +91,6 @@ describe('SyncEngine', () => {
       mockChangeLogger.getUnsyncedEntries.mockReturnValue([
         { id: 1, filePath: 'note1.md', operation: 'upsert' as const, version: 'v1', hash: 'sha256:local', createdAt: '2026-04-20T10:00:00Z', deviceId, synced: false },
       ]);
-      mockVersionManager.getAllTrackedPaths.mockReturnValue(['note1.md']);
       mockVersionManager.getLatestVersion.mockReturnValue({
         filePath: 'note1.md',
         hash: 'sha256:local',
@@ -129,7 +128,6 @@ describe('SyncEngine', () => {
       });
       mockAdapter.listObjects.mockResolvedValue([]);
       mockChangeLogger.getUnsyncedEntries.mockReturnValue([]);
-      mockVersionManager.getAllTrackedPaths.mockReturnValue([]);
       mockVersionManager.createVersion.mockReturnValue({} as any);
 
       const result = await engine.sync();
