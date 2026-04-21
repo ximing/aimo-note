@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3';
 import type { VersionManager } from './version_manager';
 import type { S3Adapter } from './adapter';
-import type { GcConfig, GcResult } from '@aimo-note/dto';
+import type { GcConfig, GcResult, SyncFileVersion } from '@aimo-note/dto';
 import { unlinkSync, existsSync, statSync } from 'fs';
 import { join } from 'path';
 
@@ -74,18 +74,18 @@ export class GarbageCollector {
     // 1. Keep all versions if total is within limit (no GC needed)
     // 2. Otherwise, delete oldest versions beyond maxVersions
     // 3. Additionally delete any version older than maxAgeDays (except latest)
-    const toDelete: string[] = [];
+    const toDelete: SyncFileVersion[] = [];
 
     for (const version of older) {
       const age = now.getTime() - new Date(version.createdAt).getTime();
       if (age > maxAgeMs) {
-        toDelete.push(version.version);
+        toDelete.push(version);
       }
     }
 
     // If still within limit after age-based cleanup, apply version count limit
     // Include deleted versions in the count (they still occupy version slots)
-    const remaining = older.filter(v => !toDelete.includes(v.version));
+    const remaining = older.filter(v => !toDelete.some(d => d.id === v.id));
     if (remaining.length > maxVersions) {
       // Sort by timestamp DESC (newest first), then id DESC as tiebreaker
       const sortedRemaining = [...remaining].sort((a, b) => {
@@ -97,18 +97,15 @@ export class GarbageCollector {
       const keepCount = maxVersions - 1;
       const excess = sortedRemaining.slice(keepCount);
       for (const v of excess) {
-        if (!toDelete.includes(v.version)) {
-          toDelete.push(v.version);
+        if (!toDelete.some(d => d.id === v.id)) {
+          toDelete.push(v);
         }
       }
     }
 
     // Perform deletions
     let removed = 0;
-    for (const versionStr of toDelete) {
-      const versionRecord = this.versionManager.getVersion(filePath, versionStr);
-      if (!versionRecord) continue;
-
+    for (const versionRecord of toDelete) {
       // Delete local file
       const contentPath = versionRecord.contentPath;
       if (existsSync(contentPath)) {
@@ -123,18 +120,18 @@ export class GarbageCollector {
         unlinkSync(jsonPath);
       }
 
-      // Delete from DB
+      // Delete from DB by id (not file_path+version — markDeleted creates a new row with same file_path+version)
       this.db
-        .prepare('DELETE FROM sync_file_versions WHERE file_path = ? AND version = ?')
-        .run(filePath, versionStr);
+        .prepare('DELETE FROM sync_file_versions WHERE id = ?')
+        .run(versionRecord.id);
 
       // Delete from S3 if requested (fire-and-forget, non-blocking)
       if (cleanRemote && this.adapter) {
-        this.adapter.deleteObject(`.aimo/versions/${filePath}/${versionStr}.content`).catch((err) => {
-          console.warn(`Failed to delete remote version ${filePath}@${versionStr}: ${err}`);
+        this.adapter.deleteObject(`.aimo/versions/${filePath}/${versionRecord.version}.content`).catch((err) => {
+          console.warn(`Failed to delete remote version ${filePath}@${versionRecord.version}: ${err}`);
         });
-        this.adapter.deleteObject(`.aimo/versions/${filePath}/${versionStr}.json`).catch((err) => {
-          console.warn(`Failed to delete remote version ${filePath}@${versionStr}: ${err}`);
+        this.adapter.deleteObject(`.aimo/versions/${filePath}/${versionRecord.version}.json`).catch((err) => {
+          console.warn(`Failed to delete remote version ${filePath}@${versionRecord.version}: ${err}`);
         });
       }
 
