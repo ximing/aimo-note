@@ -1,1100 +1,816 @@
 # Vault Sync Phase 2 Implementation Plan
 
-> **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Goal:** 在 `apps/server` 中落地服务端基础架构、账号系统、用户级数据隔离、MySQL schema，并跑通“设置页登录 + 可选开启同步 + 自动后台同步”的 happy path：`has-blobs -> upload -> commit -> pull -> ack`。
 
-**Goal:** Build S3 adapter, manifest manager, and sync engine to enable remote sync with diff-based change exchange.
+## Phase 2 Scope
 
-**Architecture:** Local-first sync using S3-compatible storage. The sync protocol: (1) download remote manifest, (2) diff against local changes, (3) detect conflicts by hash mismatch, (4) upload local versions + download remote versions. Phase 2 builds all the wiring; actual sync trigger is in Phase 3.
+这是新架构的核心阶段，且本次要明确分成两条并行主线：
 
-**Tech Stack:** `@aws-sdk/client-s3` (AWS SDK v3, modular), `packages/core/src/sync/` as implementation home.
+- **服务端主线**：`apps/server` 搭建 + auth + vault + sync API + MySQL schema
+- **客户端接入主线**：本地 pending queue 接入服务端协议
 
----
+### 本阶段必须交付
 
-## File Structure
+- 新建 `apps/server` 工程并对齐 `console/apps/server` 风格
+- `Express + routing-controllers + TypeScript + TypeDI` 启动链路
+- MySQL 连接、Drizzle schema、migration 机制
+- 用户注册 / 登录 / 当前用户接口
+- 设置页登录入口与同步开关
+- vault 创建与查询接口
+- device 注册与查询接口
+- `has-blobs`、`blob-upload-url`、`blob-download-url`、`commit`、`pull`、`ack` API
+- 用户级数据隔离与 owner 校验
+- 桌面客户端自动同步 happy path 打通
+- 断网后保持本地可用，恢复联网后自动重试同步
+- 退出登录后同步引擎回到 `DISABLED`，但保留本地 pending queue
+- 设置页提供“立即同步”手动兜底入口
 
-```
-packages/core/src/sync/
-├── adapter.ts          ← S3Adapter: PUT/GET/LIST/DELETE for vault/.aimo/ paths
-├── manifest.ts         ← ManifestManager: manifest.json read/write/lock
-├── engine.ts           ← SyncEngine: diff + conflict detection + exchange
-└── __tests__/
-    ├── adapter.test.ts
-    ├── manifest.test.ts
-    └── engine.test.ts
+### 本阶段明确不做
 
-packages/dto/src/sync.ts     ← Add S3Config, SyncManifest types
-packages/core/src/sync/service.ts  ← Add S3 config, wire adapter + engine
-packages/core/src/sync/index.ts    ← Export new modules
-packages/core/package.json    ← Add @aws-sdk/client-s3
-```
-
-S3 storage layout:
-```
-bucket/vault/.aimo/
-├── manifest.json      ← Global snapshot: { version, updatedAt, files: { [path]: { hash, version, updatedAt } } }
-├── changelog.json     ← Change log (JSON form, for remote比对)
-└── versions/
-    └── {filepath}/
-        ├── v{n}.json  ← Version metadata
-        └── v{n}.content ← File content
-```
-
-Local vault layout (unchanged from Phase 1):
-```
-vault/.aimo/
-├── vault.db           ← SQLite metadata (Phase 1)
-└── versions/          ← Local version files (Phase 1)
-```
+- 冲突 UI 闭环
+- rollback UI
+- snapshot 恢复
+- GC / orphan blob cleanup 后台任务
 
 ---
 
-## Chunk 1: S3 Adapter
+## Architecture Notes
 
-### Task 9: Add S3 types to dto
+### 服务端落地原则
+
+必须尽量复用 `console/apps/server` 的组织方式：
+
+- `src/index.ts`：bootstrap
+- `src/app.ts`：创建 Express app、初始化 DB、注册 routing-controllers
+- `src/controllers/index.ts`：统一注册 controller
+- `src/ioc.ts`：按 glob 加载 controller / service
+- `src/db/connection.ts`：MySQL pool + Drizzle
+- `src/middlewares/auth-handler.ts`：统一认证
+
+### 本阶段的最小工作闭环
+
+```text
+settings login
+  -> enable sync
+  -> create vault
+  -> register device
+  -> auto has-blobs
+  -> auto upload missing blobs
+  -> auto commit
+  -> auto pull
+  -> download missing blobs when local cache is absent
+  -> ack
+  -> offline continue editing
+  -> reconnect
+  -> auto retry sync
+```
+
+---
+
+## Target Files
+
+```text
+apps/server/
+├── package.json
+├── tsconfig.json
+├── drizzle.config.ts
+├── src/
+│   ├── index.ts
+│   ├── app.ts
+│   ├── ioc.ts
+│   ├── config/
+│   │   ├── env.ts
+│   │   └── config.ts
+│   ├── constants/
+│   │   └── error-codes.ts
+│   ├── controllers/
+│   │   ├── index.ts
+│   │   └── v1/
+│   │       ├── auth.controller.ts
+│   │       ├── user.controller.ts
+│   │       ├── vault.controller.ts
+│   │       ├── device.controller.ts
+│   │       └── sync.controller.ts
+│   ├── services/
+│   │   ├── auth.service.ts
+│   │   ├── user.service.ts
+│   │   ├── vault.service.ts
+│   │   ├── device.service.ts
+│   │   ├── blob.service.ts
+│   │   ├── audit.service.ts
+│   │   ├── sync-commit.service.ts
+│   │   ├── sync-pull.service.ts
+│   │   └── cursor.service.ts
+│   ├── db/
+│   │   ├── connection.ts
+│   │   ├── migrate.ts
+│   │   ├── transaction.ts
+│   │   └── schema/
+│   │       ├── users.ts
+│   │       ├── auth-sessions.ts
+│   │       ├── vaults.ts
+│   │       ├── vault-members.ts
+│   │       ├── devices.ts
+│   │       ├── blobs.ts
+│   │       ├── sync-commits.ts
+│   │       ├── sync-commit-changes.ts
+│   │       ├── sync-file-heads.ts
+│   │       ├── sync-device-cursors.ts
+│   │       ├── sync-conflicts.ts
+│   │       ├── sync-audit-logs.ts
+│   │       └── index.ts
+│   ├── middlewares/
+│   │   ├── auth-handler.ts
+│   │   ├── error-handler.ts
+│   │   └── request-context.ts
+│   ├── utils/
+│   │   ├── id.ts
+│   │   ├── response.ts
+│   │   ├── logger.ts
+│   │   └── sha.ts
+│   └── types/
+│       ├── express.ts
+│       └── response.ts
+└── drizzle/
+
+packages/dto/src/sync.ts
+packages/core/src/sync/*
+apps/client/src/main/ipc/*
+apps/render/src/pages/settings/*
+apps/render/src/services/*
+```
+
+---
+
+## Controller / Service 边界
+
+### Controller 责任
+
+- `AuthController`：注册、登录、登出、当前用户
+- `VaultController`：创建 vault、查询我的 vault 列表
+- `DeviceController`：注册设备、查询设备、吊销设备
+- `SyncController`：`has-blobs`、`blob-upload-url`、`blob-download-url`、`commit`、`pull`、`ack`
+
+controller 只负责：
+
+- 读取 `@CurrentUser()`、`@Body()`、`@QueryParams()`
+- 调用 service
+- 返回统一 `ResponseUtil.success/error`
+
+### Service 责任
+
+- `AuthService`：密码校验、hash、JWT / session 逻辑
+- `VaultService`：vault 创建、owner 校验、member 查询
+- `DeviceService`：设备注册、刷新 lastSeen、吊销与列表
+- `BlobService`：blob 命中检查、预签名上传/下载 URL、blob 元数据落库
+- `SyncCommitService`：幂等、事务、head 校验、commit 落库
+- `SyncPullService`：增量拉取、聚合 changes 与 `blobRefs`
+- `CursorService`：推进 cursor，禁止回退
+
+### 事务边界
+
+必须显式规定：
+
+- `commit`：一个数据库事务
+- `pull`：只读，不需要事务
+- `ack`：单次更新，可单语句或轻事务
+- `register device`：单次写入，可单语句或轻事务
+
+`commit` 事务中必须完成：
+
+- 幂等检查
+- head 校验
+- `sync_commits` 写入
+- `sync_commit_changes` 写入
+- `sync_file_heads` 更新
+- blob 引用计数更新，并与 commit 提交保持原子一致
+
+### 审计与请求上下文基线
+
+本阶段虽然还不做完整 diagnostics 面板，但必须把后续审计与运维的写路径打牢：
+
+- `auth/register`、`auth/login`、`vault.create`、`device.register`、`sync.commit`、`sync.pull`、`sync.ack` 至少要落审计日志
+- 审计记录至少带上 `userId`、`vaultId`、`deviceId`、`requestId`，缺失字段时也要保持稳定结构
+- 所有同步相关入口都要统一提取并传递 `X-Request-Id`、`X-Device-Id` 到 request context / audit context
+
+### Request Header Contract
+
+为避免客户端、服务端、审计与后续 diagnostics 对 header 语义各自猜测，本阶段必须固定以下最小 contract：
+
+- `X-Request-Id`：所有同步相关入口必传；若缺失，服务端返回稳定 `400` 或 `422`，而不是静默生成随机值
+- `X-Device-Id`：所有同步相关入口都必须稳定透传与校验，包括 `has-blobs`、`blob-upload-url`、`blob-download-url`、`commit`、`pull`、`ack`
+- body 中若同时出现 `requestId` 或 `deviceId`，其值必须分别与 `X-Request-Id`、`X-Device-Id` 一致；不一致时返回稳定业务错误，避免幂等键、审计上下文与业务参数分裂
+- `commit` 的幂等主键以 `(vaultId, requestId)` 为准；其中 `requestId` 在传输层与审计链路上以 `X-Request-Id` 为唯一真相源，body 仅作为同值业务副本，不允许出现第二套语义
+- `request-context` 中提取出的 `requestId` / `deviceId` 必须继续透传到审计写入、service 层日志与错误响应上下文
+- 客户端发生重试时必须复用同一 `requestId`，不能在自动重试中隐式更换幂等键
+
+### Runtime Metadata Contract Freeze
+
+为避免 Phase 2、Phase 3、Phase 4 各自落地一套运行态字段名，本阶段先把跨阶段复用的最小 contract 钉死：
+
+- 同步运行态统一使用 `trigger`、`retryCount`、`offlineStartedAt`、`recoveredAt`、`nextRetryAt`、`requestId`、`deviceId`
+- `trigger` 至少覆盖 `startup` / `login` / `local_change` / `network_recovered` / `periodic` / `manual`，后续 `rollback` 等来源只能在此集合基础上扩展，不能重命名既有字段
+- 客户端本地状态、服务端审计写路径、后续 diagnostics 聚合都必须复用这些字段名与含义，避免 Phase 4 再做语义迁移
+- Phase 3 的 conflict / rollback 运行态、Phase 4 的 `diagnostics/events` 与诊断面板都必须直接复用本节 contract
+
+---
+
+## API 顺序与错误语义
+
+### 正常顺序
+
+```text
+POST /api/v1/auth/login
+POST /api/v1/vaults
+POST /api/v1/devices/register
+POST /api/v1/sync/has-blobs
+POST /api/v1/sync/blob-upload-url
+POST /api/v1/sync/commit
+GET  /api/v1/sync/pull
+POST /api/v1/sync/blob-download-url
+POST /api/v1/sync/ack
+```
+
+### 推荐错误语义
+
+- `401`：未登录或 token 无效
+- `403`：已登录但无权访问该 vault / device
+- `404`：资源不存在或对当前用户不可见
+- `409`：`requestId` 冲突、head mismatch、重复状态冲突
+- `422`：参数合法但业务前置条件不满足
+
+### commit 错误分类
+
+- `blob_missing`：客户端引用了服务端尚未记录的 blob
+- `device_not_found`：设备不存在或不属于当前用户 / vault
+- `vault_forbidden`：当前用户无权访问 vault
+- `head_mismatch`：baseRevision 与当前 head 不一致
+- `duplicate_request`：相同 requestId 已处理（通常返回已有结果，而不是 hard error）
+
+---
+
+## DTO 与 Drizzle 落地细化
+
+### routing-controllers 方法形态
+
+建议 controller 方法直接收敛为以下风格：
+
+- `AuthController.register(@Body() dto, @Res() res)`
+- `AuthController.login(@Body() dto, @Res() res)`
+- `VaultController.list(@CurrentUser() user)`
+- `VaultController.create(@CurrentUser() user, @Body() dto)`
+- `DeviceController.register(@CurrentUser() user, @Body() dto)`
+- `SyncController.hasBlobs(@CurrentUser() user, @Body() dto)`
+- `SyncController.createBlobUploadUrl(@CurrentUser() user, @Body() dto)`
+- `SyncController.createBlobDownloadUrl(@CurrentUser() user, @Body() dto)`
+- `SyncController.commit(@CurrentUser() user, @Body() dto)`
+- `SyncController.pull(@CurrentUser() user, @QueryParams() query)`
+- `SyncController.ack(@CurrentUser() user, @Body() dto)`
+
+要求：
+
+- controller 里不直接写 Drizzle query
+- 所有 owner/member 校验都在 service 内完成
+- controller 只做输入参数整理、调用 service、输出 `ResponseUtil`
+
+### DTO 字段清单
+
+#### `CreateVaultDto`
+
+- `name: string`
+- `description?: string`
+
+#### `RegisterDeviceRequest`
+
+- `vaultId: string`
+- `deviceId: string`
+- `name: string`
+- `platform?: string`
+- `clientVersion?: string`
+
+#### `HasBlobsRequest`
+
+- `vaultId: string`
+- `blobHashes: string[]`
+
+#### `CreateBlobUploadUrlRequest`
+
+- `vaultId: string`
+- `blobHash: string`
+- `sizeBytes: number`
+- `mimeType?: string`
+
+#### `CommitRequest`
+
+- `vaultId: string`
+- `deviceId: string`
+- `requestId: string`
+- `baseSeq: number`
+- `summary?: string`
+- `changes: CommitChangeDto[]`
+
+#### `CommitChangeDto`
+
+- `filePath: string`
+- `op: 'upsert' | 'delete' | 'rename'`
+- `blobHash: string | null`
+- `baseRevision: string | null`
+- `newRevision: string`
+- `sizeBytes?: number | null`
+- `metadata?: Record<string, unknown> | null`
+
+#### `PullQueryDto`
+
+- `vaultId: string`
+- `sinceSeq: number`
+- `limit?: number`
+
+#### `AckRequest`
+
+- `vaultId: string`
+- `deviceId: string`
+- `ackedSeq: number`
+
+### Drizzle schema 实现细节
+
+#### `users.ts`
+
+- 主键：`id`
+- 唯一约束：`email`
+- 字段建议：`email`, `passwordHash`, `username`, `avatar`, `createdAt`, `updatedAt`
+- 导出：`User`, `NewUser`
+
+#### `vaults.ts`
+
+- 主键：`id`
+- 索引：`ownerUserId`
+- 字段建议：`name`, `description`, `status`, `createdAt`, `updatedAt`
+
+#### `vault-members.ts`
+
+- 唯一约束：`(vaultId, userId)`
+- 字段建议：`role = 'owner' | 'editor' | 'viewer'`
+- 本期至少写入 owner 记录
+
+#### `devices.ts`
+
+- 主键：`id`
+- 索引：`vaultId`, `userId`
+- 字段建议：`name`, `platform`, `clientVersion`, `lastSeenAt`, `revokedAt`, `createdAt`, `updatedAt`
+- 同一个 `deviceId` 不允许跨用户复用
+
+#### `blobs.ts`
+
+- 唯一约束：`(vaultId, blobHash)`
+- 字段建议：`storageKey`, `sizeBytes`, `mimeType`, `refCount`, `createdByUserId`, `createdAt`
+- `refCount` 首期必须实现，并和 `commit` 事务联动；同时作为 Phase 4 orphan blob cleanup 与 snapshot / tombstone 安全清理的前置基础
+
+#### `sync-commits.ts`
+
+- 主键：自增 `seq`
+- 业务唯一键：`id`
+- 幂等唯一键：`(vaultId, requestId)`
+- 索引：`(vaultId, seq)`
+- 字段建议：`userId`, `deviceId`, `baseSeq`, `changeCount`, `summary`, `createdAt`
+
+#### `sync-commit-changes.ts`
+
+- 索引：`commitSeq`, `(vaultId, filePath)`
+- 字段建议：`op`, `blobHash`, `baseRevision`, `newRevision`, `sizeBytes`, `metadataJson`, `createdAt`
+- 如果支持 `rename`，`metadataJson` 中建议显式带 `oldFilePath`
+
+#### `sync-file-heads.ts`
+
+- 唯一约束：`(vaultId, filePath)`
+- 字段建议：`headRevision`, `blobHash`, `lastCommitSeq`, `isDeleted`, `updatedAt`
+- 这是 `head_mismatch` 判定的主表
+
+#### `sync-device-cursors.ts`
+
+- 唯一约束：`(vaultId, deviceId)`
+- 字段建议：`userId`, `lastPulledSeq`, `updatedAt`
+- `ack` 只更新这张表
+
+#### `sync-conflicts.ts`
+
+- 索引：`vaultId`, `userId`
+- 字段建议：`filePath`, `losingDeviceId`, `winningRevision`, `losingRevision`, `actualHeadRevision`, `remoteBlobHash`, `winningCommitSeq`, `resolvedAt`, `createdAt`
+- `sync_conflicts` 中的服务端摘要字段必须与 `ServerConflict` 使用同一组核心语义，避免 commit 返回结构、落库结构、后续查询结构出现第二套并行定义
+- 仅存冲突摘要，不存用户本地 conflict copy 路径
+
+### Drizzle 命名与字段约定
+
+为减少 schema 与 service 间的语义偏差，建议统一以下约定：
+
+- 代码属性使用 camelCase：`ownerUserId`, `requestId`, `lastPulledSeq`
+- 数据库列名使用 snake_case：`owner_user_id`, `request_id`, `last_pulled_seq`
+- 所有时间字段统一为：`createdAt`, `updatedAt`, `lastSeenAt`, `resolvedAt`
+- 所有主键 ID 统一使用字符串 ID，而不是数据库自增作为业务主键
+- `sync_commits.seq` 是少数保留的自增字段，用作全局拉取顺序
+
+### 变更语义约定
+
+#### `upsert`
+
+- 表示创建或覆盖当前文件内容
+- 必须携带 `newRevision`
+- 通常必须携带 `blobHash`
+
+#### `delete`
+
+- 表示删除文件的当前 head
+- `blobHash = null`
+- `sync_file_heads.isDeleted = true`
+- 历史 revision 不删除
+
+#### `rename`
+
+- 本期协议允许预留，但首期服务端可按 `delete + upsert` 处理
+- 若保留 `rename`，则 `metadata.oldFilePath` 必填
+- 没有明确 `oldFilePath` 的 `rename` 请求一律视为非法
+
+### commit 事务执行清单
+
+在 `SyncCommitService.commit()` 中建议严格按以下顺序实现：
+
+1. `assertVaultOwnership(userId, vaultId)`
+2. `assertDeviceOwnership(userId, vaultId, deviceId)`
+3. 查询是否存在 `(vaultId, requestId)` 的既有 commit
+4. 校验所有 `upsert` change 的 `blobHash` 已存在于 `blobs`
+5. 开启事务
+6. 对每个 change 查询 `sync_file_heads`
+7. 校验 `baseRevision`
+8. 若任一 change 冲突，写 `sync_conflicts` 摘要并整体失败
+9. 写 `sync_commits`
+10. 批量写 `sync_commit_changes`
+11. 批量 upsert `sync_file_heads`
+12. 更新 `blobs.refCount`，为 Phase 4 orphan blob cleanup 提供可信依据
+13. 提交事务
+14. 返回 `commitSeq + appliedChanges`
+
+### pull 查询清单
+
+`SyncPullService.pull()` 需要明确：
+
+- 默认 `limit = 200`
+- 最大 `limit = 1000`
+- 查询条件：`vaultId = ? AND seq > sinceSeq`
+- 排序：`seq ASC`
+- 返回 `latestSeq`
+- 若命中条数等于 limit，则返回 `hasMore = true`
+
+### ack 更新清单
+
+`CursorService.ack()` 需要保证：
+
+- 当前用户拥有该 vault
+- 当前设备属于该 vault 且未被吊销
+- `ackedSeq >= currentLastPulledSeq`
+- 如果 `ackedSeq < currentLastPulledSeq`，返回 409 或 422，不覆盖旧值
+
+### 建议 PR 拆分
+
+为了降低实现风险，Phase 2 建议至少拆成 6 个 PR：
+
+1. `apps/server` 工程骨架 + config + app bootstrap
+2. MySQL / Drizzle schema + migration
+3. auth + vault + device 基础接口
+4. blob service + presigned URL
+5. commit / pull / ack 服务端链路
+6. 客户端接线 + happy path 联调
+
+## Definition of Done
+
+Phase 2 只有在以下条件全部满足时才可视为完成：
+
+- `apps/server` 可以独立启动，并成功连接 MySQL
+- 用户能够注册、登录，并获取自己的 `vault` 列表
+- 已登录用户能创建属于自己的 vault，并注册设备
+- `sync/has-blobs`、`sync/blob-upload-url`、`sync/commit`、`sync/pull`、`sync/ack` 全部可用
+- 任何同步 API 都会严格校验当前用户是否拥有该 vault
+- `X-Request-Id` / `X-Device-Id` contract 已固定，缺失或冲突时返回稳定错误语义，不会破坏幂等与审计上下文
+- `requestId` / `deviceId` 在 header 与 body 并存时的单一真相源已固定，不会形成第二套幂等或审计语义
+- 同一提交重复请求时具备幂等性，不会重复落 commit
+- 桌面端本地 pending change 能完成完整上传与提交闭环
+- 不同用户的 vault / device / commit / blob 逻辑完全隔离
+
+---
+
+## Tasks
+
+### Task 9: 创建 `apps/server` 工程骨架
 
 **Files:**
-- Modify: `packages/dto/src/sync.ts`
+- `apps/server/package.json`
+- `apps/server/tsconfig.json`
+- `apps/server/src/index.ts`
+- `apps/server/src/app.ts`
+- `apps/server/src/ioc.ts`
 
-- [ ] **Step 1: Add S3Config and SyncManifest types**
+- [ ] 参考 `console/apps/server` 建立 `apps/server` 目录结构
+- [ ] 配置 `express`、`routing-controllers`、`typedi`、`reflect-metadata`
+- [ ] 配置 `dev` / `build` / `typecheck` / `migrate` script
+- [ ] 接入 `pnpm-workspace` 现有多包工作区
 
-```typescript
-// packages/dto/src/sync.ts — add after existing types
-
-export interface S3Config {
-  bucket: string;
-  region: string;
-  endpoint?: string;       // For S3-compatible storages (Cloudflare R2, MinIO, self-hosted)
-  forcePathStyle?: boolean; // Required for some S3-compatible backends
-  accessKeyId?: string;
-  secretAccessKey?: string;
-}
-
-export interface SyncManifestFileEntry {
-  hash: string;
-  version: string;
-  updatedAt: string;
-  isDeleted?: boolean;
-}
-
-export interface SyncManifest {
-  version: string; // Manifest format version
-  updatedAt: string;
-  deviceId: string;
-  files: Record<string, SyncManifestFileEntry>;
-}
-```
-
-- [ ] **Step 2: Update dto index export**
-
-```typescript
-// packages/dto/src/index.ts — add export
-export * from './sync.js';
-```
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add packages/dto/src/sync.ts
-git commit -m "feat(dto): add S3Config and SyncManifest types for Phase 2 sync"
-```
-
----
-
-### Task 10: Create S3Adapter module
+### Task 10: 配置与启动链路
 
 **Files:**
-- Create: `packages/core/src/sync/adapter.ts`
-- Test: `packages/core/src/sync/__tests__/adapter.test.ts`
+- `apps/server/src/config/env.ts`
+- `apps/server/src/config/config.ts`
+- `apps/server/src/app.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [ ] 定义 `JWT_SECRET`、MySQL、S3、CORS 等配置项
+- [ ] 启动时加载 env 并设置时区
+- [ ] 初始化 DB 连接并检查健康状态
+- [ ] 初始化 routing-controllers 与全局错误处理
 
-```typescript
-// packages/core/src/sync/__tests__/adapter.test.ts
-import { S3Adapter } from '../adapter';
-import type { S3Config } from '@aimo-note/dto';
-
-const mockSend = jest.fn();
-jest.mock('@aws-sdk/client-s3', () => ({
-  S3Client: jest.fn().mockImplementation(() => ({ send: mockSend })),
-  GetObjectCommand: jest.fn().mockImplementation((params) => ({ input: params })),
-  PutObjectCommand: jest.fn().mockImplementation((params) => ({ input: params })),
-  ListObjectsV2Command: jest.fn().mockImplementation((params) => ({ input: params })),
-  DeleteObjectCommand: jest.fn().mockImplementation((params) => ({ input: params })),
-}));
-
-describe('S3Adapter', () => {
-  const config: S3Config = {
-    bucket: 'test-bucket',
-    region: 'us-east-1',
-    endpoint: 'https://s3.example.com',
-    forcePathStyle: true,
-  };
-
-  let adapter: S3Adapter;
-
-  beforeEach(() => {
-    mockSend.mockReset().mockResolvedValue({});
-    adapter = new S3Adapter(config);
-  });
-
-  it('should build correct vault path prefix', () => {
-    expect(adapter.getVaultPrefix()).toBe('vault/.aimo/');
-  });
-
-  it('should get object from S3', async () => {
-    mockSend.mockResolvedValueOnce({
-      Body: { transformToString: () => Promise.resolve('test content') },
-    });
-
-    const result = await adapter.getObject('.aimo/manifest.json');
-    expect(result).toBe('test content');
-    expect(mockSend).toHaveBeenCalled();
-  });
-
-  it('should return null for missing object', async () => {
-    mockSend.mockRejectedValueOnce({ name: 'NoSuchKey' });
-
-    const result = await adapter.getObject('.aimo/nonexistent.json');
-    expect(result).toBeNull();
-  });
-
-  it('should put object to S3', async () => {
-    await adapter.putObject('.aimo/versions/note1.md/v1.content', 'file content');
-
-    expect(mockSend).toHaveBeenCalled();
-    const callArg = mockSend.mock.calls[0][0];
-    expect(callArg.input.Key).toBe('vault/.aimo/versions/note1.md/v1.content');
-    expect(callArg.input.Body).toBe('file content');
-  });
-
-  it('should list objects with prefix', async () => {
-    mockSend.mockResolvedValueOnce({
-      Contents: [
-        { Key: 'vault/.aimo/versions/note1.md/v1.content', Size: 100 },
-        { Key: 'vault/.aimo/versions/note1.md/v2.content', Size: 120 },
-      ],
-      IsTruncated: false,
-    });
-
-    const result = await adapter.listObjects('.aimo/versions/');
-    expect(result).toHaveLength(2);
-    expect(result[0].key).toBe('vault/.aimo/versions/note1.md/v1.content');
-  });
-
-  it('should delete object from S3', async () => {
-    await adapter.deleteObject('.aimo/versions/note1.md/v1.content');
-
-    expect(mockSend).toHaveBeenCalled();
-    const callArg = mockSend.mock.calls[0][0];
-    expect(callArg.input.Key).toBe('vault/.aimo/versions/note1.md/v1.content');
-  });
-
-  it('should return false for headObject on missing key', async () => {
-    mockSend.mockRejectedValueOnce({ name: 'NoSuchKey' });
-
-    const result = await adapter.exists('.aimo/manifest.json');
-    expect(result).toBe(false);
-  });
-
-  it('should return true for headObject on existing key', async () => {
-    mockSend.mockResolvedValueOnce({ ContentLength: 100 });
-
-    const result = await adapter.exists('.aimo/manifest.json');
-    expect(result).toBe(true);
-  });
-});
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `pnpm --filter @aimo-note/core test -- --testPathPattern="sync/__tests__/adapter"`
-Expected: FAIL with "Cannot find module '../adapter'"
-
-- [ ] **Step 3: Write minimal S3Adapter implementation**
-
-```typescript
-// packages/core/src/sync/adapter.ts
-import {
-  S3Client,
-  GetObjectCommand,
-  PutObjectCommand,
-  ListObjectsV2Command,
-  DeleteObjectCommand,
-  HeadObjectCommand,
-} from '@aws-sdk/client-s3';
-import type { S3Config } from '@aimo-note/dto';
-
-export interface S3ObjectInfo {
-  key: string;
-  size: number;
-  lastModified?: string;
-}
-
-export class S3Adapter {
-  private client: S3Client;
-  private vaultPrefix: string;
-
-  constructor(config: S3Config) {
-    this.client = new S3Client({
-      region: config.region,
-      endpoint: config.endpoint,
-      forcePathStyle: config.forcePathStyle,
-      credentials: config.accessKeyId && config.secretAccessKey
-        ? { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey }
-        : undefined,
-    });
-    this.vaultPrefix = 'vault/.aimo/';
-  }
-
-  getVaultPrefix(): string {
-    return this.vaultPrefix;
-  }
-
-  async getObject(key: string): Promise<string | null> {
-    try {
-      const response = await this.client.send(
-        new GetObjectCommand({
-          Bucket: this.getBucket(),
-          Key: this.resolveKey(key),
-        })
-      );
-      const body = await response.Body?.transformToString();
-      return body ?? null;
-    } catch (err: any) {
-      if (err.name === 'NoSuchKey') return null;
-      throw err;
-    }
-  }
-
-  async putObject(key: string, body: string): Promise<void> {
-    await this.client.send(
-      new PutObjectCommand({
-        Bucket: this.getBucket(),
-        Key: this.resolveKey(key),
-        Body: body,
-        ContentType: 'application/octet-stream',
-      })
-    );
-  }
-
-  async listObjects(prefix: string): Promise<S3ObjectInfo[]> {
-    const response = await this.client.send(
-      new ListObjectsV2Command({
-        Bucket: this.getBucket(),
-        Prefix: this.resolveKey(prefix),
-      })
-    );
-
-    return (response.Contents ?? []).map((obj) => ({
-      key: obj.Key!,
-      size: obj.Size ?? 0,
-      lastModified: obj.LastModified?.toISOString(),
-    }));
-  }
-
-  async deleteObject(key: string): Promise<void> {
-    await this.client.send(
-      new DeleteObjectCommand({
-        Bucket: this.getBucket(),
-        Key: this.resolveKey(key),
-      })
-    );
-  }
-
-  async exists(key: string): Promise<boolean> {
-    try {
-      await this.client.send(
-        new HeadObjectCommand({
-          Bucket: this.getBucket(),
-          Key: this.resolveKey(key),
-        })
-      );
-      return true;
-    } catch (err: any) {
-      if (err.name === 'NoSuchKey') return false;
-      throw err;
-    }
-  }
-
-  private getBucket(): string {
-    // Bucket is stored in a way that allows multi-tenant downstreams to override
-    // For now, we read from the config passed to constructor
-    // Subclasses or factories can override this method
-    return (this.constructor as any).BUCKET ?? 'vault';
-  }
-
-  private resolveKey(key: string): string {
-    if (key.startsWith(this.vaultPrefix)) return key;
-    return `${this.vaultPrefix}${key.replace(/^\.aimo\//, '')}`;
-  }
-}
-```
-
-> **Note:** The `getBucket()` method above uses a placeholder. The actual bucket must come from the S3Config. Refine the implementation to store bucket in a private field.
-
-- [ ] **Step 4: Run test — it will fail on the placeholder bucket issue. Fix the implementation:**
-
-```typescript
-// Fix the constructor and getBucket:
-export class S3Adapter {
-  private client: S3Client;
-  private vaultPrefix: string;
-  private bucket: string;
-
-  constructor(config: S3Config) {
-    this.bucket = config.bucket;
-    this.vaultPrefix = 'vault/.aimo/';
-    this.client = new S3Client({
-      region: config.region,
-      endpoint: config.endpoint,
-      forcePathStyle: config.forcePathStyle,
-      credentials: config.accessKeyId && config.secretAccessKey
-        ? { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey }
-        : undefined,
-    });
-  }
-  // ...
-  private getBucket(): string {
-    return this.bucket;
-  }
-}
-```
-
-- [ ] **Step 5: Run test to verify it passes**
-
-Run: `pnpm --filter @aimo-note/core test -- --testPathPattern="sync/__tests__/adapter"`
-Expected: PASS
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add packages/core/src/sync/adapter.ts packages/core/src/sync/__tests__/adapter.test.ts
-git commit -m "feat(core): add S3Adapter for vault storage operations"
-```
-
----
-
-## Chunk 2: Manifest Manager
-
-### Task 11: Create ManifestManager module
+### Task 11: MySQL + Drizzle 基础设施
 
 **Files:**
-- Create: `packages/core/src/sync/manifest.ts`
-- Test: `packages/core/src/sync/__tests__/manifest.test.ts`
+- `apps/server/drizzle.config.ts`
+- `apps/server/src/db/connection.ts`
+- `apps/server/src/db/migrate.ts`
+- `apps/server/src/db/transaction.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [ ] 配置 mysql2 连接池
+- [ ] 配置 Drizzle schema 导出
+- [ ] 提供 migration 执行入口
+- [ ] 提供事务工具给 commit service 使用
 
-```typescript
-// packages/core/src/sync/__tests__/manifest.test.ts
-import { ManifestManager } from '../manifest';
-import type { SyncManifest, SyncManifestFileEntry } from '@aimo-note/dto';
-
-const mockAdapter = {
-  getObject: jest.fn(),
-  putObject: jest.fn(),
-  exists: jest.fn(),
-};
-
-describe('ManifestManager', () => {
-  let manifestManager: ManifestManager;
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    manifestManager = new ManifestManager(mockAdapter as any, 'device-001');
-  });
-
-  describe('load', () => {
-    it('should return empty manifest when no manifest exists', async () => {
-      mockAdapter.getObject.mockResolvedValueOnce(null);
-
-      const manifest = await manifestManager.load();
-      expect(manifest.files).toEqual({});
-      expect(manifest.deviceId).toBe('device-001');
-    });
-
-    it('should parse existing manifest JSON', async () => {
-      const existing: SyncManifest = {
-        version: '1',
-        updatedAt: '2026-04-20T10:00:00Z',
-        deviceId: 'device-001',
-        files: {
-          'note1.md': { hash: 'sha256:abc', version: 'v1', updatedAt: '2026-04-20T10:00:00Z' },
-        },
-      };
-      mockAdapter.getObject.mockResolvedValueOnce(JSON.stringify(existing));
-
-      const manifest = await manifestManager.load();
-      expect(manifest.files['note1.md'].hash).toBe('sha256:abc');
-    });
-  });
-
-  describe('save', () => {
-    it('should serialize and upload manifest', async () => {
-      await manifestManager.save({ version: '1', updatedAt: '2026-04-20T10:00:00Z', deviceId: 'device-001', files: {} });
-
-      expect(mockAdapter.putObject).toHaveBeenCalledWith(
-        '.aimo/manifest.json',
-        expect.stringContaining('"version":"1"')
-      );
-    });
-
-    it('should update file entry', async () => {
-      const entry: SyncManifestFileEntry = {
-        hash: 'sha256:xyz',
-        version: 'v2',
-        updatedAt: '2026-04-20T11:00:00Z',
-      };
-
-      await manifestManager.save({
-        version: '1',
-        updatedAt: '2026-04-20T11:00:00Z',
-        deviceId: 'device-001',
-        files: { 'note1.md': entry },
-      });
-
-      const savedJson = JSON.parse(mockAdapter.putObject.mock.calls[0][1]);
-      expect(savedJson.files['note1.md'].hash).toBe('sha256:xyz');
-    });
-  });
-
-  describe('updateEntry', () => {
-    it('should create new entry for new file', async () => {
-      mockAdapter.getObject.mockResolvedValueOnce(null); // empty manifest
-      mockAdapter.putObject.mockResolvedValueOnce(undefined);
-
-      await manifestManager.updateEntry('note1.md', 'sha256:abc', 'v1');
-
-      const savedJson = JSON.parse(mockAdapter.putObject.mock.calls[0][1]);
-      expect(savedJson.files['note1.md'].hash).toBe('sha256:abc');
-      expect(savedJson.files['note1.md'].version).toBe('v1');
-    });
-
-    it('should update existing entry', async () => {
-      const existing: SyncManifest = {
-        version: '1',
-        updatedAt: '2026-04-20T10:00:00Z',
-        deviceId: 'device-001',
-        files: {
-          'note1.md': { hash: 'sha256:old', version: 'v1', updatedAt: '2026-04-20T10:00:00Z' },
-        },
-      };
-      mockAdapter.getObject.mockResolvedValueOnce(JSON.stringify(existing));
-      mockAdapter.putObject.mockResolvedValueOnce(undefined);
-
-      await manifestManager.updateEntry('note1.md', 'sha256:new', 'v2');
-
-      const savedJson = JSON.parse(mockAdapter.putObject.mock.calls[0][1]);
-      expect(savedJson.files['note1.md'].hash).toBe('sha256:new');
-      expect(savedJson.files['note1.md'].version).toBe('v2');
-    });
-  });
-
-  describe('removeEntry', () => {
-    it('should mark file as deleted', async () => {
-      const existing: SyncManifest = {
-        version: '1',
-        updatedAt: '2026-04-20T10:00:00Z',
-        deviceId: 'device-001',
-        files: {
-          'note1.md': { hash: 'sha256:abc', version: 'v1', updatedAt: '2026-04-20T10:00:00Z' },
-        },
-      };
-      mockAdapter.getObject.mockResolvedValueOnce(JSON.stringify(existing));
-      mockAdapter.putObject.mockResolvedValueOnce(undefined);
-
-      await manifestManager.removeEntry('note1.md', 'sha256:abc');
-
-      const savedJson = JSON.parse(mockAdapter.putObject.mock.calls[0][1]);
-      expect(savedJson.files['note1.md'].isDeleted).toBe(true);
-    });
-  });
-});
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `pnpm --filter @aimo-note/core test -- --testPathPattern="sync/__tests__/manifest"`
-Expected: FAIL with "Cannot find module '../manifest'"
-
-- [ ] **Step 3: Write ManifestManager implementation**
-
-```typescript
-// packages/core/src/sync/manifest.ts
-import type { S3Adapter } from './adapter';
-import type { SyncManifest, SyncManifestFileEntry } from '@aimo-note/dto';
-
-export class ManifestManager {
-  constructor(
-    private adapter: S3Adapter,
-    private deviceId: string
-  ) {}
-
-  /**
-   * Load the manifest from S3, returning an empty manifest if none exists.
-   */
-  async load(): Promise<SyncManifest> {
-    const raw = await this.adapter.getObject('.aimo/manifest.json');
-    if (!raw) {
-      return this.emptyManifest();
-    }
-    try {
-      return JSON.parse(raw) as SyncManifest;
-    } catch {
-      // Corrupt manifest — treat as empty
-      return this.emptyManifest();
-    }
-  }
-
-  /**
-   * Save the manifest to S3.
-   */
-  async save(manifest: SyncManifest): Promise<void> {
-    const json = JSON.stringify(manifest, null, 2);
-    await this.adapter.putObject('.aimo/manifest.json', json);
-  }
-
-  /**
-   * Update (or create) a file entry in the manifest.
-   */
-  async updateEntry(
-    filePath: string,
-    hash: string,
-    version: string,
-    isDeleted = false
-  ): Promise<void> {
-    const manifest = await this.load();
-    manifest.files[filePath] = {
-      hash,
-      version,
-      updatedAt: new Date().toISOString(),
-      isDeleted,
-    };
-    manifest.updatedAt = new Date().toISOString();
-    await this.save(manifest);
-  }
-
-  /**
-   * Mark a file as deleted in the manifest.
-   */
-  async removeEntry(filePath: string, hash: string): Promise<void> {
-    await this.updateEntry(filePath, hash, '', true);
-  }
-
-  /**
-   * Get the entry for a specific file path.
-   */
-  async getEntry(filePath: string): Promise<SyncManifestFileEntry | null> {
-    const manifest = await this.load();
-    return manifest.files[filePath] ?? null;
-  }
-
-  /**
-   * Diff local manifest against remote manifest, returning what needs
-   * upload and what needs download.
-   */
-  diff(
-    local: SyncManifest,
-    remote: SyncManifest
-  ): { toUpload: string[]; toDownload: string[]; conflicts: string[] } {
-    const localFiles = Object.keys(local.files);
-    const remoteFiles = Object.keys(remote.files);
-    const allFiles = new Set([...localFiles, ...remoteFiles]);
-
-    const toUpload: string[] = [];
-    const toDownload: string[] = [];
-    const conflicts: string[] = [];
-
-    for (const file of allFiles) {
-      const localEntry = local.files[file];
-      const remoteEntry = remote.files[file];
-
-      if (!localEntry && remoteEntry) {
-        // Remote only — download
-        toDownload.push(file);
-      } else if (localEntry && !remoteEntry) {
-        // Local only — upload
-        toUpload.push(file);
-      } else if (localEntry && remoteEntry) {
-        // Both have it — check hash
-        if (localEntry.hash !== remoteEntry.hash) {
-          conflicts.push(file);
-        } else if (localEntry.version !== remoteEntry.version) {
-          // Same content (hash match) but different version label — sync version
-          toUpload.push(file);
-        }
-      }
-    }
-
-    return { toUpload, toDownload, conflicts };
-  }
-
-  private emptyManifest(): SyncManifest {
-    return {
-      version: '1',
-      updatedAt: new Date().toISOString(),
-      deviceId: this.deviceId,
-      files: {},
-    };
-  }
-}
-```
-
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: `pnpm --filter @aimo-note/core test -- --testPathPattern="sync/__tests__/manifest"`
-Expected: PASS
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add packages/core/src/sync/manifest.ts packages/core/src/sync/__tests__/manifest.test.ts
-git commit -m "feat(core): add ManifestManager for manifest.json sync"
-```
-
----
-
-## Chunk 3: Sync Engine
-
-### Task 12: Create SyncEngine module
+### Task 12: 用户与会话 schema
 
 **Files:**
-- Create: `packages/core/src/sync/engine.ts`
-- Test: `packages/core/src/sync/__tests__/engine.test.ts`
+- `apps/server/src/db/schema/users.ts`
+- `apps/server/src/db/schema/auth-sessions.ts`
+- `apps/server/src/db/schema/index.ts`
 
-The SyncEngine orchestrates one sync cycle:
-1. Load remote manifest
-2. Load local versions (from VersionManager)
-3. Diff to find toUpload / toDownload / conflicts
-4. Upload local versions to S3
-5. Download remote versions from S3
-6. Update remote manifest
+- [ ] 定义 `users` 表
+- [ ] 定义 `auth_sessions` 表（即使首期只用 JWT，也先保留升级位）
+- [ ] 为 email、userId、expiresAt 建立必要索引
 
-- [ ] **Step 1: Write the failing test**
-
-```typescript
-// packages/core/src/sync/__tests__/engine.test.ts
-import { SyncEngine } from '../engine';
-import type { S3Config, SyncManifest } from '@aimo-note/dto';
-
-const mockAdapter = {
-  getObject: jest.fn(),
-  putObject: jest.fn(),
-  listObjects: jest.fn(),
-  exists: jest.fn(),
-};
-
-const mockVersionManager = {
-  getVersionContent: jest.fn(),
-  getLatestVersion: jest.fn(),
-  getVersion: jest.fn(),
-  getFileHistory: jest.fn(),
-};
-
-const mockChangeLogger = {
-  getUnsyncedEntries: jest.fn(),
-  markSynced: jest.fn(),
-};
-
-describe('SyncEngine', () => {
-  let engine: SyncEngine;
-  const deviceId = 'device-001';
-
-  beforeEach(() => {
-    jest.clearAllMocks();
-    engine = new SyncEngine(mockAdapter as any, mockVersionManager as any, mockChangeLogger as any, deviceId);
-  });
-
-  describe('sync', () => {
-    it('should do nothing when manifests are identical', async () => {
-      const manifest: SyncManifest = {
-        version: '1',
-        updatedAt: '2026-04-20T10:00:00Z',
-        deviceId,
-        files: {},
-      };
-      mockAdapter.getObject.mockResolvedValue(JSON.stringify(manifest));
-      mockAdapter.listObjects.mockResolvedValue([]);
-
-      const result = await engine.sync();
-
-      expect(result.uploaded).toHaveLength(0);
-      expect(result.downloaded).toHaveLength(0);
-      expect(result.conflicts).toHaveLength(0);
-    });
-
-    it('should detect conflict when local and remote hashes differ', async () => {
-      const remoteManifest: SyncManifest = {
-        version: '1',
-        updatedAt: '2026-04-20T10:00:00Z',
-        deviceId: 'device-002',
-        files: {
-          'note1.md': { hash: 'sha256:remote', version: 'v1', updatedAt: '2026-04-20T10:00:00Z' },
-        },
-      };
-      mockAdapter.getObject.mockResolvedValue(JSON.stringify(remoteManifest));
-      mockAdapter.listObjects.mockResolvedValue([]);
-      mockVersionManager.getLatestVersion.mockReturnValue({
-        filePath: 'note1.md',
-        hash: 'sha256:local',
-        version: 'v1',
-      });
-
-      const result = await engine.sync();
-
-      expect(result.conflicts).toContain('note1.md');
-      expect(mockAdapter.putObject).not.toHaveBeenCalled(); // Conflict, don't upload
-    });
-
-    it('should upload local-only files', async () => {
-      const remoteManifest: SyncManifest = {
-        version: '1',
-        updatedAt: '2026-04-20T10:00:00Z',
-        deviceId: 'device-002',
-        files: {},
-      };
-      mockAdapter.getObject.mockResolvedValue(JSON.stringify(remoteManifest));
-      mockAdapter.listObjects.mockResolvedValue([]);
-      mockVersionManager.getLatestVersion.mockReturnValue({
-        filePath: 'note1.md',
-        hash: 'sha256:local',
-        version: 'v1',
-        contentPath: '/tmp/v1.content',
-      });
-      mockVersionManager.getVersionContent.mockReturnValue('local content');
-
-      const result = await engine.sync();
-
-      expect(result.uploaded).toContain('note1.md');
-      expect(mockAdapter.putObject).toHaveBeenCalledWith(
-        '.aimo/versions/note1.md/v1.content',
-        'local content'
-      );
-    });
-  });
-});
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `pnpm --filter @aimo-note/core test -- --testPathPattern="sync/__tests__/engine"`
-Expected: FAIL with "Cannot find module '../engine'"
-
-- [ ] **Step 3: Write SyncEngine implementation**
-
-```typescript
-// packages/core/src/sync/engine.ts
-import type { S3Adapter } from './adapter';
-import type { VersionManager } from './version_manager';
-import type { ChangeLogger } from './change_logger';
-import type { SyncManifest } from '@aimo-note/dto';
-import { ManifestManager } from './manifest';
-
-export interface SyncResult {
-  uploaded: string[];
-  downloaded: string[];
-  conflicts: string[];
-  errors: string[];
-}
-
-export class SyncEngine {
-  private manifestManager: ManifestManager;
-
-  constructor(
-    private adapter: S3Adapter,
-    private versionManager: VersionManager,
-    private changeLogger: ChangeLogger,
-    private deviceId: string
-  ) {
-    this.manifestManager = new ManifestManager(adapter, deviceId);
-  }
-
-  /**
-   * Run one full sync cycle:
-   * 1. Fetch remote manifest
-   * 2. Build local manifest snapshot
-   * 3. Diff to determine upload/download/conflict lists
-   * 4. Upload local versions
-   * 5. Download remote versions
-   * 6. Save updated remote manifest
-   */
-  async sync(): Promise<SyncResult> {
-    const result: SyncResult = { uploaded: [], downloaded: [], conflicts: [], errors: [] };
-
-    // Step 1: Load remote manifest
-    const remoteManifest = await this.manifestManager.load();
-
-    // Step 2: Build local manifest from VersionManager
-    const localManifest = await this.buildLocalManifest();
-
-    // Step 3: Diff
-    const { toUpload, toDownload, conflicts } = this.manifestManager.diff(localManifest, remoteManifest);
-    result.conflicts.push(...conflicts);
-
-    // Step 4: Upload local versions (skip on conflict)
-    for (const filePath of toUpload) {
-      if (conflicts.includes(filePath)) continue;
-      try {
-        await this.uploadVersion(filePath);
-        result.uploaded.push(filePath);
-      } catch (err) {
-        result.errors.push(`upload ${filePath}: ${err}`);
-      }
-    }
-
-    // Step 5: Download remote versions
-    for (const filePath of toDownload) {
-      try {
-        await this.downloadVersion(filePath, remoteManifest.files[filePath].version);
-        result.downloaded.push(filePath);
-      } catch (err) {
-        result.errors.push(`download ${filePath}: ${err}`);
-      }
-    }
-
-    // Step 6: If any changes made, update remote manifest
-    if (result.uploaded.length > 0 || result.downloaded.length > 0 || result.conflicts.length > 0) {
-      await this.manifestManager.save(remoteManifest);
-    }
-
-    // Mark change log entries as synced for uploaded files
-    if (result.uploaded.length > 0) {
-      const entries = this.changeLogger.getUnsyncedEntries();
-      const uploadedEntries = entries.filter((e) => result.uploaded.includes(e.filePath));
-      const ids = uploadedEntries.map((e) => e.id!).filter(Boolean);
-      this.changeLogger.markSynced(ids);
-    }
-
-    return result;
-  }
-
-  /**
-   * Build a SyncManifest snapshot from the local VersionManager.
-   */
-  async buildLocalManifest(): Promise<SyncManifest> {
-    const files: SyncManifest['files'] = {};
-    // Get all unique file paths from version manager
-    // We traverse the versions directory to find all tracked files
-    const versionsRoot = (this.versionManager as any).versionsRoot as string;
-
-    // For now, we reconstruct from the database via getFileHistory
-    // A more efficient approach would track all file paths in a separate index
-    // This is a placeholder that queries version history for known files
-    return {
-      version: '1',
-      updatedAt: new Date().toISOString(),
-      deviceId: this.deviceId,
-      files,
-    };
-  }
-
-  private async uploadVersion(filePath: string): Promise<void> {
-    const latest = this.versionManager.getLatestVersion(filePath);
-    if (!latest) return;
-
-    const content = this.versionManager.getVersionContent(filePath, latest.version);
-    if (content === null) return;
-
-    // Upload content
-    const contentKey = `.aimo/versions/${filePath}/${latest.version}.content`;
-    await this.adapter.putObject(contentKey, content);
-
-    // Upload version metadata
-    const meta = {
-      hash: latest.hash,
-      version: latest.version,
-      createdAt: latest.createdAt,
-      deviceId: latest.deviceId,
-      message: latest.message,
-    };
-    const metaKey = `.aimo/versions/${filePath}/${latest.version}.json`;
-    await this.adapter.putObject(metaKey, JSON.stringify(meta));
-  }
-
-  private async downloadVersion(filePath: string, version: string): Promise<void> {
-    // Download content from S3
-    const contentKey = `.aimo/versions/${filePath}/${version}.content`;
-    const content = await this.adapter.getObject(contentKey);
-    if (!content) return;
-
-    // Get hash from version metadata
-    const metaKey = `.aimo/versions/${filePath}/${version}.json`;
-    const metaRaw = await this.adapter.getObject(metaKey);
-    const meta = metaRaw ? JSON.parse(metaRaw) : { hash: '', version, createdAt: new Date().toISOString(), deviceId: this.deviceId, message: '' };
-
-    // Store via VersionManager
-    this.versionManager.createVersion(filePath, version, meta.hash ?? '', content, meta.message ?? '');
-
-    // Also write the actual file to the vault
-    // (Actual file write is handled by the caller / watcher integration)
-  }
-}
-```
-
-> **Note:** `buildLocalManifest` is a stub. For Phase 2, the actual local manifest building needs to enumerate files from the vault. A more complete implementation would scan the vault directory. For now, `toUpload` will always be empty in the tests, which is acceptable for the wiring.
-
-- [ ] **Step 4: Run test — fix issues until it passes**
-
-Run: `pnpm --filter @aimo-note/core test -- --testPathPattern="sync/__tests__/engine"`
-Expected: PASS (may need minor adjustments to match the test expectations)
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add packages/core/src/sync/engine.ts packages/core/src/sync/__tests__/engine.test.ts
-git commit -m "feat(core): add SyncEngine for diff-based sync orchestration"
-```
-
----
-
-## Chunk 4: Integration into SyncService
-
-### Task 13: Wire S3Adapter, ManifestManager, and SyncEngine into SyncService
+### Task 13: vault / device / sync schema
 
 **Files:**
-- Modify: `packages/core/src/sync/service.ts`
-- Modify: `packages/core/src/sync/index.ts`
-- Modify: `packages/core/package.json`
+- `apps/server/src/db/schema/vaults.ts`
+- `apps/server/src/db/schema/vault-members.ts`
+- `apps/server/src/db/schema/devices.ts`
+- `apps/server/src/db/schema/blobs.ts`
+- `apps/server/src/db/schema/sync-commits.ts`
+- `apps/server/src/db/schema/sync-commit-changes.ts`
+- `apps/server/src/db/schema/sync-file-heads.ts`
+- `apps/server/src/db/schema/sync-device-cursors.ts`
+- `apps/server/src/db/schema/sync-conflicts.ts`
+- `apps/server/src/db/schema/sync-audit-logs.ts`
 
-- [ ] **Step 1: Add S3Config to SyncServiceConfig and wire new components**
+- [ ] 定义所有同步核心表
+- [ ] 定义 `sync_audit_logs`，为 Phase 4 诊断聚合提供稳定写路径
+- [ ] 体现 `user_id` / `vault_id` 隔离关系
+- [ ] 为 `vault_id + request_id`、`vault_id + file_path`、`vault_id + device_id` 建立唯一约束
 
-```typescript
-// packages/core/src/sync/service.ts — add S3Config import and extend SyncServiceConfig
+### Task 14: 账号系统与认证中间件
 
-import type { S3Config } from '@aimo-note/dto';
+**Files:**
+- `apps/server/src/services/auth.service.ts`
+- `apps/server/src/services/user.service.ts`
+- `apps/server/src/controllers/v1/auth.controller.ts`
+- `apps/server/src/controllers/v1/user.controller.ts`
+- `apps/server/src/middlewares/auth-handler.ts`
+- `apps/server/src/middlewares/request-context.ts`
+- `apps/server/src/types/express.ts`
 
-// In SyncServiceConfig, add:
-export interface SyncServiceConfig {
-  vaultPath: string;
-  deviceId: string;
-  deviceName: string;
-  s3?: S3Config; // Optional — Phase 2 sync disabled if not provided
-}
-```
+- [ ] 注册接口：邮箱、用户名、密码校验 + bcrypt hash
+- [ ] 登录接口：密码校验 + JWT 签发
+- [ ] `auth-handler` 从 cookie / bearer token 解析用户
+- [ ] 暴露 `POST /api/v1/auth/logout`
+- [ ] 服务端 `logout` 只清理认证态与远端访问能力；客户端在本阶段接线中负责把同步状态切回 `DISABLED`，且不清空本地 pending queue
+- [ ] 暴露 `GET /api/v1/auth/me` 与 `GET /api/v1/user/profile`
+- [ ] 为设置页登录态恢复提供可稳定轮询或启动校验的 `me` 能力
+- [ ] `request-context` 提取 `X-Request-Id`、`X-Device-Id` 并挂到 `request context` 与 `audit context`
+- [ ] 将 `request.user` 与 `currentUserChecker` 打通
 
-Update the SyncService class to store s3 config:
+### Task 15: VaultService 与 DeviceService
 
-```typescript
-export class SyncService {
-  // ... existing fields ...
-  private s3Config?: S3Config;
-  private syncEngine: SyncEngine | null = null;
-  private adapter: S3Adapter | null = null;
+**Files:**
+- `apps/server/src/services/vault.service.ts`
+- `apps/server/src/services/device.service.ts`
+- `apps/server/src/controllers/v1/vault.controller.ts`
+- `apps/server/src/controllers/v1/device.controller.ts`
 
-  constructor(
-    config: SyncServiceConfig,
-    db: Database
-  ) {
-    // ... existing constructor body (initDatabase guard at top) ...
+- [ ] 创建 vault，并默认写入 owner member
+- [ ] 查询当前用户 vault 列表
+- [ ] 注册设备并刷新 `lastSeenAt`
+- [ ] 查询当前用户下指定 vault 的设备列表
+- [ ] 支持设备吊销 revoke，并保证被吊销设备后续不能继续 `ack`、不能再参与 tombstone retention 的安全判定
+- [ ] 提供 `assertVaultOwnership(userId, vaultId)`
 
-    // Store s3 config if provided
-    this.s3Config = config.s3;
+### Task 16: BlobService
 
-    // Initialize S3 adapter if config provided
-    if (this.s3Config) {
-      this.adapter = new S3Adapter(this.s3Config);
-      this.syncEngine = new SyncEngine(
-        this.adapter,
-        this.versionManager,
-        this.changeLogger,
-        this.deviceId
-      );
-    }
-  }
+**Files:**
+- `apps/server/src/services/blob.service.ts`
+- `apps/server/src/controllers/v1/sync.controller.ts`
 
-  // ... existing methods ...
+- [ ] 实现 `hasBlobs(vaultId, blobHashes[])`
+- [ ] 生成预签名上传 URL
+- [ ] 生成预签名下载 URL
+- [ ] 上传 / 下载 URL 都必须限定到当前用户 + 当前 vault 的 prefix
+- [ ] 预签名 URL 的 object key 规则必须由服务端固定生成，不允许客户端自定义目标 prefix
+- [ ] 写入 / 更新 blob 元数据
 
-  /**
-   * Check if remote sync is configured.
-   */
-  isSyncConfigured(): boolean {
-    return this.s3Config !== undefined;
-  }
+### Task 16A: AuditService 与审计落库
 
-  /**
-   * Get the S3 adapter (for testing / external use).
-   */
-  getAdapter(): S3Adapter | null {
-    return this.adapter;
-  }
+**Files:**
+- `apps/server/src/services/audit.service.ts`
+- `apps/server/src/db/schema/sync-audit-logs.ts`
+- `apps/server/src/middlewares/request-context.ts`
 
-  /**
-   * Get the sync engine (for triggering sync).
-   */
-  getSyncEngine(): SyncEngine | null {
-    return this.syncEngine;
-  }
-}
-```
+- [ ] 定义 `sync_audit_logs` schema 与基础查询索引
+- [ ] 提供统一审计写入入口，供 auth / vault / device / sync service 复用
+- [ ] 至少落库 `user.register`、`user.login`、`vault.create`、`device.register`、`sync.commit`、`sync.pull`、`sync.ack`
+- [ ] 审计记录稳定携带 `userId`、`vaultId`、`deviceId`、`requestId`
 
-- [ ] **Step 2: Update index.ts exports**
+### Task 17: SyncCommitService
 
-```typescript
-// packages/core/src/sync/index.ts
-export * from './db.js';
-export * from './device.js';
-export * from './types.js';
-export * from './change_logger.js';
-export * from './version_manager.js';
-export * from './file_watcher.js';
-export * from './service.js';
-export * from './adapter.js';    // NEW
-export * from './manifest.js';   // NEW
-export * from './engine.js';     // NEW
-```
+**Files:**
+- `apps/server/src/services/sync-commit.service.ts`
+- `apps/server/src/controllers/v1/sync.controller.ts`
 
-- [ ] **Step 3: Add AWS SDK dependency**
+- [ ] 接收 `CommitRequest`
+- [ ] 校验当前用户、vault ownership、device ownership
+- [ ] 校验所有 `upsert` change 引用的 `blobHash` 已存在于当前 vault 的 `blobs`
+- [ ] 基于 `vaultId + requestId` 做幂等去重
+- [ ] 若 body 带 `requestId` / `deviceId`，则必须与 `X-Request-Id` / `X-Device-Id` 严格一致
+- [ ] 在事务中写入 `sync_commits` / `sync_commit_changes`
+- [ ] 更新 `sync_file_heads`
+- [ ] 原子更新 `blobs.refCount`，失败时与 commit 一起回滚
+- [ ] head mismatch 时返回冲突响应，不部分提交
+- [ ] 冲突响应字段与 `sync_conflicts` 落库字段保持同一组核心语义，避免服务端对同一冲突维护两套 contract
+- [ ] 对成功 / 冲突 / 失败结果写入对应审计事件
 
-```json
-// packages/core/package.json — add to dependencies
-{
-  "dependencies": {
-    "@aws-sdk/client-s3": "^3.700.0"
-  }
-}
-```
+### Task 18: SyncPullService + CursorService
 
-- [ ] **Step 4: Run build to verify**
+**Files:**
+- `apps/server/src/services/sync-pull.service.ts`
+- `apps/server/src/services/cursor.service.ts`
+- `apps/server/src/controllers/v1/sync.controller.ts`
 
-Run: `pnpm --filter @aimo-note/core build`
-Expected: SUCCESS
+- [ ] 实现 `pull(vaultId, sinceSeq)`
+- [ ] `pull` 默认 `limit = 200`、最大 `limit = 1000`，并返回 `hasMore`
+- [ ] 返回 commits、changes、`blobRefs`、latestSeq
+- [ ] `blobRefs` 只暴露当前用户可见的 blob 元信息，不直接暴露越权下载能力
+- [ ] `sinceSeq < 0` 等非法参数返回稳定 422 语义
+- [ ] 实现 `ack(vaultId, deviceId, seq)`
+- [ ] ack 仅允许 cursor 前进，不允许回退
+- [ ] `pull` / `ack` 成功与失败结果都写入审计事件
 
-- [ ] **Step 5: Commit**
+### 自动同步与设置页约束
 
-```bash
-git add packages/core/src/sync/service.ts packages/core/src/sync/index.ts packages/core/package.json
-git commit -m "feat(core): wire S3Adapter and SyncEngine into SyncService"
-```
+- 同步必须是用户在设置页主动开启的可选能力；未开启时应用保持本地模式。
+- 用户不需要理解或手动执行 `push` / `pull`；正常路径由后台自动调度。
+- 自动触发源至少包括：登录并开启同步、应用启动、本地变更入队、网络恢复、周期性轮询。
+- 设置页需要提供“立即同步”按钮，用于显式触发一次同步。
+- 网络不可用时应进入 `OFFLINE` 状态，保留 pending queue，不阻塞本地读写。
+- 未开启同步或处于 `OFFLINE` 时，客户端仍需继续记录本地变更、历史、冲突辅助信息与 runtime metadata；只有在登录态有效且同步开启时，这些本地记录才与服务端唯一真相源对账并收敛。
+
+### Sync State Transition Contract
+
+在 Phase 1 本地状态骨架的基础上，本阶段必须把自动同步实际运行时最关键的迁移语义钉死，避免不同端对状态理解不一致：
+
+- 未开启同步或用户已退出登录时，状态必须稳定为 `DISABLED`，即使本地仍有 pending queue 也不得继续自动发起网络同步
+- 开启同步且登录态有效、当前无待处理工作时，状态进入 `IDLE`
+- 本地新增 pending change、手动点击“立即同步”、应用启动恢复待处理工作时，状态进入 `PENDING`
+- 真正开始执行一次 `has-blobs -> upload -> commit -> pull -> ack` 流程时，状态进入 `SYNCING`
+- 网络不可用、DNS 失败、服务端暂时不可达等可自动恢复问题进入 `OFFLINE`；token 失效、权限异常、数据前置条件破坏等需要用户干预的问题进入 `ERROR`
+- 处于 `DISABLED` 或 `OFFLINE` 时，本地记录仍需持续更新，供后续恢复同步与诊断使用；这些记录不能替代服务端作为跨设备同步事实的唯一真相源
+- 从 `OFFLINE` 恢复后，先回到 `PENDING` 或直接进入 `SYNCING`，不得跳过待处理工作直接标记 `IDLE`
+- 任一状态切换都必须同步更新 `last_sync_*`、`last_sync_error`、`retry_count`、`next_retry_at` 等运行态，供 Phase 4 diagnostics 直接复用
+
+### Runtime Error Classification Baseline
+
+为避免客户端、服务端与后续 diagnostics 对 `OFFLINE` / `ERROR` / blob 下载失败各自猜测，本阶段需要先固定最小错误分类语义：
+
+- 网络不可用、DNS 失败、连接超时、服务端暂时不可达等可自动恢复问题进入 `OFFLINE`
+- token 失效、权限异常、`blob_not_visible`、header/body contract 冲突、参数前置条件被破坏等问题进入 `ERROR`
+- `blob-download-url` 过期属于可重试业务错误：应优先刷新下载 URL 并重试，而不是直接视为鉴权失败
+- blob 内容下载阶段的网络错误进入 `OFFLINE`；blob 可见性或鉴权错误进入 `ERROR`
+- 上述分类必须在 DTO 错误码、客户端恢复策略与设置页 / renderer 提示文案中保持同一语义
+
+### Task 19: DTO 对齐客户端
+
+**Files:**
+- `packages/dto/src/sync.ts`
+- `packages/dto/src/index.ts`
+
+- [ ] 增加 auth / vault / device / sync DTO
+- [ ] 补齐 `CreateBlobDownloadUrlRequest` / `CreateBlobDownloadUrlResponse` / `BlobRef`
+- [ ] `apps/server` 与桌面端共用 DTO
+- [ ] 明确 `CommitRequest`、`CommitResponse`、`ServerConflict`
+- [ ] 明确 `requestId` / `deviceId` 在 header 与 body 同时出现时的一致性规则，避免客户端与服务端各自猜测
+- [ ] 冻结 `trigger`、`retryCount`、`offlineStartedAt`、`recoveredAt`、`nextRetryAt`、`requestId`、`deviceId` 等跨阶段运行态字段名，供 Phase 3 / Phase 4 直接复用
+- [ ] 明确 `PullQueryDto.limit`、`PullResponse.hasMore` 等分页字段
+- [ ] 明确关键错误码 / 错误类型，避免客户端恢复策略依赖隐式约定
+- [ ] 明确 `blob_download_expired`、`blob_download_failed`、`blob_not_visible` 等下载相关错误，以及它们对应的 `OFFLINE` / `ERROR` / 可重试语义
+
+### Task 20: 客户端接入服务端 happy path
+
+**Files:**
+- `packages/core/src/sync/server_adapter.ts`
+- `packages/core/src/sync/blob_uploader.ts`
+- `packages/core/src/sync/engine.ts`
+- `apps/client/src/main/ipc/*`
+- `apps/render/src/pages/settings/*`
+- `apps/render/src/services/*`
+
+- [ ] 接入登录后 token
+- [ ] 同步仅在用户于设置页显式开启后启动；未开启时保持纯本地模式
+- [ ] 调用 `has-blobs`、`blob-upload-url`、`blob-download-url`、`commit`、`pull`、`ack`
+- [ ] 在启动、登录成功、开启同步、本地变更入队、网络恢复、周期性轮询时自动触发同步
+- [ ] 自动触发需带上明确来源，如 `startup` / `login` / `local_change` / `network_recovered` / `periodic` / `manual`
+- [ ] 所有同步请求需透传 `trigger` / `requestId` / `deviceId`，并统一使用 Phase 2 冻结的运行态字段名承载 `retryCount` / 恢复上下文等元数据
+- [ ] `X-Request-Id` / `X-Device-Id` 缺失、冲突或与 body 不一致时返回稳定错误语义，而不是由客户端或服务端各自兜底猜测
+- [ ] 自动重试时复用同一 `requestId`，保证 `commit` 幂等语义与诊断链路一致
+- [ ] `DISABLED` 或已退出登录时，即使本地仍有 pending queue，也不得继续发起 `has-blobs` / `commit` / `pull` / `ack` 等网络请求
+- [ ] pull 后本地若缺失 blob cache，可通过 `blob-download-url` 下载远端内容并完成落盘
+- [ ] `blob-download-url` 过期时优先刷新下载 URL 并重试；网络类下载失败进入 `OFFLINE`，可见性 / 鉴权失败进入 `ERROR`
+- [ ] 成功后推进本地 queue 与 cursor
+- [ ] 检测网络不可用时切到 `OFFLINE`，停止无效请求风暴并等待恢复
+- [ ] 同步错误时保留 pending queue，可在恢复联网后自动重试
+- [ ] 连续离线抖动或周期性轮询命中时，自动同步引擎需串行化 / 去抖，避免并发请求风暴
+- [ ] 用户退出登录后，同步引擎回到 `DISABLED`，但本地 pending queue 与本地历史继续保留；重新登录并开启同步后可继续提交
+- [ ] 设置页提供“立即同步”按钮，复用同一同步引擎立即执行一次同步
+- [ ] 设置页展示登录用户、同步开关、最近同步时间、最近错误、当前状态
+- [ ] renderer 展示 `DISABLED / OFFLINE / SYNCING / ERROR` 等状态，不影响本地编辑
+
+### Task 21: 用户隔离验收用例
+
+**Scope:**
+- 服务端单测 / 集成测试 / 客户端接口测试
+
+- [ ] 用户 A 不能读用户 B 的 vault 列表
+- [ ] 用户 A 不能对用户 B 的 vault 提交 commit
+- [ ] 用户 A 不能为用户 B 的 vault 申请 blob 上传 URL
+- [ ] 用户 A 不能为用户 B 的 vault 申请 blob 下载 URL
+- [ ] 用户 A 不能推进用户 B 设备的 cursor
+- [ ] 即使用户 A 已拿到自己的预签名上传 URL，也不能通过篡改 object key / prefix 实际写入用户 B 的对象路径
 
 ---
 
-## Summary
+## Acceptance Tests
 
-After completing Phase 2, you will have:
+### 服务端侧
 
-1. **S3Adapter** — PUT/GET/LIST/DELETE/EXISTS for vault/.aimo/ paths via AWS SDK v3
-2. **ManifestManager** — Load/save/update/diff manifest.json snapshots
-3. **SyncEngine** — Full sync cycle: diff → upload local → download remote → conflict detection
-4. **SyncService integration** — `s3` config option, `isSyncConfigured()`, `getAdapter()`, `getSyncEngine()`
+- [ ] 服务启动成功，并完成 MySQL health check
+- [ ] 注册 / 登录 / 登出 / 当前用户 / profile 接口可用
+- [ ] 创建 vault 后，数据库可看到 owner_user_id 与 vault_members
+- [ ] 注册设备后，设备归属当前用户与当前 vault
+- [ ] `commit` 幂等：同 `requestId` 重试不会生成第二条 commit
+- [ ] `pull` 默认分页参数、`hasMore` 与最大 `limit` 行为稳定
+- [ ] `pull` 仅返回 `sinceSeq` 之后的提交与当前用户可见的 `blobRefs`
+- [ ] `ack` 不允许回退 cursor
+- [ ] `request context` 能稳定提取 `requestId`、`deviceId`
+- [ ] 缺失 `X-Request-Id` 或必需的 `X-Device-Id` 时，相关同步接口返回稳定 400/422 语义，不静默生成新值
+- [ ] header 与 body 中 `requestId` / `deviceId` 不一致时会被拒绝，且错误语义稳定
+- [ ] 审计日志可查询到 `user.register`、`user.login`、`vault.create`、`device.register`、`sync.commit`、`sync.pull`、`sync.ack`
+- [ ] 审计记录稳定包含 `userId`、`vaultId`、`deviceId`、`requestId`
+- [ ] `commit` 成功时 `sync_file_heads` 与 `blobs.refCount` 原子一致；失败回滚时不会留下脏 refCount
+- [ ] `blob_missing`、`head_mismatch`、非法 `sinceSeq`、ack 回退等错误返回稳定语义
 
-### Files Created/Modified
+### 客户端 + 服务端联调
 
-```
-packages/core/src/sync/
-├── adapter.ts              # NEW — S3Adapter
-├── manifest.ts             # NEW — ManifestManager
-├── engine.ts               # NEW — SyncEngine
-├── service.ts              # MODIFIED — wire S3 + engine
-├── index.ts                # MODIFIED — export new modules
-└── __tests__/
-    ├── adapter.test.ts     # NEW
-    ├── manifest.test.ts    # NEW
-    └── engine.test.ts      # NEW
+- [ ] 用户未登录、未开启同步时，应用仍可正常使用本地能力
+- [ ] 用户可在设置页登录并开启同步，后台自动完成首次同步链路
+- [ ] 用户退出登录后，本地 pending queue 不丢失，同步状态回到 `DISABLED`，重新登录并开启同步后可继续提交旧变更
+- [ ] 同步被显式关闭或状态为 `DISABLED` 时，即使本地 queue 持续累积，也不会继续发起任何同步网络请求
+- [ ] 本地新建文件后，首次同步会先上传 blob 再成功 commit
+- [ ] 第二次无变更同步时，不发生重复 blob 上传
+- [ ] 远端新增文件后，本地 pull 可在本地无缓存时下载 blob、落盘并推进 cursor
+- [ ] 新设备或清空本地 blob cache 后，仍可仅依赖远端 `pull + blob-download-url` 完成内容重建
+- [ ] 网络失败后 pending change 保留，断网期间本地编辑不中断，恢复后自动继续提交
+- [ ] 周期性轮询会进入与其他触发源相同的同步引擎，不会形成第二套手工同步流程
+- [ ] `blob-download-url` 过期、blob 下载网络失败、blob 不可见等场景的用户反馈与 `OFFLINE` / `ERROR` 分类稳定可预测
+- [ ] 同步关闭或离线期间，本地新增变更、历史与运行态信息仍被记录；重新开启同步或恢复联网后可继续与服务端状态对账
+- [ ] 连续离线抖动时不会无限并发触发多轮同步
+- [ ] `OFFLINE` 与 `ERROR` 的进入条件稳定可预测：网络类错误进入 `OFFLINE`，鉴权/权限类错误进入 `ERROR`
+- [ ] 从 `OFFLINE` 恢复后会重新回到 `PENDING` / `SYNCING` 完成待处理工作，而不是错误地直接显示 `IDLE`
+- [ ] 设置页点击“立即同步”可在自动调度之外立刻触发一次同步
 
-packages/dto/src/sync.ts    # MODIFIED — S3Config, SyncManifest
-packages/core/package.json  # MODIFIED — add @aws-sdk/client-s3
-```
+### 隔离验证
 
-### Next Steps
+- [ ] 用户 A 访问用户 B 的 `vaultId` 时返回 403/404
+- [ ] 预签名上传 URL 无法通过篡改 key / prefix 实际写入用户 B 的 prefix，S3 侧真实写入验证同样失败
+- [ ] 使用用户 A 的 token + 用户 B 的 `deviceId` 调用 ack 会失败
+- [ ] 已吊销设备无法继续 `ack` 或参与后续保留窗口判定
 
-- **Phase 3**: Conflict UI + version rollback (conflict detection is done, need UI and resolution)
-- **Phase 4**: GC cleanup + cost optimization (delete old versions, manifest compaction)
+---
+
+## Exit Criteria
+
+满足以下条件即可进入 Phase 3：
+
+- `apps/server` 已具备稳定的账号 + vault + sync 基础设施
+- 用户隔离模型已真正落地到 service / schema / API
+- 客户端与服务端的自动同步 happy path 已跑通
+- `logout -> DISABLED` 与 pending queue 保留语义已明确落地
+- 预签名 URL 前缀隔离已可被稳定验证，Phase 3 无需再返工该基础约束
+- 设置页已经承载登录、同步开关、状态展示与“立即同步”入口
+- 用户无需手动 `push` / `pull` 即可完成日常同步，且仍保留设置页“立即同步”兜底入口
+- Phase 3 只需要补冲突 UX、历史与回溯，不再重构服务端主干

@@ -1,892 +1,291 @@
 # Vault Sync Phase 3: Conflict Handling + Version Rollback
 
-> **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Goal:** 在 Phase 2 的 `apps/server + MySQL + auth + 自动同步 happy path` 基础上，补齐冲突闭环、历史查询、版本回溯，以及用户可见的手动合并流程。
 
-**Goal:** Implement conflict recording + resolution and version rollback so SyncEngine can persist conflicts to SQLite, create conflict rename files on disk, and restore any historical version of a file.
+## Phase 3 Scope
 
-**Architecture:** ConflictManager persists detected conflicts to the `sync_conflicts` table and creates a renamed conflict copy on disk. VersionRollback reads any historical version from local storage or S3 and writes it back to the vault. Both integrate into SyncService, which surfaces conflicts via `getConflicts()` and triggers rollback via `rollback()`.
+本阶段围绕两条线展开：
 
-**Tech Stack:** Same as Phase 1/2 — `packages/core/src/sync/`, `packages/dto/src/sync.ts`.
+- **服务端线**：补齐冲突摘要与历史查询 API
+- **客户端/前端线**：落地冲突副本、手动合并、历史面板、rollback
+
+### 本阶段必须交付
+
+- 服务端 `head_mismatch` 冲突响应标准化
+- `sync_conflicts` 摘要查询 API
+- 历史 revision 查询 API
+- 客户端冲突记录与 conflict copy 文件落盘
+- renderer 显示未解决冲突
+- rollback 通过普通 commit 再传播给其他设备
+- rollback / resolve 结果能够接入自动同步引擎，而不是依赖用户手动 push / pull
+- 本地没有目标 revision 缓存时，仍可通过远端 blob 下载完成恢复
+
+### 本阶段明确不做
+
+- 自动三方文本合并
+- 实时协同编辑
+- 团队成员权限冲突仲裁
 
 ---
 
-## File Structure
+## 服务端职责
 
-```
+### 新增或强化的 API
+
+| API | 方法 | 说明 |
+|---|---|---|
+| `/api/v1/sync/conflicts?vaultId=` | GET | 获取当前用户当前 vault 的冲突摘要 |
+| `/api/v1/sync/history?vaultId=&filePath=` | GET | 获取文件历史 revision |
+| `/api/v1/sync/history/blob?vaultId=&revision=` | GET | 获取历史 revision 对应 blob 引用 |
+| `/api/v1/sync/blob-download-url` | POST | 为历史 / pull 的 blob 引用换取短期下载地址 |
+| `/api/v1/sync/conflicts/:id/resolve` | POST | 标记服务端冲突摘要已解决（可选） |
+
+### 服务端定位
+
+- 服务端只负责判断冲突、保存摘要、暴露历史元数据
+- 服务端需要提供历史 blob 引用，并允许客户端进一步换取下载地址以支持无缓存 rollback
+- 不负责替用户完成文本合并
+- rollback 最终仍通过客户端生成新的 commit 来传播
+
+### 接口语义补充
+
+- `conflicts`、`history`、`history/blob`、`conflicts/:id/resolve` 等新增同步入口，继续沿用 `X-Request-Id`、`X-Device-Id` 到 request context / audit context
+- `conflicts/:id/resolve` 必须同时校验 `currentUserId + vaultId + conflictId` 归属，且重复 resolve 应保持幂等
+- `history/blob` 与 rollback 相关调用需定义稳定异常语义：`revision_not_found`、`blob_not_visible`、下载 URL 过期 / 下载失败等，避免客户端各自猜测错误来源
+
+### Canonical Conflict Contract
+
+为避免 commit 冲突响应、服务端落库摘要与本地辅助记录在 Phase 3 再次分叉，本阶段强制约束：
+
+- `packages/dto/src/sync.ts` 中的 `ServerConflict` 是跨端共享的 canonical transport contract
+- `sync_conflicts` 是服务端对 `ServerConflict` 的稳定持久化投影，可额外带 `vaultId`、`userId`、`losingDeviceId`、`resolvedAt` 等服务端 bookkeeping 字段，但不得改写共享字段含义
+- `SyncConflictRecord` 是客户端本地辅助投影，必须直接复用 `ServerConflict` 的共享字段，并只额外补充 `conflictCopyPath`、本地解决意图等当前设备视角字段
+- 任何字段改名或语义扩展必须先改 `packages/dto/src/sync.ts`，再同步更新服务端 schema 与客户端映射；禁止在 controller / service / renderer 私自发明别名
+
+---
+
+## 客户端职责
+
+- commit 冲突时保留 pending change
+- 拉取远端最新 head 内容
+- 生成 `*_conflict_*.md` 文件
+- UI 展示冲突列表与操作入口
+- 允许用户查看历史 revision 并恢复
+- rollback 后写入本地 queue，沿自动同步链路提交；必要时也可由设置页“立即同步”立即触发
+
+---
+
+## Target Files
+
+```text
+apps/server/src/controllers/v1/
+├── sync.controller.ts
+
+apps/server/src/services/
+├── conflict.service.ts
+├── history.service.ts
+├── sync-commit.service.ts
+└── sync-pull.service.ts
+
+apps/server/src/db/schema/
+└── sync-conflicts.ts
+
 packages/core/src/sync/
-├── conflicts.ts            ← NEW: ConflictManager — record/resolve conflicts in SQLite
-├── rollback.ts             ← NEW: VersionRollback — restore file to any version
-├── engine.ts               ← MODIFIED: wire ConflictManager into sync cycle
-├── service.ts              ← MODIFIED: add rollback(), getConflicts(), resolveConflict()
-└── __tests__/
-    ├── conflicts.test.ts   ← NEW
-    └── rollback.test.ts   ← NEW
+├── conflicts.ts
+├── rollback.ts
+├── history.ts
+├── service.ts
+└── engine.ts
 
-packages/dto/src/sync.ts   ← MODIFIED: add SyncConflictRecord, RollbackResult types
+apps/client/src/main/ipc/*
+apps/render/src/ipc/*
+apps/render/src/services/*
+apps/render/src/components/*
+apps/render/src/pages/editor/*
 ```
 
 ---
 
-## Chunk 1: ConflictManager
+## Definition of Done
 
-### Task 14: Add conflict types to dto
+Phase 3 只有在以下条件全部满足时才可视为完成：
+
+- `commit` 冲突时服务端返回标准化 `ServerConflict[]`
+- 服务端可以按用户 + vault 查询冲突摘要与历史记录
+- 客户端会生成 conflict copy，且不丢本地修改
+- renderer 无需进入设置页即可看到冲突
+- 用户无需进入设置页即可查看历史 revision 并执行 rollback
+- 同步关闭时，rollback / resolve 只更新本地状态与 queue，不会偷偷绕过 `DISABLED` 语义发起远端请求
+- rollback 通过普通同步链路传播到其他设备
+
+---
+
+## Tasks
+
+### Task 22: 扩展 dto 冲突与历史协议
 
 **Files:**
-- Modify: `packages/dto/src/sync.ts`
+- `packages/dto/src/sync.ts`
 
-- [ ] **Step 1: Add Phase 3 types**
+- [ ] 增加 `SyncConflictRecord`
+- [ ] 增加 `SyncHistoryEntry`
+- [ ] 增加 `RollbackRequest` / `RollbackResult`
+- [ ] 明确 `ServerConflict` 字段：`actualHeadRevision`、`remoteBlobHash`、`winningCommitSeq`
+- [ ] 将 `packages/dto/src/sync.ts` 中的 `ServerConflict` 明确标注为跨端 canonical contract，并约束后续扩展只能从这里出发
+- [ ] 明确 `SyncConflictRecord` / `sync_conflicts` 与 `ServerConflict` 的字段映射，保证 commit 冲突响应、服务端落库摘要与后续查询接口复用同一组核心语义
 
-```typescript
-// packages/dto/src/sync.ts — add after existing types
-
-export interface SyncConflictRecord {
-  id: number;
-  filePath: string;
-  localVersion: string;
-  remoteVersion: string;
-  localHash: string;
-  remoteHash: string;
-  createdAt: string;
-  resolved: boolean;
-  resolutionPath: string | null;
-}
-
-export interface RollbackResult {
-  filePath: string;
-  restoredVersion: string;
-  newVersion: string;
-  content: string;
-}
-```
-
-- [ ] **Step 2: Commit**
-
-```bash
-git add packages/dto/src/sync.ts
-git commit -m "feat(dto): add SyncConflictRecord and RollbackResult types for Phase 3"
-```
-
----
-
-### Task 15: Create ConflictManager module
+### Task 23: 服务端 ConflictService
 
 **Files:**
-- Create: `packages/core/src/sync/conflicts.ts`
-- Test: `packages/core/src/sync/__tests__/conflicts.test.ts`
+- `apps/server/src/services/conflict.service.ts`
+- `apps/server/src/controllers/v1/sync.controller.ts`
 
-**Responsibility:** Record detected conflicts to `sync_conflicts` table, expose unresolved conflicts, mark conflicts resolved, generate conflict filenames.
+- [ ] 记录冲突摘要到 `sync_conflicts`
+- [ ] 在 `sync.controller.ts` 暴露 `GET /api/v1/sync/conflicts?vaultId=`，稳定返回当前用户当前 vault 的未解决冲突摘要
+- [ ] 按 `userId + vaultId` 查询未解决冲突
+- [ ] 提供按冲突 ID 标记 resolved 的接口（摘要态）
+- [ ] 服务端保存的冲突摘要是跨设备同步语义的唯一真相源，本地记录只能作为当前设备辅助视图与离线缓存
+- [ ] `sync_conflicts` 落库字段必须是 `ServerConflict` 的稳定投影，而不是重新发明第二套冲突语义
+- [ ] `resolve` 必须校验 `userId + vaultId + conflictId` 归属，不能仅凭冲突 ID 更新
+- [ ] 重复 resolve 保持幂等，不因客户端重试产生状态抖动
+- [ ] 返回值只暴露当前用户可见的冲突
 
-Conflict filenames follow: `{basename}_conflict_{YYYYMMDD}_{HHMMSS}_{random4}.md`
-Example: `note1_conflict_20260420_143052_a1b2.md`
-
-- [ ] **Step 1: Write the failing test**
-
-```typescript
-// packages/core/src/sync/__tests__/conflicts.test.ts
-import { Database } from 'better-sqlite3';
-import { initDatabase, setDatabase } from '../db';
-import { ConflictManager } from '../conflicts';
-import type { SyncConflictRecord } from '@aimo-note/dto';
-
-describe('ConflictManager', () => {
-  let db: Database.Database;
-  let conflictManager: ConflictManager;
-
-  beforeEach(() => {
-    db = new (require('better-sqlite3'))(':memory:');
-    initDatabase(db);
-    setDatabase(db);
-    conflictManager = new ConflictManager(db);
-  });
-
-  afterEach(() => {
-    db.close();
-  });
-
-  describe('record', () => {
-    it('should insert a conflict record', () => {
-      const record = conflictManager.record({
-        filePath: 'note1.md',
-        localVersion: 'v2',
-        remoteVersion: 'v2',
-        localHash: 'sha256:local',
-        remoteHash: 'sha256:remote',
-      });
-
-      expect(record.id).toBeDefined();
-      expect(record.filePath).toBe('note1.md');
-      expect(record.resolved).toBe(false);
-      expect(record.resolutionPath).toBeNull();
-    });
-
-    it('should generate a conflict filename', () => {
-      const name = conflictManager.generateConflictFilename('note1.md');
-      expect(name).toMatch(/^note1_conflict_\d{8}_\d{6}_[a-z0-9]{4}\.md$/);
-    });
-
-    it('should preserve extension in conflict filename', () => {
-      const name = conflictManager.generateConflictFilename('note1.md');
-      expect(name.endsWith('.md')).toBe(true);
-    });
-  });
-
-  describe('getUnresolved', () => {
-    it('should return only unresolved conflicts', () => {
-      conflictManager.record({
-        filePath: 'note1.md',
-        localVersion: 'v1',
-        remoteVersion: 'v1',
-        localHash: 'sha256:a',
-        remoteHash: 'sha256:b',
-      });
-      conflictManager.record({
-        filePath: 'note2.md',
-        localVersion: 'v1',
-        remoteVersion: 'v1',
-        localHash: 'sha256:c',
-        remoteHash: 'sha256:d',
-      });
-
-      // Mark one as resolved
-      const unresolved = conflictManager.getUnresolved();
-      expect(unresolved).toHaveLength(2);
-    });
-
-    it('should return empty array when no conflicts', () => {
-      const unresolved = conflictManager.getUnresolved();
-      expect(unresolved).toHaveLength(0);
-    });
-  });
-
-  describe('getUnresolvedForFile', () => {
-    it('should return unresolved conflicts for a specific file', () => {
-      conflictManager.record({
-        filePath: 'note1.md',
-        localVersion: 'v1',
-        remoteVersion: 'v1',
-        localHash: 'sha256:a',
-        remoteHash: 'sha256:b',
-      });
-      conflictManager.record({
-        filePath: 'note2.md',
-        localVersion: 'v1',
-        remoteVersion: 'v1',
-        localHash: 'sha256:c',
-        remoteHash: 'sha256:d',
-      });
-
-      const note1Conflicts = conflictManager.getUnresolvedForFile('note1.md');
-      expect(note1Conflicts).toHaveLength(1);
-      expect(note1Conflicts[0].filePath).toBe('note1.md');
-    });
-  });
-
-  describe('resolve', () => {
-    it('should mark a conflict as resolved with a resolution path', () => {
-      const record = conflictManager.record({
-        filePath: 'note1.md',
-        localVersion: 'v1',
-        remoteVersion: 'v1',
-        localHash: 'sha256:a',
-        remoteHash: 'sha256:b',
-      });
-
-      conflictManager.resolve(record.id, 'note1_conflict_20260420_143052.md');
-
-      const unresolved = conflictManager.getUnresolved();
-      expect(unresolved).toHaveLength(0);
-
-      const resolved = conflictManager.getById(record.id);
-      expect(resolved?.resolved).toBe(true);
-      expect(resolved?.resolutionPath).toBe('note1_conflict_20260420_143052.md');
-    });
-  });
-
-  describe('getById', () => {
-    it('should retrieve a conflict by id', () => {
-      const record = conflictManager.record({
-        filePath: 'note1.md',
-        localVersion: 'v1',
-        remoteVersion: 'v1',
-        localHash: 'sha256:a',
-        remoteHash: 'sha256:b',
-      });
-
-      const found = conflictManager.getById(record.id);
-      expect(found?.id).toBe(record.id);
-      expect(found?.filePath).toBe('note1.md');
-    });
-  });
-});
-```
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `pnpm --filter @aimo-note/core test -- --testPathPattern="sync/__tests__/conflicts"`
-Expected: FAIL with "Cannot find module '../conflicts'"
-
-- [ ] **Step 3: Write ConflictManager implementation**
-
-```typescript
-// packages/core/src/sync/conflicts.ts
-import type { Database } from 'better-sqlite3';
-import type { SyncConflictRecord } from '@aimo-note/dto';
-
-function mapRow(row: any): SyncConflictRecord {
-  return {
-    id: row.id,
-    filePath: row.file_path,
-    localVersion: row.local_version,
-    remoteVersion: row.remote_version,
-    localHash: row.local_hash,
-    remoteHash: row.remote_hash,
-    createdAt: row.created_at,
-    resolved: row.resolved === 1,
-    resolutionPath: row.resolution_path,
-  };
-}
-
-export interface RecordConflictInput {
-  filePath: string;
-  localVersion: string;
-  remoteVersion: string;
-  localHash: string;
-  remoteHash: string;
-}
-
-export class ConflictManager {
-  constructor(private db: Database.Database) {}
-
-  record(input: RecordConflictInput): SyncConflictRecord {
-    const now = new Date().toISOString();
-    const stmt = this.db.prepare(`
-      INSERT INTO sync_conflicts
-        (file_path, local_version, remote_version, local_hash, remote_hash, created_at, resolved, resolution_path)
-      VALUES (?, ?, ?, ?, ?, ?, 0, NULL)
-    `);
-    const result = stmt.run(
-      input.filePath,
-      input.localVersion,
-      input.remoteVersion,
-      input.localHash,
-      input.remoteHash,
-      now
-    );
-
-    return {
-      id: result.lastInsertRowid as number,
-      ...input,
-      createdAt: now,
-      resolved: false,
-      resolutionPath: null,
-    };
-  }
-
-  getUnresolved(): SyncConflictRecord[] {
-    const rows = this.db
-      .prepare('SELECT * FROM sync_conflicts WHERE resolved = 0 ORDER BY created_at DESC')
-      .all() as any[];
-    return rows.map(mapRow);
-  }
-
-  getUnresolvedForFile(filePath: string): SyncConflictRecord[] {
-    const rows = this.db
-      .prepare('SELECT * FROM sync_conflicts WHERE file_path = ? AND resolved = 0 ORDER BY created_at DESC')
-      .all(filePath) as any[];
-    return rows.map(mapRow);
-  }
-
-  getById(id: number): SyncConflictRecord | null {
-    const row = this.db
-      .prepare('SELECT * FROM sync_conflicts WHERE id = ?')
-      .get(id) as any;
-    return row ? mapRow(row) : null;
-  }
-
-  resolve(id: number, resolutionPath: string): void {
-    this.db
-      .prepare('UPDATE sync_conflicts SET resolved = 1, resolution_path = ? WHERE id = ?')
-      .run(resolutionPath, id);
-  }
-
-  generateConflictFilename(originalPath: string): string {
-    const now = new Date();
-    const dateStr = now.toISOString().replace(/[-:T]/g, '').slice(0, 8);   // YYYYMMDD
-    const timeStr = now.toISOString().replace(/[-:T]/g, '').slice(9, 15);  // HHMMSS
-    const rand = Math.random().toString(36).slice(2, 6);                    // 4 random chars
-
-    const basename = originalPath.replace(/\.mdx?$/, '');
-    const ext = originalPath.endsWith('.mdx') ? '.mdx' : '.md';
-
-    return `${basename}_conflict_${dateStr}_${timeStr}_${rand}${ext}`;
-  }
-}
-```
-
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: `pnpm --filter @aimo-note/core test -- --testPathPattern="sync/__tests__/conflicts"`
-Expected: PASS
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add packages/core/src/sync/conflicts.ts packages/core/src/sync/__tests__/conflicts.test.ts
-git commit -m "feat(core): add ConflictManager for conflict tracking and resolution"
-```
-
----
-
-## Chunk 2: VersionRollback
-
-### Task 16: Create VersionRollback module
+### Task 24: 服务端 HistoryService
 
 **Files:**
-- Create: `packages/core/src/sync/rollback.ts`
-- Test: `packages/core/src/sync/__tests__/rollback.test.ts`
+- `apps/server/src/services/history.service.ts`
+- `apps/server/src/controllers/v1/sync.controller.ts`
 
-**Responsibility:** Given a `filePath` and `targetVersion`, restore the file content and write it back to the vault. Creates a new version entry (non-destructive — old versions are never overwritten). Falls back to S3 download if the version content is not locally available.
+- [ ] 按 `vaultId + filePath` 查询历史 revision
+- [ ] 支持分页，避免超长历史一次返回
+- [ ] 提供 revision -> blob 引用查询
+- [ ] 返回结果可让客户端继续调用 `blob-download-url` 获取下载地址
+- [ ] 对 `revision` 不存在、当前用户不可见、目标 blob 不可下载等情况返回稳定错误语义
+- [ ] 所有查询先校验当前用户对 vault 的权限
 
-- [ ] **Step 1: Write the failing test**
-
-```typescript
-// packages/core/src/sync/__tests__/rollback.test.ts
-import { Database } from 'better-sqlite3';
-import { initDatabase, setDatabase } from '../db';
-import { VersionRollback } from '../rollback';
-import { VersionManager } from '../version_manager';
-import type { S3Adapter } from '../adapter';
-
-const mockAdapter = {
-  getObject: jest.fn(),
-} as any as S3Adapter;
-
-describe('VersionRollback', () => {
-  let db: Database.Database;
-  let versionManager: VersionManager;
-  let rollback: VersionRollback;
-  const vaultPath = '/tmp/aimo-test-vault';
-
-  beforeEach(() => {
-    db = new (require('better-sqlite3'))(':memory:');
-    initDatabase(db);
-    setDatabase(db);
-    versionManager = new VersionManager(db, 'device-001', `${vaultPath}/.aimo/versions`);
-    rollback = new VersionRollback(versionManager, mockAdapter, vaultPath);
-  });
-
-  afterEach(() => {
-    db.close();
-  });
-
-  describe('rollback', () => {
-    it('should restore a local version to the vault', () => {
-      // Create two versions
-      versionManager.createVersion('note1.md', 'v1', 'sha256:v1hash', 'content version 1');
-      versionManager.createVersion('note1.md', 'v2', 'sha256:v2hash', 'content version 2');
-
-      const result = rollback.rollback('note1.md', 'v1');
-
-      expect(result.restoredVersion).toBe('v1');
-      expect(result.newVersion).toMatch(/^v\d+$/); // new version label
-      expect(result.content).toBe('content version 1');
-    });
-
-    it('should fetch version from S3 when not available locally', async () => {
-      // Only v2 is local
-      versionManager.createVersion('note1.md', 'v2', 'sha256:v2hash', 'content version 2');
-      // v1 is not local — mock S3
-      mockAdapter.getObject.mockResolvedValueOnce('content version 1');
-
-      const result = await rollback.rollback('note1.md', 'v1');
-
-      expect(result.restoredVersion).toBe('v1');
-      expect(result.content).toBe('content version 1');
-      expect(mockAdapter.getObject).toHaveBeenCalledWith('.aimo/versions/note1.md/v1.content');
-    });
-
-    it('should throw when target version does not exist', async () => {
-      versionManager.createVersion('note1.md', 'v1', 'sha256:v1hash', 'content version 1');
-      mockAdapter.getObject.mockResolvedValue(null);
-
-      await expect(rollback.rollback('note1.md', 'nonexistent')).rejects.toThrow(
-        'Version nonexistent not found for note1.md'
-      );
-    });
-
-    it('should increment version counter for the restored file', () => {
-      versionManager.createVersion('note1.md', 'v1', 'sha256:v1hash', 'content v1');
-      versionManager.createVersion('note1.md', 'v2', 'sha256:v2hash', 'content v2');
-
-      rollback.rollback('note1.md', 'v1');
-      rollback.rollback('note1.md', 'v1');
-
-      // Two rollback versions should exist
-      const history = versionManager.getFileHistory('note1.md');
-      // v1, rollback-1, rollback-2, v2 (ordered by created_at DESC)
-      const versions = history.map(v => v.version);
-      expect(versions).toContain('v1');
-      expect(versions).toContain('v2');
-    });
-  });
-});
-```
-
-> **Note on vault file write:** `VersionRollback.rollback()` writes the restored content to the vault path. In the test, `vaultPath = '/tmp/aimo-test-vault'`, so the file lands at `/tmp/aimo-test-vault/note1.md`. In the test environment this is fine. In production, the vault path is set via `SyncServiceConfig.vaultPath`.
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `pnpm --filter @aimo-note/core test -- --testPathPattern="sync/__tests__/rollback"`
-Expected: FAIL with "Cannot find module '../rollback'"
-
-- [ ] **Step 3: Write VersionRollback implementation**
-
-```typescript
-// packages/core/src/sync/rollback.ts
-import type { VersionManager } from './version_manager';
-import type { S3Adapter } from './adapter';
-import type { RollbackResult } from '@aimo-note/dto';
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
-import { createHash } from 'crypto';
-
-export class VersionRollback {
-  constructor(
-    private versionManager: VersionManager,
-    private adapter: S3Adapter | null,
-    private vaultPath: string
-  ) {}
-
-  /**
-   * Restore a file to a specific historical version.
-   * Creates a new version entry (non-destructive).
-   * Falls back to S3 download if the version is not available locally.
-   */
-  async rollback(filePath: string, targetVersion: string): Promise<RollbackResult> {
-    // Step 1: Try to get content from local version store
-    let content = this.versionManager.getVersionContent(filePath, targetVersion);
-
-    // Step 2: If not locally available, try to download from S3
-    if (content === null && this.adapter) {
-      const contentKey = `.aimo/versions/${filePath}/${targetVersion}.content`;
-      const remoteContent = await this.adapter.getObject(contentKey);
-      if (remoteContent !== null) {
-        content = remoteContent;
-      }
-    }
-
-    // Step 3: If still no content, fail
-    if (content === null) {
-      throw new Error(`Version ${targetVersion} not found for ${filePath}`);
-    }
-
-    // Step 4: Write restored content to the vault file
-    const vaultFilePath = join(this.vaultPath, filePath);
-    const dir = dirname(vaultFilePath);
-    if (!existsSync(dir)) {
-      mkdirSync(dir, { recursive: true });
-    }
-    writeFileSync(vaultFilePath, content, 'utf-8');
-
-    // Step 5: Create a new version entry to record the restoration
-    const newVersionLabel = this.incrementVersion(targetVersion);
-    const hash = VersionManager.computeHash(content);
-    const message = `restored from ${targetVersion}`;
-
-    this.versionManager.createVersion(filePath, newVersionLabel, hash, content, message);
-
-    return {
-      filePath,
-      restoredVersion: targetVersion,
-      newVersion: newVersionLabel,
-      content,
-    };
-  }
-
-  /**
-   * Increment a version string.
-   * Handles v1 → v2, v10 → v11, etc.
-   * Also handles bare numbers: 1 → 2, 10 → 11.
-   */
-  private incrementVersion(version: string): string {
-    const match = version.match(/^v?(\d+)$/);
-    if (match) {
-      const num = parseInt(match[1], 10) + 1;
-      return `v${num}`;
-    }
-    // Fallback: append .1
-    return `${version}.1`;
-  }
-}
-```
-
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: `pnpm --filter @aimo-note/core test -- --testPathPattern="sync/__tests__/rollback"`
-Expected: PASS
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add packages/core/src/sync/rollback.ts packages/core/src/sync/__tests__/rollback.test.ts
-git commit -m "feat(core): add VersionRollback for non-destructive version restoration"
-```
-
----
-
-## Chunk 3: Wire ConflictManager into SyncEngine
-
-### Task 17: Modify SyncEngine to record conflicts and create conflict rename files
+### Task 25: 强化 SyncCommitService 冲突语义
 
 **Files:**
-- Modify: `packages/core/src/sync/engine.ts`
+- `apps/server/src/services/sync-commit.service.ts`
 
-The SyncEngine currently detects conflicts in `diff()` but does not record them to the database or create conflict rename files. After this task, when a conflict is detected:
-1. Call `conflictManager.record()` to persist to `sync_conflicts` table
-2. Call `conflictManager.generateConflictFilename()` to get the conflict filename
-3. Write the remote version content to the conflict filename in the vault
-4. Keep the local version at the original filename
+- [ ] head mismatch 时写冲突摘要
+- [ ] 返回标准化冲突响应，而不是通用 500
+- [ ] 不做部分提交
+- [ ] 冲突响应字段、`sync_conflicts` 落库字段与 conflicts API 查询字段必须保持同一组核心语义
+- [ ] 保持 requestId 幂等行为不变
 
-- [ ] **Step 1: Read the current engine.ts**
-
-The current implementation is already shown above. Review it before editing.
-
-- [ ] **Step 2: Update SyncEngine to accept ConflictManager**
-
-```typescript
-// packages/core/src/sync/engine.ts — add ConflictManager import and constructor param
-
-import type { ConflictManager } from './conflicts';
-
-// In the constructor, add:
-export class SyncEngine {
-  private manifestManager: ManifestManager;
-
-  constructor(
-    private adapter: S3Adapter,
-    private versionManager: VersionManager,
-    private changeLogger: ChangeLogger,
-    private deviceId: string,
-    private conflictManager?: ConflictManager  // NEW: optional to avoid breaking existing callers
-  ) {
-    this.manifestManager = new ManifestManager(adapter, deviceId);
-  }
-```
-
-- [ ] **Step 3: Add conflict file creation helper method**
-
-Add this method inside `SyncEngine`:
-
-```typescript
-  /**
-   * On conflict: save the remote version to a conflict-rename file on disk,
-   * and record the conflict in the SQLite conflicts table.
-   * The local version stays at the original path (current device wins locally).
-   */
-  private async createConflictFile(filePath: string, remoteVersion: string): Promise<string> {
-    if (!this.conflictManager) {
-      return filePath; // No-op if ConflictManager not wired
-    }
-
-    const contentKey = `.aimo/versions/${filePath}/${remoteVersion}.content`;
-    const content = await this.adapter.getObject(contentKey);
-    if (!content) return filePath;
-
-    const conflictFilename = this.conflictManager.generateConflictFilename(filePath);
-    const conflictPath = join(this.vaultPath ?? '', conflictFilename);
-
-    // Write remote version to conflict file
-    const dir = dirname(conflictPath);
-    if (!existsSync(dir)) {
-      mkdirSync(dir, { recursive: true });
-    }
-    writeFileSync(conflictPath, content, 'utf-8');
-
-    // Record in SQLite
-    const localEntry = this.versionManager.getLatestVersion(filePath);
-    this.conflictManager.record({
-      filePath,
-      localVersion: localEntry?.version ?? '',
-      remoteVersion,
-      localHash: localEntry?.hash ?? '',
-      remoteHash: '', // hash will be filled by the caller with remote hash
-    });
-
-    return conflictFilename;
-  }
-```
-
-> **Note:** `vaultPath` is not currently stored in `SyncEngine`. You need to add it. Add a private field `private vaultPath: string` and pass it from `SyncService` when constructing `SyncEngine`.
-
-- [ ] **Step 4: Update the sync() method to call createConflictFile**
-
-In the `sync()` method, after detecting conflicts:
-
-```typescript
-    // Step 3: Diff
-    const { toUpload, toDownload, conflicts } = this.manifestManager.diff(localManifest, remoteManifest);
-    result.conflicts.push(...conflicts);
-
-    // Step 3b: Handle conflicts — record and create conflict files
-    for (const filePath of conflicts) {
-      const remoteEntry = remoteManifest.files[filePath];
-      if (!remoteEntry) continue;
-
-      // Store remote hash on the conflict manager record
-      // First record the conflict (local hash from versionManager)
-      const localEntry = this.versionManager.getLatestVersion(filePath);
-      if (this.conflictManager) {
-        const record = this.conflictManager.record({
-          filePath,
-          localVersion: localEntry?.version ?? '',
-          remoteVersion: remoteEntry.version,
-          localHash: localEntry?.hash ?? '',
-          remoteHash: remoteEntry.hash,
-        });
-
-        // Write the remote version to a conflict rename file
-        const conflictFilename = await this.createConflictFile(filePath, remoteEntry.version);
-        // Overwrite the record with the conflict filename
-        this.conflictManager.resolve(record.id, conflictFilename);
-      }
-
-      // Upload the local version to S3 (so both versions exist remotely)
-      await this.uploadVersion(filePath);
-      result.uploaded.push(filePath);
-    }
-```
-
-> **Important:** The Phase 2 engine already skips uploading conflicting files (`if (conflicts.includes(filePath)) continue;`). You need to **remove** that skip and instead handle conflicts as described above — upload the local version to S3 (so both versions are stored remotely) but create a conflict file locally.
-
-- [ ] **Step 5: Run tests**
-
-Run: `pnpm --filter @aimo-note/core test -- --testPathPattern="sync/__tests__/engine"`
-Expected: PASS (existing tests may need minor updates to pass a `conflictManager` mock)
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add packages/core/src/sync/engine.ts
-git commit -m "feat(core): wire ConflictManager into SyncEngine for conflict recording and files"
-```
-
----
-
-## Chunk 4: SyncService Integration
-
-### Task 18: Add Phase 3 methods to SyncService
+### Task 26: 客户端 ConflictManager
 
 **Files:**
-- Modify: `packages/core/src/sync/service.ts`
-- Modify: `packages/core/src/sync/index.ts`
+- `packages/core/src/sync/conflicts.ts`
+- `packages/core/src/sync/__tests__/conflicts.test.ts`
 
-Add the following methods to `SyncService`:
+- [ ] 将服务端 `ServerConflict` 映射到本地 `sync_conflicts`
+- [ ] 生成 `{basename}_conflict_{timestamp}_{random}.md`
+- [ ] 记录 `conflict_copy_path`
+- [ ] `resolve()` 记录用户的本地处理结果、解决意图与辅助诊断信息；在允许同步时再通过服务端摘要态幂等落库，不阻塞当前编辑流程
+- [ ] 提供 `getUnresolved()`、`resolve()`
 
-```typescript
-// packages/core/src/sync/service.ts
+### 自动同步集成约束
 
-import { ConflictManager } from './conflicts';
-import { VersionRollback } from './rollback';
+- 冲突产生、冲突解决、rollback 都必须复用 Phase 2 的后台同步引擎，不能引入另一套手工 `push` / `pull` 流程。
+- 断网期间允许继续查看历史、生成 rollback 的本地 pending change，并记录本地冲突处理过程；恢复联网后自动提交或把本地处理结果对账到服务端摘要态。
+- 冲突 UX 应继续在编辑页等主界面暴露，不要求用户进入设置页才能感知异常。
+- 出现冲突时必须由用户明确决定保留哪一版本或如何手动合并，系统不得静默替用户覆盖本地或远端版本。
 
-// In the class, add fields:
-private conflictManager: ConflictManager;
-private rollback: VersionRollback;
+### Cross-phase Invariants
 
-// In the constructor, after Phase 2 initialization:
-this.conflictManager = new ConflictManager(db);
-this.rollback = new VersionRollback(
-  this.versionManager,
-  this.adapter,  // S3Adapter (null if sync not configured — rollback from S3 will no-op)
-  config.vaultPath
-);
+本阶段新增冲突与回溯能力时，必须继续遵守 Phase 1 / Phase 2 已经固定下来的基础约束，避免局部闭环破坏主同步模型：
 
-// Add these methods:
+- `logout` 或用户手动关闭同步后，状态仍回到 `DISABLED`，但本地 conflict record、history cache、pending queue 不得被清空
+- rollback / resolve 在 `DISABLED` 或 `OFFLINE` 状态下可以完成本地动作，但不得偷偷绕过开关直接发起网络同步
+- 本地 conflict copy、解决意图与辅助诊断信息只代表当前设备视角，不能替代服务端冲突摘要作为跨设备同步语义的唯一真相源
+- 所有冲突、历史、rollback 相关运行态仍必须按 `vaultId` 隔离，不能与其他 vault 串扰
+- rollback 最终必须回到与普通本地编辑一致的 pending queue + 自动同步主链路，而不是形成单独的“恢复专用上传流程”
+- conflict / rollback 相关运行态字段必须继续复用 Phase 2 已冻结的 `trigger`、`retryCount`、`offlineStartedAt`、`recoveredAt`、`nextRetryAt`、`requestId`、`deviceId` contract，避免为 Phase 4 diagnostics 再做字段迁移
 
-/**
- * Get all unresolved conflicts.
- */
-getConflicts(): SyncConflictRecord[] {
-  return this.conflictManager.getUnresolved();
-}
+### Task 27: 客户端 History + Rollback
 
-/**
- * Get unresolved conflicts for a specific file.
- */
-getConflictsForFile(filePath: string): SyncConflictRecord[] {
-  return this.conflictManager.getUnresolvedForFile(filePath);
-}
+**Files:**
+- `packages/core/src/sync/history.ts`
+- `packages/core/src/sync/rollback.ts`
+- `packages/core/src/sync/__tests__/history.test.ts`
+- `packages/core/src/sync/__tests__/rollback.test.ts`
 
-/**
- * Mark a conflict as resolved.
- */
-resolveConflict(conflictId: number, resolutionPath: string): void {
-  this.conflictManager.resolve(conflictId, resolutionPath);
-}
+- [ ] 拉取服务端历史 revision 列表
+- [ ] 获取旧 revision 的 blob 引用
+- [ ] 本地无缓存时通过 `blob-download-url` 下载 blob 内容
+- [ ] 写回本地文件并生成新的 pending change
+- [ ] 对下载 URL 过期、下载失败、目标 revision 不可见等异常提供稳定反馈与重试入口
+- [ ] rollback 结果进入 pending queue 后由后台自动同步，必要时可被“立即同步”按钮显式触发
+- [ ] rollback 发生在离线状态时也可先完成本地写回，待网络恢复后再继续同步
+- [ ] 若当前 vault 处于 `DISABLED`，rollback 仍可先完成本地写回与入队；只有用户重新开启同步后才恢复网络提交流程
+- [ ] 记录来源 `source=rollback`，并在后续同步请求中透传对应 trigger / runtime metadata，供 Phase 4 审计与诊断聚合使用
 
-/**
- * Rollback a file to a specific version.
- * Non-destructive: creates a new version entry.
- */
-async rollback(filePath: string, targetVersion: string): Promise<RollbackResult> {
-  if (!this.rollback) {
-    throw new Error('Rollback not initialized');
-  }
-  return this.rollback.rollback(filePath, targetVersion);
-}
-```
+### Task 28: apps/client IPC 能力
 
-Update the index.ts to export the new modules:
+**Files:**
+- `apps/client/src/main/ipc/*`
+- `apps/render/src/ipc/*`
 
-```typescript
-// packages/core/src/sync/index.ts — add exports
-export * from './conflicts.js';
-export * from './rollback.js';
-```
+- [ ] 暴露 `listConflicts()`、`resolveConflict()`、`openConflictCopy()`
+- [ ] 暴露 `listHistory(filePath)`、`rollback(filePath, revision)`
+- [ ] 暴露与自动同步引擎协同所需的触发接口，供冲突解决与 rollback 完成后立即请求同步
+- [ ] 暴露当前设备最近 trigger、offlineStartedAt、nextRetryAt、retryCount 等本地运行态，供 Phase 4 诊断面板直接复用
+- [ ] 文件系统相关动作仍然只在 client 层执行
 
-- [ ] **Step 2: Commit**
+### Task 29: renderer 冲突与回溯 UI
 
-```bash
-git add packages/core/src/sync/service.ts packages/core/src/sync/index.ts
-git commit -m "feat(core): add getConflicts, resolveConflict, rollback to SyncService"
-```
+**Files:**
+- `apps/render/src/services/*`
+- `apps/render/src/components/*`
+- `apps/render/src/pages/editor/*`
+
+- [ ] 显示全局冲突 badge / banner
+- [ ] 在当前笔记页显示未解决冲突列表
+- [ ] 提供打开冲突副本、标记已解决入口
+- [ ] 提供历史 revision 面板
+- [ ] 在冲突 / rollback 操作附近展示“等待自动同步”或“当前离线，联网后自动继续”的状态提示
+- [ ] 提供“恢复到该版本”入口与反馈状态
 
 ---
 
-## Chunk 5: Conflict Download Handling
+## Acceptance Tests
 
-### Task 19: Downloaded conflicts should also be recorded
+### 服务端
 
-When a file is downloaded that already exists locally with a different hash (conflict), the `SyncEngine.downloadVersion()` path also needs to handle conflict recording.
+- [ ] `GET /api/v1/sync/conflicts?vaultId=` 可用，且只返回当前用户当前 vault 的冲突摘要
+- [ ] 用户只能查询自己 vault 下的冲突摘要与历史记录
+- [ ] `resolve conflict` 必须校验当前用户归属，重复 resolve 结果保持幂等
+- [ ] 冲突响应结构稳定且包含最新远端 head 信息
+- [ ] `commit` 冲突响应、`sync_conflicts` 查询结果与本地 `SyncConflictRecord` 映射后的核心字段保持一致，不存在第二套并行语义
+- [ ] 历史查询支持分页且顺序正确
+- [ ] `history/blob` 返回的 blob 引用只能换取当前用户可见的下载地址
+- [ ] `revision_not_found`、`blob_not_visible`、下载 URL 过期等异常返回稳定语义
 
-In the `sync()` method, when processing `toDownload`, check if the local file has diverged:
+### 客户端 + 前端
 
-```typescript
-    // Step 5: Download remote versions
-    for (const filePath of toDownload) {
-      try {
-        // Check if we already have a local version with a different hash (silent conflict)
-        const localLatest = this.versionManager.getLatestVersion(filePath);
-        const remoteEntry = remoteManifest.files[filePath];
-        const version = remoteEntry?.version ?? 'v1';
-
-        if (localLatest && localLatest.hash !== remoteEntry?.hash) {
-          // Silent conflict: remote changed while we had local changes
-          // Record it but keep the downloaded (remote) version as the authoritative one
-          if (this.conflictManager) {
-            const conflictFilename = this.conflictManager.generateConflictFilename(filePath);
-            // Save local version to conflict file before overwriting
-            const localContent = this.versionManager.getVersionContent(filePath, localLatest.version);
-            if (localContent !== null) {
-              const conflictPath = join(this.vaultPath ?? '', conflictFilename);
-              const dir = dirname(conflictPath);
-              if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-              writeFileSync(conflictPath, localContent, 'utf-8');
-            }
-            this.conflictManager.record({
-              filePath,
-              localVersion: localLatest.version,
-              remoteVersion: version,
-              localHash: localLatest.hash,
-              remoteHash: remoteEntry?.hash ?? '',
-            });
-            this.conflictManager.resolve(
-              this.conflictManager.getUnresolvedForFile(filePath).at(-1)?.id ?? 0,
-              conflictFilename
-            );
-          }
-        }
-
-        await this.downloadVersion(filePath, version);
-        result.downloaded.push(filePath);
-      } catch (err) {
-        result.errors.push(`download ${filePath}: ${err}`);
-      }
-    }
-```
-
-> **Note:** `vaultPath` needs to be accessible in `SyncEngine`. Store it as a private field `private vaultPath: string` passed to the constructor.
-
-- [ ] **Step 1: Update SyncEngine constructor to accept vaultPath**
-
-```typescript
-// packages/core/src/sync/engine.ts constructor
-constructor(
-  private adapter: S3Adapter,
-  private versionManager: VersionManager,
-  private changeLogger: ChangeLogger,
-  private deviceId: string,
-  private conflictManager?: ConflictManager,
-  private vaultPath?: string  // NEW
-) {
-  this.manifestManager = new ManifestManager(adapter, deviceId);
-}
-```
-
-- [ ] **Step 2: Add missing imports to engine.ts**
-
-```typescript
-import { existsSync, mkdirSync, writeFileSync } from 'fs';
-import { join, dirname } from 'path';
-```
-
-- [ ] **Step 3: Run tests and fix any failures**
-
-Run: `pnpm --filter @aimo-note/core test -- --testPathPattern="sync/__tests__/engine"`
-Expected: PASS
-
-- [ ] **Step 4: Update SyncService to pass vaultPath to SyncEngine**
-
-```typescript
-// packages/core/src/sync/service.ts — when constructing SyncEngine:
-this.syncEngine = new SyncEngine(
-  this.adapter,
-  this.versionManager,
-  this.changeLogger,
-  config.deviceId,
-  this.conflictManager,  // NEW
-  config.vaultPath        // NEW
-);
-```
-
-- [ ] **Step 5: Run tests**
-
-Run: `pnpm --filter @aimo-note/core test`
-Expected: PASS
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add packages/core/src/sync/engine.ts packages/core/src/sync/service.ts
-git commit -m "feat(core): handle silent conflicts on download and propagate vaultPath to SyncEngine"
-```
+- [ ] 两台设备并发修改同一文件时，后提交设备生成 conflict copy，不丢本地修改
+- [ ] 同步完成后 renderer 能看到未解决冲突
+- [ ] 用户可从 UI 打开冲突副本并手动标记 resolved
+- [ ] 用户无需进入设置页即可在主界面查看历史 revision 并发起 rollback
+- [ ] rollback 到旧 revision 后，本地文件内容更新且生成新的 pending change
+- [ ] 本地无旧 revision 缓存时，仍可通过远端 blob 下载完成 rollback
+- [ ] blob 下载失败或下载 URL 过期时，前端能给出明确失败原因并允许重试
+- [ ] 断网期间触发 rollback 或 resolve 不阻塞本地操作，恢复联网后可自动继续同步
+- [ ] 同步被用户显式关闭时，rollback / resolve 仅更新本地状态、queue 与本地处理记录，不会偷偷发起远端请求；重新开启同步后仍可继续提交
+- [ ] 冲突场景下由用户明确选择保留哪一版本或如何手动合并；系统只记录过程并在允许同步时把结果对账到服务端摘要态
+- [ ] 冲突或 rollback 后用户无需进入设置页手动同步，系统会自动继续处理
+- [ ] 另一台设备 pull 后能看到 rollback 结果
 
 ---
 
-## Summary
+## Exit Criteria
 
-After completing Phase 3, you will have:
+满足以下条件即可进入 Phase 4：
 
-1. **ConflictManager** — persists conflicts to `sync_conflicts` table, generates conflict filenames, exposes unresolved conflicts
-2. **VersionRollback** — restores any historical version (local or from S3), non-destructive, creates new version entry
-3. **SyncEngine conflict wiring** — records conflicts to SQLite, creates `*_conflict_*.md` rename files on disk, uploads both versions to S3
-4. **SyncService Phase 3 API** — `getConflicts()`, `getConflictsForFile()`, `resolveConflict()`, `rollback(filePath, targetVersion)`
-
-### Files Created/Modified
-
-```
-packages/core/src/sync/
-├── conflicts.ts              # NEW — ConflictManager
-├── rollback.ts              # NEW — VersionRollback
-├── engine.ts                # MODIFIED — conflict recording + vaultPath
-├── service.ts               # MODIFIED — Phase 3 methods
-├── index.ts                 # MODIFIED — export new modules
-└── __tests__/
-    ├── conflicts.test.ts     # NEW
-    └── rollback.test.ts     # NEW
-
-packages/dto/src/sync.ts     # MODIFIED — SyncConflictRecord, RollbackResult
-```
-
-### Next Steps
-
-- **Phase 4**: GC cleanup + cost optimization (delete old versions, manifest compaction)
+- 服务端异常路径与客户端 UX 路径都已闭环
+- 用户可以真实处理冲突并恢复历史版本
+- `ServerConflict`、`sync_conflicts` 摘要与前端消费字段已收敛为同一套 canonical contract，不会在 Phase 4 再拆分语义
+- 冲突与 rollback 场景已经接入自动同步链路，而不是依赖手工同步
+- 后续只需补成本、恢复、运维与后台任务能力
