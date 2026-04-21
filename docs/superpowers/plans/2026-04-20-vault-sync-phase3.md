@@ -69,7 +69,7 @@
 
 - commit 冲突时保留 pending change
 - 拉取远端最新 head 内容
-- 生成 `*_conflict_*.md` 文件
+- 生成保留原扩展名的 `*_conflict_*` 文件
 - UI 展示冲突列表与操作入口
 - 允许用户查看历史 revision 并恢复
 - rollback 后写入本地 queue，沿自动同步链路提交；必要时也可由设置页“立即同步”立即触发
@@ -182,7 +182,7 @@ Phase 3 只有在以下条件全部满足时才可视为完成：
 - `packages/core/src/sync/__tests__/conflicts.test.ts`
 
 - [ ] 将服务端 `ServerConflict` 映射到本地 `sync_conflicts`
-- [ ] 生成 `{basename}_conflict_{timestamp}_{random}.md`
+- [ ] 生成 `{basename}_conflict_{timestamp}_{random}{ext}`，保留原始文件扩展名
 - [ ] 记录 `conflict_copy_path`
 - [ ] `resolve()` 记录用户的本地处理结果、解决意图与辅助诊断信息；在允许同步时再通过服务端摘要态幂等落库，不阻塞当前编辑流程
 - [ ] 提供 `getUnresolved()`、`resolve()`
@@ -204,6 +204,7 @@ Phase 3 只有在以下条件全部满足时才可视为完成：
 - 所有冲突、历史、rollback 相关运行态仍必须按 `vaultId` 隔离，不能与其他 vault 串扰
 - rollback 最终必须回到与普通本地编辑一致的 pending queue + 自动同步主链路，而不是形成单独的“恢复专用上传流程”
 - conflict / rollback 相关运行态字段必须继续复用 Phase 2 已冻结的 `trigger`、`retryCount`、`offlineStartedAt`、`recoveredAt`、`nextRetryAt`、`requestId`、`deviceId` contract，避免为 Phase 4 diagnostics 再做字段迁移
+- rollback 只是对既有 `trigger` 枚举的扩展来源，不新增第二套“来源字段”；客户端本地状态、服务端审计写路径与 diagnostics 聚合都以 `trigger` 为唯一来源字段
 
 ### Task 27: 客户端 History + Rollback
 
@@ -221,7 +222,7 @@ Phase 3 只有在以下条件全部满足时才可视为完成：
 - [ ] rollback 结果进入 pending queue 后由后台自动同步，必要时可被“立即同步”按钮显式触发
 - [ ] rollback 发生在离线状态时也可先完成本地写回，待网络恢复后再继续同步
 - [ ] 若当前 vault 处于 `DISABLED`，rollback 仍可先完成本地写回与入队；只有用户重新开启同步后才恢复网络提交流程
-- [ ] 记录来源 `source=rollback`，并在后续同步请求中透传对应 trigger / runtime metadata，供 Phase 4 审计与诊断聚合使用
+- [ ] 记录 `trigger=rollback`，并在后续同步请求中继续复用 Phase 2 冻结的 runtime metadata 字段名；不得再引入 `source` 等平行命名，避免 Phase 4 审计与诊断聚合出现双语义
 
 ### Task 28: apps/client IPC 能力
 
@@ -243,7 +244,7 @@ Phase 3 只有在以下条件全部满足时才可视为完成：
 - `apps/render/src/pages/editor/*`
 
 - [ ] 显示全局冲突 badge / banner
-- [ ] 在当前笔记页显示未解决冲突列表
+- [ ] 在当前文件页显示未解决冲突列表
 - [ ] 提供打开冲突副本、标记已解决入口
 - [ ] 提供历史 revision 面板
 - [ ] 在冲突 / rollback 操作附近展示“等待自动同步”或“当前离线，联网后自动继续”的状态提示

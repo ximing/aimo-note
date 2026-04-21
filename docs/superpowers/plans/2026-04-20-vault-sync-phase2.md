@@ -318,6 +318,8 @@ POST /api/v1/sync/ack
 - `newRevision: string`
 - `sizeBytes?: number | null`
 - `metadata?: Record<string, unknown> | null`
+- `filePath` 本期允许 vault 内除 `.aimo-note/**` 外的任意普通文件路径；服务端必须继续校验并拒绝 `.aimo-note/**` 或越界路径，不能只依赖客户端 watcher 过滤
+- `newRevision` 作为客户端生成的稳定 revision 标识在传输与持久化链路中保持原值；服务端只能校验唯一性、归属与语义，不得在写入前后静默改写
 
 #### `PullQueryDto`
 
@@ -415,6 +417,8 @@ POST /api/v1/sync/ack
 - 表示创建或覆盖当前文件内容
 - 必须携带 `newRevision`
 - 通常必须携带 `blobHash`
+- 服务端接受 vault 内除 `.aimo-note/**` 外的文件路径进入本期同步模型；任何 `.aimo-note/**` 或越界路径请求都必须返回稳定业务错误，而不是落库后再由下游兜底
+- `newRevision` 由客户端生成并在 commit / conflict / history 链路中保持稳定；服务端不得改写为另一套 revision
 
 #### `delete`
 
@@ -428,6 +432,7 @@ POST /api/v1/sync/ack
 - 本期协议允许预留，但首期服务端可按 `delete + upsert` 处理
 - 若保留 `rename`，则 `metadata.oldFilePath` 必填
 - 没有明确 `oldFilePath` 的 `rename` 请求一律视为非法
+- Phase 2-4 的功能验收仍以 `upsert` / `delete` 为准；`rename` 仅作为向前兼容扩展位，不作为本期必需 happy path，也不应让客户端默认依赖该语义
 
 ### commit 事务执行清单
 
@@ -439,14 +444,16 @@ POST /api/v1/sync/ack
 4. 校验所有 `upsert` change 的 `blobHash` 已存在于 `blobs`
 5. 开启事务
 6. 对每个 change 查询 `sync_file_heads`
-7. 校验 `baseRevision`
-8. 若任一 change 冲突，写 `sync_conflicts` 摘要并整体失败
-9. 写 `sync_commits`
-10. 批量写 `sync_commit_changes`
-11. 批量 upsert `sync_file_heads`
-12. 更新 `blobs.refCount`，为 Phase 4 orphan blob cleanup 提供可信依据
-13. 提交事务
-14. 返回 `commitSeq + appliedChanges`
+7. 先校验每个 `change.filePath` 都属于 vault 内且不命中 `.aimo-note/**` 或路径穿越
+8. 校验 `baseRevision`
+9. 确认请求中的 `newRevision` 按原值写入 commit 记录与 file head，不在服务端生成替代 revision
+10. 若任一 change 冲突，写 `sync_conflicts` 摘要并整体失败
+11. 写 `sync_commits`
+12. 批量写 `sync_commit_changes`
+13. 批量 upsert `sync_file_heads`
+14. 更新 `blobs.refCount`，为 Phase 4 orphan blob cleanup 提供可信依据
+15. 提交事务
+16. 返回 `commitSeq + appliedChanges`
 
 ### pull 查询清单
 
@@ -636,8 +643,10 @@ Phase 2 只有在以下条件全部满足时才可视为完成：
 
 - [ ] 接收 `CommitRequest`
 - [ ] 校验当前用户、vault ownership、device ownership
+- [ ] 校验所有 `change.filePath` 仅落在 vault 内且不命中 `.aimo-note/**`；拒绝路径穿越或写入内部元数据目录的请求
 - [ ] 校验所有 `upsert` change 引用的 `blobHash` 已存在于当前 vault 的 `blobs`
 - [ ] 基于 `vaultId + requestId` 做幂等去重
+- [ ] 保持客户端传入的 `newRevision` 原值贯穿 `sync_commit_changes`、`sync_file_heads`、冲突响应与后续 history 链路；服务端不得静默改写 revision
 - [ ] 若 body 带 `requestId` / `deviceId`，则必须与 `X-Request-Id` / `X-Device-Id` 严格一致
 - [ ] 在事务中写入 `sync_commits` / `sync_commit_changes`
 - [ ] 更新 `sync_file_heads`
@@ -765,6 +774,7 @@ Phase 2 只有在以下条件全部满足时才可视为完成：
 - [ ] 创建 vault 后，数据库可看到 owner_user_id 与 vault_members
 - [ ] 注册设备后，设备归属当前用户与当前 vault
 - [ ] `commit` 幂等：同 `requestId` 重试不会生成第二条 commit
+- [ ] `.aimo-note/**` 或越界 `filePath` 的 commit 请求会被稳定拒绝，服务端不会把这些路径写入同步主链路
 - [ ] `pull` 默认分页参数、`hasMore` 与最大 `limit` 行为稳定
 - [ ] `pull` 仅返回 `sinceSeq` 之后的提交与当前用户可见的 `blobRefs`
 - [ ] `ack` 不允许回退 cursor
@@ -782,9 +792,10 @@ Phase 2 只有在以下条件全部满足时才可视为完成：
 - [ ] 用户可在设置页登录并开启同步，后台自动完成首次同步链路
 - [ ] 用户退出登录后，本地 pending queue 不丢失，同步状态回到 `DISABLED`，重新登录并开启同步后可继续提交旧变更
 - [ ] 同步被显式关闭或状态为 `DISABLED` 时，即使本地 queue 持续累积，也不会继续发起任何同步网络请求
-- [ ] 本地新建文件后，首次同步会先上传 blob 再成功 commit
+- [ ] 本地新建普通文件后，首次同步会先上传 blob 再成功 commit；`.aimo-note/**` 内容不会进入远端同步主链路
 - [ ] 第二次无变更同步时，不发生重复 blob 上传
 - [ ] 远端新增文件后，本地 pull 可在本地无缓存时下载 blob、落盘并推进 cursor
+- [ ] 成功 commit、pull、history 查询与后续 rollback 使用的 revision 与客户端提交的 `newRevision` 保持同一标识，不因服务端写入而漂移
 - [ ] 新设备或清空本地 blob cache 后，仍可仅依赖远端 `pull + blob-download-url` 完成内容重建
 - [ ] 网络失败后 pending change 保留，断网期间本地编辑不中断，恢复后自动继续提交
 - [ ] 周期性轮询会进入与其他触发源相同的同步引擎，不会形成第二套手工同步流程
@@ -810,6 +821,7 @@ Phase 2 只有在以下条件全部满足时才可视为完成：
 满足以下条件即可进入 Phase 3：
 
 - `apps/server` 已具备稳定的账号 + vault + sync 基础设施
+- 服务端已把“仅同步 vault 内除 `.aimo-note/**` 外的文件”落实到 commit 校验与验收，避免仅靠客户端过滤维持边界
 - 用户隔离模型已真正落地到 service / schema / API
 - 客户端与服务端的自动同步 happy path 已跑通
 - `logout -> DISABLED` 与 pending queue 保留语义已明确落地

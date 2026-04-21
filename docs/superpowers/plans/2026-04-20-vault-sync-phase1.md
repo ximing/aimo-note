@@ -8,7 +8,7 @@
 
 ### 本阶段必须交付
 
-- 仅监听 vault 内 `.md` 文件
+- 监听 vault 内除 `.aimo-note/**` 外的所有文件
 - 本地 SQLite schema 升级到 revision / queue 模型
 - 本地内容缓存从“按版本号目录”调整为“按 blob hash 寻址”
 - 为 create / update / delete 生成 `sync_local_changes`
@@ -43,7 +43,7 @@
 
 | 模块 | 职责 |
 |---|---|
-| `FileWatcher` | 监听 `.md` 文件变化，过滤 `.aimo/` 与隐藏文件 |
+| `FileWatcher` | 监听 vault 文件变化，过滤 `.aimo-note/**` 与临时文件 |
 | `BlobCache` | 计算 SHA-256，按 hash 落本地内容缓存 |
 | `VersionManager` | 写本地 revision 记录，保留恢复所需历史 |
 | `ChangeQueue` | 为后续提交生成 pending change |
@@ -142,7 +142,7 @@ packages/dto/src/
 
 Phase 1 只有在以下条件全部满足时才可视为完成：
 
-- `.md` 以外的文件不会进入 blob cache、version history 或 change queue
+- `.aimo-note/**` 以外的文件会进入 blob cache、version history 或 change queue；内部元数据目录不会进入同步模型
 - 本地 create / update / delete 均生成带 `baseRevision` 的 pending change
 - 内容缓存按 `blobHash` 去重；同内容重复写入不会重复落盘
 - 用户未开启同步时，应用仍可正常运行，本地模型不会依赖登录态
@@ -202,7 +202,7 @@ Phase 1 只有在以下条件全部满足时才可视为完成：
 - `packages/core/src/sync/__tests__/blob_cache.test.ts`
 
 - [ ] 读取文件内容并计算 SHA-256
-- [ ] 以 `blobs/sha256/ab/cd/{hash}.md` 的本地布局缓存内容
+- [ ] 以 `blobs/sha256/ab/cd/{hash}` 的本地布局缓存内容
 - [ ] 同 hash 内容重复写入时返回已有路径
 - [ ] 提供 `hasBlob()` / `putBlob()` / `readBlob()`
 
@@ -235,8 +235,8 @@ Phase 1 只有在以下条件全部满足时才可视为完成：
 - `packages/core/src/sync/file_watcher.ts`
 - `packages/core/src/sync/__tests__/file_watcher.test.ts`
 
-- [ ] 只监听 vault 内 `.md`
-- [ ] 过滤 `.aimo/**`、隐藏文件、临时文件
+- [ ] 监听 vault 内除 `.aimo-note/**` 外的所有文件
+- [ ] 过滤 `.aimo-note/**` 与临时文件
 - [ ] 将 create / change / unlink 映射为 queue 事件
 - [ ] 去抖，避免编辑器连发写入造成队列污染
 
@@ -256,11 +256,11 @@ Phase 1 只有在以下条件全部满足时才可视为完成：
 
 ## Acceptance Tests
 
-- [ ] 新建 `note1.md` 后，产生 blob cache、revision 记录、pending queue
+- [ ] 新建任意普通文件后，产生 blob cache、revision 记录、pending queue
 - [ ] 连续编辑同一文件，pending queue 行为符合预期，不出现无限重复记录
 - [ ] 删除文件后写入 tombstone，历史仍可查询
 - [ ] 相同内容的两个文件共享同一 `blobHash`
-- [ ] `.mdx`、`.png`、`.aimo/**`、隐藏文件不会进入同步模型
+- [ ] `.aimo-note/**` 不会进入同步模型，其余普通文件类型可进入同步模型
 - [ ] 未登录、未开启同步时，应用仍能正常使用本地能力
 - [ ] 未登录、未开启同步时，本地仍会记录 pending change、历史与运行态信息，供后续开启同步或问题排查使用
 - [ ] 开启或关闭同步开关不会破坏本地 revision / pending queue
