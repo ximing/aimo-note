@@ -670,6 +670,7 @@ Phase 2 只有在以下条件全部满足时才可视为完成：
 - 设置页需要提供“立即同步”按钮，用于显式触发一次同步。
 - 网络不可用时应进入 `OFFLINE` 状态，保留 pending queue，不阻塞本地读写。
 - 未开启同步或处于 `OFFLINE` 时，客户端仍需继续记录本地变更、历史、冲突辅助信息与 runtime metadata；只有在登录态有效且同步开启时，这些本地记录才与服务端唯一真相源对账并收敛。
+- 同一用户多个 vault 同时开启同步时，调度、pending queue、cursor、runtime state 与错误恢复都必须按 `vaultId` 隔离；单个 vault 进入 `OFFLINE` / `ERROR` 不得阻塞其他 vault 继续同步。
 
 ### Sync State Transition Contract
 
@@ -738,6 +739,7 @@ Phase 2 只有在以下条件全部满足时才可视为完成：
 - [ ] 用户退出登录后，同步引擎回到 `DISABLED`，但本地 pending queue 与本地历史继续保留；重新登录并开启同步后可继续提交
 - [ ] 设置页提供“立即同步”按钮，复用同一同步引擎立即执行一次同步
 - [ ] 设置页展示登录用户、同步开关、最近同步时间、最近错误、当前状态
+- [ ] 同一用户多个 vault 同时开启同步时，各 vault 自动同步可独立推进；一个 vault 的 `OFFLINE` / `ERROR` 不会污染其他 vault 的状态、队列与 cursor
 - [ ] renderer 展示 `DISABLED / OFFLINE / SYNCING / ERROR` 等状态，不影响本地编辑
 
 ### Task 21: 用户隔离验收用例
@@ -788,6 +790,7 @@ Phase 2 只有在以下条件全部满足时才可视为完成：
 - [ ] 周期性轮询会进入与其他触发源相同的同步引擎，不会形成第二套手工同步流程
 - [ ] `blob-download-url` 过期、blob 下载网络失败、blob 不可见等场景的用户反馈与 `OFFLINE` / `ERROR` 分类稳定可预测
 - [ ] 同步关闭或离线期间，本地新增变更、历史与运行态信息仍被记录；重新开启同步或恢复联网后可继续与服务端状态对账
+- [ ] 同一用户同时开启两个 vault 的同步时，各自的 queue、cursor、runtime state 与最近错误保持隔离；其中一个 vault 断网或失败时，另一个 vault 仍可继续自动同步
 - [ ] 连续离线抖动时不会无限并发触发多轮同步
 - [ ] `OFFLINE` 与 `ERROR` 的进入条件稳定可预测：网络类错误进入 `OFFLINE`，鉴权/权限类错误进入 `ERROR`
 - [ ] 从 `OFFLINE` 恢复后会重新回到 `PENDING` / `SYNCING` 完成待处理工作，而不是错误地直接显示 `IDLE`
@@ -812,5 +815,6 @@ Phase 2 只有在以下条件全部满足时才可视为完成：
 - `logout -> DISABLED` 与 pending queue 保留语义已明确落地
 - 预签名 URL 前缀隔离已可被稳定验证，Phase 3 无需再返工该基础约束
 - 设置页已经承载登录、同步开关、状态展示与“立即同步”入口
+- 多 vault 场景下的本地状态隔离与自动同步调度已具备基础验收，后续 phase 无需回头重做同步状态模型
 - 用户无需手动 `push` / `pull` 即可完成日常同步，且仍保留设置页“立即同步”兜底入口
 - Phase 3 只需要补冲突 UX、历史与回溯，不再重构服务端主干

@@ -50,6 +50,7 @@
 ### 接口语义补充
 
 - `conflicts`、`history`、`history/blob`、`conflicts/:id/resolve` 等新增同步入口，继续沿用 `X-Request-Id`、`X-Device-Id` 到 request context / audit context
+- 上述新增入口若缺失必需的 `X-Request-Id` / `X-Device-Id`，或 `resolve` body 中同名字段与 header 不一致，必须返回稳定 `400/422` 语义，不得静默补值或拆分幂等 / 审计上下文
 - `conflicts/:id/resolve` 必须同时校验 `currentUserId + vaultId + conflictId` 归属，且重复 resolve 应保持幂等
 - `history/blob` 与 rollback 相关调用需定义稳定异常语义：`revision_not_found`、`blob_not_visible`、下载 URL 过期 / 下载失败等，避免客户端各自猜测错误来源
 
@@ -262,6 +263,7 @@ Phase 3 只有在以下条件全部满足时才可视为完成：
 - [ ] 历史查询支持分页且顺序正确
 - [ ] `history/blob` 返回的 blob 引用只能换取当前用户可见的下载地址
 - [ ] `revision_not_found`、`blob_not_visible`、下载 URL 过期等异常返回稳定语义
+- [ ] `conflicts` / `history` / `history/blob` / `conflicts/:id/resolve` 缺失必需请求头，或 `resolve` body 与 header 的 `requestId` / `deviceId` 冲突时，返回稳定 `400/422` 语义，且 request context / audit context 不分叉
 
 ### 客户端 + 前端
 

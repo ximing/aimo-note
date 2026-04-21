@@ -42,6 +42,14 @@
 - 真正删除前仍需复查当前 head、历史 revision、snapshot 与其他保留引用是否仍指向该 blob
 - 若 `refCount` 与实际引用关系不一致，应记录诊断 / 审计并跳过删除，而不是盲删
 
+### History Retention Rule
+
+为避免 Phase 4 的清理能力反向破坏 Phase 3 已交付的历史 / rollback 功能，本阶段额外固定以下边界：
+
+- 本阶段不引入“服务端历史 revision 裁剪”作为默认行为；只做本地旧缓存、orphan blob、tombstone 等安全清理
+- 只要某条 revision 仍能通过 `history` API 返回，对应 `history/blob -> blob-download-url -> rollback` 链路就必须继续可用
+- 若未来需要限制历史保留窗口或裁剪旧 revision，必须作为单独 phase 明确产品策略、UI 提示与迁移/验收方案，不能在本阶段通过后台清理隐式引入
+
 ### Snapshot Restore Rule
 
 snapshot restore 不是“直接把数据库状态改回去”，而应该：
@@ -65,6 +73,7 @@ snapshot restore 不是“直接把数据库状态改回去”，而应该：
 - 服务端聚合跨设备最近同步摘要与历史事件，并继续作为跨设备同步事实与冲突摘要的唯一真相源
 - 客户端继续持有当前设备的实时 `OFFLINE` / 下次重试等瞬时状态，以及同步关闭或离线期间尚未上报的本地记录
 - `trigger`、`retryCount`、`offlineStartedAt`、`recoveredAt`、`nextRetryAt`、`requestId`、`deviceId` 等字段名必须直接复用 Phase 2 已冻结的 contract，不能在 Phase 4 改名或局部重解释
+- 当服务端摘要与当前设备本地运行态冲突时，跨设备事实（最近 commit / pull / restore / conflict 摘要）以服务端为准；当前设备尚未上报的瞬时状态以本地为补充，UI 必须能区分“服务端已确认”与“本地暂存”
 - 诊断面板读取时同时消费服务端摘要与本地 IPC 运行态，并以服务端聚合摘要作为跨设备唯一真相源、本地运行态作为当前设备补充视角
 
 ### Restore + Pending Change Rule
@@ -127,6 +136,7 @@ Phase 4 新增成本、恢复、运维能力时，仍必须继续满足前序 ph
 - `GET /api/v1/sync/diagnostics` 必须稳定返回最近触发源、最近失败请求上下文、离线开始/恢复时间、重试次数、下次重试时间等字段
 - `POST /api/v1/sync/diagnostics/events` 必须接受并持久化 `trigger`、`retryCount`、`offlineStartedAt`、`recoveredAt`、`nextRetryAt`、`requestId`、`deviceId` 等上下文
 - `snapshots`、`diagnostics`、`devices` 相关接口都必须继续执行 `currentUserId + vaultId` 或 `currentUserId + deviceId` 归属校验，不能只凭资源 ID 访问
+- `POST /api/v1/snapshots`、`POST /api/v1/snapshots/:id/restore`、`POST /api/v1/sync/diagnostics/events` 等新增写接口若缺失 `X-Request-Id` / `X-Device-Id`，或 body 中同名字段与 header 冲突，必须返回稳定 `400/422` 语义，不得静默补值或拆分审计上下文
 - 上述新增入口继续沿用 `X-Request-Id`、`X-Device-Id` 到 request context / audit context
 
 ---
@@ -226,6 +236,8 @@ Phase 4 只有在以下条件全部满足时才可视为完成：
 - [ ] restore 完成后写入可被其他设备 `pull` 到的 `restore commit`
 - [ ] 记录 restore 任务状态、结果摘要与最终 commitSeq（如适用）
 - [ ] 服务端 restore 入口不猜测当前设备本地 pending 状态；相关预检与用户确认由桌面端在调用前完成
+- [ ] 用户在桌面端预检提示中取消 restore 时，不得创建 restore 任务，也不得改写 snapshot / restore 状态
+- [ ] 同一 snapshot 或同一 vault 上重复触发 restore 时，必须返回已有进行中任务或稳定冲突语义，不能生成重复 restore commit 或重复任务记录
 - [ ] 当前设备存在未提交本地变更时，桌面端 restore 入口需给出明确提示；无论用户如何选择，都不得静默清空 pending queue
 
 ### Task 33: 服务端 Blob 与 Tombstone 清理策略
@@ -239,6 +251,7 @@ Phase 4 只有在以下条件全部满足时才可视为完成：
 - [ ] 仅清理 `ref_count = 0` 且超过保留窗口的 blob
 - [ ] 增加 tombstone retention cleanup，且安全条件至少同时包含保留窗口、所有未吊销设备 cursor 判定与引用保护
 - [ ] 任一未吊销设备的 `lastPulledSeq` 未越过目标 tombstone 时，清理任务必须跳过该记录
+- [ ] 本阶段不引入服务端历史 revision 裁剪；任何仍可由 `history` API 返回的 revision 都必须继续能换取 blob 引用并完成 rollback
 - [ ] 清理动作写审计日志
 - [ ] 发现 `refCount` 与真实引用不一致时记录告警 / 审计并跳过删除，避免误删
 - [ ] 不得删除仍被 revision、snapshot 或当前 head 引用的内容
@@ -273,6 +286,7 @@ Phase 4 只有在以下条件全部满足时才可视为完成：
 - [ ] `recordSyncRuntimeEvent()` 必须直接复用 Phase 2 已冻结的 `trigger`、`retryCount`、`offlineStartedAt`、`recoveredAt`、`nextRetryAt`、`requestId`、`deviceId` 字段 contract
 - [ ] `diagnostics` / `diagnostics/events` 必须校验当前用户对目标 vault / device 的归属
 - [ ] 诊断接口返回结构需稳定覆盖最近 commit、最近 pull、最近失败、最近冲突、最近设备状态
+- [ ] 当服务端诊断摘要与本地运行态同时存在时，明确并实现字段裁决规则：跨设备事实以服务端为准，当前设备未上报的瞬时状态以本地补充，前端可区分两类来源
 - [ ] 展示当前是否处于 `OFFLINE`、最近同步触发源、最近一次自动重试时间
 - [ ] 展示最近一次联网恢复后是否自动收敛成功
 - [ ] 诊断摘要可追到最近失败请求的 `requestId` / `deviceId`
@@ -292,8 +306,10 @@ Phase 4 只有在以下条件全部满足时才可视为完成：
 
 - [ ] 提供创建快照、查询快照列表、查看单项状态、触发 restore 的桌面端调用链路
 - [ ] renderer 提供快照列表、创建入口、恢复入口与 restore 进度 / 状态展示
+- [ ] 用户取消 restore 确认时，renderer 不发起 restore 请求，并保留当前 pending queue 与界面状态
 - [ ] restore 任务支持轮询，避免用户只能依赖列表页猜测是否完成
 - [ ] 快照与 restore 失败原因在界面上可见，并可关联到最近请求上下文
+- [ ] 同一 snapshot 被重复点击 restore 时，界面复用已有任务状态或给出稳定提示，不出现重复任务 / 重复恢复结果
 
 ### Task 36: 服务端调度器
 
@@ -306,6 +322,7 @@ Phase 4 只有在以下条件全部满足时才可视为完成：
 - [ ] 失败不阻塞主服务启动
 - [ ] cleanup / snapshot / restore 任务具备基本幂等语义，重复触发不会造成重复删除或重复 restore commit
 - [ ] 同一 vault 的高风险任务具备最小互斥或串行化约束，避免并发 cleanup 与 restore 相互踩踏
+- [ ] cleanup / restore 任一步骤部分失败时，要么完成显式补偿，要么保留可重试未完成状态；不得留下“对象已删但元数据未更新”等半成状态
 - [ ] 任务失败可观测，并保留最近错误、重试信息或未完成状态，避免静默失败
 - [ ] 任务日志接入统一 logger / audit
 
@@ -323,7 +340,9 @@ Phase 4 只有在以下条件全部满足时才可视为完成：
 - [ ] snapshot / restore / diagnostics / devices 等新增接口均校验当前用户归属，不能通过伪造 `vaultId`、`snapshotId`、`deviceId` 越权访问
 - [ ] snapshot restore 任务状态可追踪，并在完成后生成普通设备可 `pull` 的恢复结果
 - [ ] `GET /snapshots/:id` 返回稳定状态字段、失败原因与最终 `commitSeq`
+- [ ] 新增写接口在缺失 `X-Request-Id` / `X-Device-Id` 或与 body 中同名字段冲突时，返回稳定 `400/422` 语义，且 request context / audit context 不分叉
 - [ ] 同一 vault 上重复触发 cleanup / snapshot / restore 不会造成重复删除、重复 restore commit 或状态错乱
+- [ ] 对 cleanup / restore 注入部分失败后，不会留下“对象已删但元数据未更新”或“restore commit 已写入但任务状态未收敛”的半成状态；系统要么完成补偿，要么保留可重试失败态
 - [ ] 同一 vault 的高风险任务不会无约束并发执行，避免 cleanup 与 restore 相互踩踏
 - [ ] 诊断 API 能返回最近同步摘要、关键请求上下文，以及最近一次 runtime event 上报内容
 - [ ] 新增入口写入的审计 / request context 能稳定关联 `requestId`、`deviceId`
@@ -333,12 +352,15 @@ Phase 4 只有在以下条件全部满足时才可视为完成：
 - [ ] 本地运行 GC 后，旧缓存被清理，但当前历史功能仍可使用
 - [ ] snapshot restore 完成后，另一台设备通过普通 pull 即可收敛到恢复后的状态
 - [ ] 用户可在桌面端看到快照列表、restore 状态与失败原因，并主动触发恢复
+- [ ] 用户在 restore 确认步骤取消后，不会创建 restore 任务，也不会改变当前 pending queue / 快照状态
 - [ ] 当前设备存在未提交本地变更时，桌面端会在调用 restore API 前完成本地预检、给出明确提示，且 restore 不会静默清空 pending queue
 - [ ] 用户确认带着本地 pending change 继续 restore 后，pending queue 仍保留；后续若与 `restore commit` 形成 head 冲突，系统沿用既有冲突链路而不是静默覆盖
 - [ ] 新设备或清空本地 blob cache 后，在启用 GC、snapshot、orphan cleanup、tombstone retention 后，仍可仅依赖远端 `pull + blob-download-url` 完成内容重建
+- [ ] 启用 GC / cleanup 后，只要历史面板仍展示某个 revision，用户就仍可读取其内容并完成 rollback，不会因后台清理而失效
 - [ ] 诊断面板能看到最近一次同步结果、耗时、字节数与失败原因
 - [ ] 诊断面板能区分自动同步、手动同步、离线恢复重试，并显示当前离线状态
 - [ ] 同步关闭或离线期间，诊断面板仍可展示当前设备本地记录的待处理信息；恢复联网并重新开启同步后，服务端摘要继续作为跨设备唯一真相源
+- [ ] 当服务端诊断摘要与本地运行态冲突时，诊断面板对跨设备事实采用服务端结果，对当前设备瞬时状态采用本地补充，并能区分来源
 - [ ] 诊断面板能看到最近一次离线开始时间、恢复时间、重试次数、下次重试时间
 - [ ] 用户可查看设备最近同步状态与异常提示
 
