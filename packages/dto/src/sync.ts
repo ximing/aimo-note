@@ -76,3 +76,23 @@ export interface RollbackResult {
   newVersion: string;
   content: string;
 }
+
+export interface GcConfig {
+  /** Maximum number of versions to keep per file (default: 10) */
+  maxVersionsPerFile?: number;
+  /** Delete versions older than this many days (default: 30) */
+  maxVersionAgeDays?: number;
+  /** Also clean up S3 remote versions (default: false) */
+  cleanRemote?: boolean;
+}
+
+export interface GcResult {
+  /** File paths that had versions cleaned */
+  filesCleaned: string[];
+  /** Total number of versions removed */
+  versionsRemoved: number;
+  /** Total bytes reclaimed from deleted files */
+  bytesReclaimed: number;
+  /** Errors encountered during GC */
+  errors: string[];
+}
