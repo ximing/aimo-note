@@ -65,13 +65,8 @@ export class SyncService {
     // Register this device
     this.deviceManager.register(config.deviceId, config.deviceName);
 
-    // Initialize ConflictManager and VersionRollback
+    // Initialize ConflictManager
     this.conflictManager = new ConflictManager(db);
-    this.versionRollback = new VersionRollback(
-      this.versionManager,
-      this.adapter,  // S3Adapter (null if sync not configured)
-      config.vaultPath
-    );
 
     // Phase 2: Initialize S3 if config provided
     if (config.s3) {
@@ -87,6 +82,13 @@ export class SyncService {
         config.vaultPath        // NEW
       );
     }
+
+    // Initialize VersionRollback after Phase 2 adapter is set
+    this.versionRollback = new VersionRollback(
+      this.versionManager,
+      this.adapter,  // S3Adapter (null if sync not configured)
+      config.vaultPath
+    );
   }
 
   async start(): Promise<void> {

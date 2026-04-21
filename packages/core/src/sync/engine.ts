@@ -34,9 +34,13 @@ export class SyncEngine {
    * and record the conflict in the SQLite conflicts table.
    * The local version stays at the original path (current device wins locally).
    */
-  private async createConflictFile(filePath: string, remoteVersion: string, _remoteHash: string): Promise<string> {
+  private async createConflictFile(filePath: string, remoteVersion: string): Promise<string> {
     if (!this.conflictManager) {
       return filePath;
+    }
+
+    if (!this.vaultPath) {
+      throw new Error('vaultPath is required for conflict file creation');
     }
 
     const contentKey = `.aimo/versions/${filePath}/${remoteVersion}.content`;
@@ -44,8 +48,7 @@ export class SyncEngine {
     if (!content) return filePath;
 
     const conflictFilename = this.conflictManager.generateConflictFilename(filePath);
-    const vaultPath = this.vaultPath ?? '';
-    const conflictPath = join(vaultPath, conflictFilename);
+    const conflictPath = join(this.vaultPath, conflictFilename);
 
     // Write remote version to conflict file
     const dir = dirname(conflictPath);
@@ -88,15 +91,15 @@ export class SyncEngine {
         });
 
         // Write the remote version to a conflict rename file
-        const conflictFilename = await this.createConflictFile(filePath, remoteEntry.version, remoteEntry.hash);
+        const conflictFilename = await this.createConflictFile(filePath, remoteEntry.version);
         // Mark the conflict as resolved with the conflict filename
         this.conflictManager.resolve(record.id, conflictFilename);
       }
 
       // Upload the local version to S3 (so both versions exist remotely)
       try {
-        await this.uploadVersion(filePath);
-        result.uploaded.push(filePath);
+        const ok = await this.uploadVersion(filePath);
+        if (ok) result.uploaded.push(filePath);
       } catch (err) {
         result.errors.push(`upload ${filePath}: ${err}`);
       }
@@ -106,8 +109,8 @@ export class SyncEngine {
     for (const filePath of toUpload) {
       if (conflicts.includes(filePath)) continue;  // skip already-handled conflicts
       try {
-        await this.uploadVersion(filePath);
-        result.uploaded.push(filePath);
+        const ok = await this.uploadVersion(filePath);
+        if (ok) result.uploaded.push(filePath);
       } catch (err) {
         result.errors.push(`upload ${filePath}: ${err}`);
       }
@@ -143,13 +146,19 @@ export class SyncEngine {
               localHash: localLatest.hash,
               remoteHash: remoteEntry.hash,
             });
-            // Mark as resolved with the conflict filename
+            // Mark as resolved with the conflict filename (use record.id, not a second query)
             this.conflictManager.resolve(record.id, conflictFilename);
           }
         }
 
-        await this.downloadVersion(filePath, version);
-        result.downloaded.push(filePath);
+        if (remoteEntry.isDeleted) {
+          // Propagate remote deletion to local: mark deleted in version manager, do NOT write to vault
+          this.versionManager.markDeleted(filePath, version, remoteEntry.hash);
+          result.downloaded.push(filePath);
+        } else {
+          await this.downloadVersion(filePath, version);
+          result.downloaded.push(filePath);
+        }
       } catch (err) {
         result.errors.push(`download ${filePath}: ${err}`);
       }
@@ -164,8 +173,8 @@ export class SyncEngine {
     }
 
     // Step 8: Persist local manifest to remote so other devices see these changes
-    // Only save if there were actual uploads or downloads (not just conflicts)
-    if (result.uploaded.length > 0 || result.downloaded.length > 0) {
+    // Save if there were uploads, downloads, or conflicts (conflicts create records other devices must see)
+    if (result.uploaded.length > 0 || result.downloaded.length > 0 || result.conflicts.length > 0) {
       const finalManifest = await this.buildLocalManifest();
       // Include files that were just uploaded/downloaded in this sync cycle
       for (const filePath of result.uploaded) {
@@ -188,7 +197,11 @@ export class SyncEngine {
           };
         }
       }
-      await this.manifestManager.save(finalManifest);
+      try {
+        await this.manifestManager.save(finalManifest);
+      } catch (err) {
+        result.errors.push(`manifest save: ${err}`);
+      }
     }
 
     return result;
@@ -205,9 +218,8 @@ export class SyncEngine {
       files: {},
     };
 
-    // Get all unique file paths from the change log
-    const unsyncedEntries = this.changeLogger.getUnsyncedEntries();
-    const filePaths = [...new Set(unsyncedEntries.map((e) => e.filePath))];
+    // Get all tracked file paths from the version manager database
+    const filePaths = this.versionManager.getAllTrackedPaths();
 
     // For each file, get the latest version from VersionManager
     for (const filePath of filePaths) {
@@ -217,6 +229,7 @@ export class SyncEngine {
           hash: latest.hash,
           version: latest.version,
           updatedAt: latest.createdAt,
+          isDeleted: latest.isDeleted,
         };
       }
     }
@@ -224,12 +237,12 @@ export class SyncEngine {
     return manifest;
   }
 
-  private async uploadVersion(filePath: string): Promise<void> {
+  private async uploadVersion(filePath: string): Promise<boolean> {
     const latest = this.versionManager.getLatestVersion(filePath);
-    if (!latest) return;
+    if (!latest) return false;
 
     const content = this.versionManager.getVersionContent(filePath, latest.version);
-    if (content === null) return;
+    if (content === null) return false;
 
     // Upload content
     const contentKey = `.aimo/versions/${filePath}/${latest.version}.content`;
@@ -245,6 +258,8 @@ export class SyncEngine {
     };
     const metaKey = `.aimo/versions/${filePath}/${latest.version}.json`;
     await this.adapter.putObject(metaKey, JSON.stringify(meta));
+
+    return true;
   }
 
   private async downloadVersion(filePath: string, version: string): Promise<void> {
@@ -263,5 +278,15 @@ export class SyncEngine {
     };
 
     this.versionManager.createVersion(filePath, version, meta.hash ?? '', content, meta.message ?? '');
+
+    // Write the downloaded content to the vault path
+    if (this.vaultPath) {
+      const vaultFilePath = join(this.vaultPath, filePath);
+      const dir = dirname(vaultFilePath);
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
+      }
+      writeFileSync(vaultFilePath, content, 'utf-8');
+    }
   }
 }

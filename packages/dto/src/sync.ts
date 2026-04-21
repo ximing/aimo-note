@@ -30,18 +30,6 @@ export interface SyncFileVersion {
   isDeleted: boolean;
 }
 
-export interface SyncConflict {
-  id?: number;
-  filePath: string;
-  localVersion: string;
-  remoteVersion: string;
-  localHash: string;
-  remoteHash: string;
-  createdAt: string;
-  resolved: boolean;
-  resolutionPath: string | null;
-}
-
 export interface SyncState {
   key: string;
   value: string;

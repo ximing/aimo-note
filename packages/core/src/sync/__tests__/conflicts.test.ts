@@ -1,10 +1,10 @@
-import { Database } from 'better-sqlite3';
+import BetterSqlite3 from 'better-sqlite3';
 import { initDatabase, setDatabase } from '../db';
 import { ConflictManager } from '../conflicts';
 import type { SyncConflictRecord } from '@aimo-note/dto';
 
 describe('ConflictManager', () => {
-  let db: Database.Database;
+  let db: InstanceType<typeof BetterSqlite3>;
   let conflictManager: ConflictManager;
 
   beforeEach(() => {

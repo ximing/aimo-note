@@ -330,7 +330,8 @@ export function registerIpcHandlers(): void {
       const { data, content: body } = matter(rawContent);
       return { success: true, content: body, frontmatter: data };
     } catch (error) {
-      // YAML parse failure: silent fallback per spec
+      // YAML parse failure: silent ignore per spec — return success:true with empty
+      // frontmatter so the document body still loads normally.
       try {
         const fullPath = path.join(vaultPath, filePath);
         const rawContent = await fs.readFile(fullPath, 'utf-8');
@@ -814,5 +815,28 @@ export function registerIpcHandlers(): void {
     }
   );
 
-  console.log('[IPC] Vault/Graph/Search/ImageStorage handlers registered');
+  // Sync handlers — SyncService integration requires vault to be open (deviceId + vaultPath configured)
+  // Full signatures (for when SyncService is integrated):
+  //   syncService: SyncService — instantiated in main process with vaultPath + deviceId
+  //   ipcMain.handle('sync:trigger', async () => syncService.getSyncEngine()?.sync())
+  //   ipcMain.handle('sync:getConflicts', () => syncService.getConflicts())
+  //   ipcMain.handle('sync:resolveConflict', (_event, id: number, path: string) => syncService.resolveConflict(id, path))
+  //   ipcMain.handle('sync:rollback', (_event, filePath: string, targetVersion: string) => syncService.rollback(filePath, targetVersion))
+  ipcMain.handle('sync:trigger', async () => {
+    return { success: false, error: 'SyncService not yet integrated — vault open required' };
+  });
+
+  ipcMain.handle('sync:getConflicts', () => {
+    return { success: false, error: 'SyncService not yet integrated — vault open required', conflicts: [] };
+  });
+
+  ipcMain.handle('sync:resolveConflict', (_event, _id: number, _resolutionPath: string) => {
+    return { success: false, error: 'SyncService not yet integrated — vault open required' };
+  });
+
+  ipcMain.handle('sync:rollback', (_event, _filePath: string, _targetVersion: string) => {
+    return { success: false, error: 'SyncService not yet integrated — vault open required' };
+  });
+
+  console.log('[IPC] Vault/Graph/Search/ImageStorage/Sync handlers registered');
 }

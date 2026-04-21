@@ -3,7 +3,6 @@ import type { S3Adapter } from './adapter';
 import type { RollbackResult } from '@aimo-note/dto';
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
-import { createHash } from 'crypto';
 
 export class VersionRollback {
   constructor(
@@ -44,7 +43,10 @@ export class VersionRollback {
     writeFileSync(vaultFilePath, content, 'utf-8');
 
     // Step 5: Create a new version entry to record the restoration
-    const newVersionLabel = this.incrementVersion(targetVersion);
+    // Use the current latest version as base for increment to avoid duplicate labels
+    const currentLatest = this.versionManager.getLatestVersion(filePath);
+    const baseVersion = currentLatest ? currentLatest.version : targetVersion;
+    const newVersionLabel = this.incrementVersion(baseVersion);
     const hash = VersionManager.computeHash(content);
     const message = `restored from ${targetVersion}`;
 

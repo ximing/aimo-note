@@ -3,12 +3,12 @@ import { initDatabase, setDatabase } from '../db';
 import { VersionRollback } from '../rollback';
 import { VersionManager } from '../version_manager';
 import { DeviceManager } from '../device';
-import type { S3Adapter } from '../adapter';
 import { rmSync, mkdirSync } from 'fs';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockAdapter = {
   getObject: jest.fn(),
-} as any as S3Adapter;
+} as any;
 
 describe('VersionRollback', () => {
   let db: InstanceType<typeof BetterSqlite3>;
@@ -71,12 +71,12 @@ describe('VersionRollback', () => {
       );
     });
 
-    it('should increment version counter for the restored file', () => {
+    it('should increment version counter for the restored file', async () => {
       versionManager.createVersion('note1.md', 'v1', 'sha256:v1hash', 'content v1');
       versionManager.createVersion('note1.md', 'v2', 'sha256:v2hash', 'content v2');
 
-      rollback.rollback('note1.md', 'v1');
-      rollback.rollback('note1.md', 'v1');
+      await rollback.rollback('note1.md', 'v1');
+      await rollback.rollback('note1.md', 'v1');
 
       const history = versionManager.getFileHistory('note1.md');
       const versions = history.map(v => v.version);

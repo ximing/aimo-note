@@ -24,7 +24,7 @@ export interface RecordConflictInput {
 }
 
 export class ConflictManager {
-  constructor(private db: Database.Database) {}
+  constructor(private db: Database) {}
 
   record(input: RecordConflictInput): SyncConflictRecord {
     const now = new Date().toISOString();
@@ -80,8 +80,15 @@ export class ConflictManager {
 
   generateConflictFilename(originalPath: string): string {
     const now = new Date();
-    const dateStr = now.toISOString().split('T')[0].replace(/-/g, '');  // YYYYMMDD
-    const timeStr = now.toISOString().split('T')[1].split('.')[0].replace(/:/g, '');  // HHMMSS
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const y = now.getFullYear();
+    const m = now.getMonth() + 1;
+    const d = now.getDate();
+    const h = now.getHours();
+    const min = now.getMinutes();
+    const s = now.getSeconds();
+    const dateStr = `${y}${pad(m)}${pad(d)}`;
+    const timeStr = `${pad(h)}${pad(min)}${pad(s)}`;
     const rand = Math.random().toString(36).slice(2, 6).toLowerCase();  // 4 random alphanumeric chars
 
     const basename = originalPath.replace(/\.mdx?$/, '');
