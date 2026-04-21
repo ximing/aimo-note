@@ -133,10 +133,10 @@ describe('GarbageCollector', () => {
       gc.gc({ maxVersionsPerFile: 1 });
 
       const history = versionManager.getFileHistory('note1.md');
-      // Should still have the deleted v2 marker, but v1 should be removed
-      const nonDeleted = history.filter(v => !v.isDeleted);
-      expect(nonDeleted).toHaveLength(1);
-      expect(nonDeleted[0].version).toBe('v2');
+      // Should keep v2 (latest version, even though deleted), but v1 should be removed
+      expect(history).toHaveLength(1);
+      expect(history[0].version).toBe('v2');
+      expect(history[0].isDeleted).toBe(true);
     });
   });
 });

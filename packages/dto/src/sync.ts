@@ -96,3 +96,12 @@ export interface GcResult {
   /** Errors encountered during GC */
   errors: string[];
 }
+
+export interface ManifestCompactionResult {
+  /** Number of entries removed from the manifest */
+  entriesRemoved: number;
+  /** Size of manifest JSON before compaction */
+  sizeBefore: number;
+  /** Size of manifest JSON after compaction */
+  sizeAfter: number;
+}
