@@ -10,3 +10,5 @@ export * from './manifest.js';   // NEW
 export * from './engine.js';     // NEW
 export * from './conflicts.js';  // Phase 3
 export * from './rollback.js';   // Phase 3
+export * from './gc.js';
+export * from './manifest_compactor.js';

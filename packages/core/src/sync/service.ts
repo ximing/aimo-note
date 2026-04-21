@@ -1,5 +1,5 @@
 import type { Database } from 'better-sqlite3';
-import type { SyncDevice, S3Config, SyncConflictRecord, RollbackResult } from '@aimo-note/dto';
+import type { SyncDevice, S3Config, SyncConflictRecord, RollbackResult, GcConfig, GcResult, ManifestCompactionResult } from '@aimo-note/dto';
 import { DeviceManager } from './device';
 import { ChangeLogger } from './change_logger';
 import { VersionManager } from './version_manager';
@@ -9,6 +9,8 @@ import { ManifestManager } from './manifest';
 import { SyncEngine } from './engine';
 import { ConflictManager } from './conflicts';
 import { VersionRollback } from './rollback';
+import { GarbageCollector } from './gc';
+import { ManifestCompactor } from './manifest_compactor';
 
 export interface SyncServiceConfig {
   vaultPath: string;
@@ -32,6 +34,8 @@ export class SyncService {
   private manifestManager: ManifestManager | null = null;
   private conflictManager: ConflictManager;
   private versionRollback: VersionRollback;
+  private gc: GarbageCollector;
+  private compactor: ManifestCompactor | null = null;
 
   constructor(
     config: SyncServiceConfig,
@@ -89,6 +93,19 @@ export class SyncService {
       this.adapter,  // S3Adapter (null if sync not configured)
       config.vaultPath
     );
+
+    // Phase 4: Initialize GarbageCollector and ManifestCompactor
+    this.gc = new GarbageCollector(
+      db,
+      this.versionManager,
+      this.adapter,  // S3Adapter (null if sync not configured)
+      config.vaultPath,
+      config.deviceId
+    );
+
+    if (this.adapter && this.manifestManager) {
+      this.compactor = new ManifestCompactor(this.adapter, this.manifestManager);
+    }
   }
 
   async start(): Promise<void> {
@@ -177,6 +194,26 @@ export class SyncService {
    */
   async rollback(filePath: string, targetVersion: string): Promise<RollbackResult> {
     return this.versionRollback.rollback(filePath, targetVersion);
+  }
+
+  // Phase 4 methods:
+
+  /**
+   * Run garbage collection on local (and optionally remote) versions.
+   * Call this periodically — e.g., once per day or after each sync.
+   */
+  async runGc(config?: GcConfig): Promise<GcResult> {
+    return this.gc.gc(config ?? {});
+  }
+
+  /**
+   * Compact the remote manifest by removing stale deleted entries.
+   * Only applies if sync is configured (S3).
+   * Call this after GC runs successfully.
+   */
+  async compactManifest(maxAgeDays = 30): Promise<ManifestCompactionResult | null> {
+    if (!this.compactor) return null;
+    return this.compactor.compact({ maxAgeDays });
   }
 
   // Start watching for file changes
