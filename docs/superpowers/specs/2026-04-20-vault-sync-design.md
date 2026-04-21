@@ -87,7 +87,7 @@ controllers  ->  services  ->  db/schema + infra
 - `controllers`：只做 HTTP 参数解析、认证态获取、响应包装
 - `services`：实现业务逻辑与事务边界
 - `db/schema`：Drizzle schema，统一定义 MySQL 表
-- `middlewares`：认证、错误处理、限流、审计上下文
+- `middlewares`：认证、错误处理、审计上下文
 - `config`：环境变量与运行配置
 - `utils`：ID、hash、响应、日志等工具
 
@@ -1385,13 +1385,6 @@ interface Config {
 - Blob 元数据写入必须绑定 `vaultId`
 - 审计日志必须记录 `userId`、`vaultId`、`deviceId`、`requestId`
 - 所有同步入口都必须提取并传递 `X-Request-Id`、`X-Device-Id` 到 `request context` / `audit context`
-
-### 限流建议
-
-- `auth/register`：IP 级限流
-- `auth/login`：IP + email 限流
-- `sync/commit`：用户 + vault 维度限流
-- `blob-upload-url`：用户维度限流
 
 ---
 
