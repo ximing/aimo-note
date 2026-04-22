@@ -1,8 +1,10 @@
-import { Controller, Post, Body, Req, Res } from 'routing-controllers';
+import { Controller, Post, Get, Body, QueryParams, Req, Res } from 'routing-controllers';
 import { OpenAPI } from 'routing-controllers-openapi';
 import type { Response } from 'express';
 import { BlobService } from '../../services/blob.service.js';
 import { SyncCommitService } from '../../services/sync-commit.service.js';
+import { SyncPullService } from '../../services/sync-pull.service.js';
+import { CursorService } from '../../services/cursor.service.js';
 import { ResponseUtil } from '../../utils/response.js';
 import { ErrorCodes } from '../../constants/error-codes.js';
 import type { AuthenticatedRequest } from '../../types/express.js';
@@ -80,12 +82,64 @@ export interface SyncConflictResponse {
   conflicts: SyncConflictDetail[];
 }
 
+export interface SyncPullQuery {
+  vaultId: string;
+  sinceSeq: number;
+  limit?: number;
+}
+
+export interface SyncPullResponse {
+  commits: Array<{
+    seq: number;
+    id: string;
+    deviceId: string;
+    requestId: string;
+    baseSeq: number | null;
+    changeCount: number;
+    createdAt: string;
+  }>;
+  changes: Array<{
+    id: number;
+    commitSeq: number;
+    filePath: string;
+    op: string;
+    blobHash: string | null;
+    baseRevision: string | null;
+    newRevision: string | null;
+    sizeBytes: number | null;
+    metadataJson: string | null;
+    createdAt: string;
+  }>;
+  blobRefs: Array<{
+    blobHash: string;
+    sizeBytes: number;
+    mimeType: string | null;
+  }>;
+  latestSeq: number;
+  hasMore: boolean;
+}
+
+export interface SyncAckBody {
+  vaultId: string;
+  deviceId: string;
+  ackedSeq: number;
+}
+
+export interface SyncAckResponse {
+  vaultId: string;
+  deviceId: string;
+  lastPulledSeq: number;
+  updatedAt: string;
+}
+
 @Service()
 @Controller('/api/v1/sync')
 export class SyncController {
   constructor(
     private readonly blobService: BlobService,
-    private readonly syncCommitService: SyncCommitService
+    private readonly syncCommitService: SyncCommitService,
+    private readonly syncPullService: SyncPullService,
+    private readonly cursorService: CursorService
   ) {}
 
   /**
@@ -432,6 +486,188 @@ export class SyncController {
       if (error.code === ErrorCodes.RESOURCE_ALREADY_EXISTS) {
         // Duplicate requestId - idempotent success
         return ResponseUtil.error(res, error.code, error.message, 409);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * GET /api/v1/sync/pull
+   * Pull sync commits and changes since a given sequence number
+   */
+  @Get('/pull')
+  @OpenAPI({
+    summary: 'Pull sync changes',
+    description: 'Pulls commits and changes since a given sequence number',
+    responses: {
+      200: { description: 'Pull successful with commits, changes, and blobRefs' },
+      400: { description: 'Validation error (sinceSeq < 0)' },
+      401: { description: 'Not authenticated' },
+      403: { description: 'Access denied to vault' },
+    },
+  })
+  async pull(@QueryParams() query: SyncPullQuery, @Req() req: AuthenticatedRequest, @Res() res: Response) {
+    if (!req.user) {
+      return ResponseUtil.error(
+        res,
+        ErrorCodes.AUTH_TOKEN_MISSING,
+        'Not authenticated',
+        401
+      );
+    }
+
+    const { vaultId, sinceSeq, limit } = query;
+
+    // Validate vaultId
+    if (!vaultId || typeof vaultId !== 'string') {
+      return ResponseUtil.error(
+        res,
+        ErrorCodes.VALIDATION_ERROR,
+        'vaultId is required',
+        400
+      );
+    }
+
+    // Validate sinceSeq
+    if (typeof sinceSeq !== 'number' || sinceSeq < 0) {
+      return ResponseUtil.error(
+        res,
+        ErrorCodes.VALIDATION_ERROR,
+        'sinceSeq must be a number >= 0',
+        400
+      );
+    }
+
+    // Validate limit if provided
+    if (limit !== undefined && (typeof limit !== 'number' || limit <= 0)) {
+      return ResponseUtil.error(
+        res,
+        ErrorCodes.VALIDATION_ERROR,
+        'limit must be a positive number',
+        400
+      );
+    }
+
+    try {
+      const result = await this.syncPullService.pull(req.user.id, {
+        vaultId,
+        sinceSeq,
+        limit,
+      });
+
+      return ResponseUtil.success(res, {
+        commits: result.commits.map((c) => ({
+          seq: c.seq,
+          id: c.id,
+          deviceId: c.deviceId,
+          requestId: c.requestId,
+          baseSeq: c.baseSeq,
+          changeCount: c.changeCount,
+          createdAt: c.createdAt.toISOString(),
+        })),
+        changes: result.changes.map((c) => ({
+          id: c.id,
+          commitSeq: c.commitSeq,
+          filePath: c.filePath,
+          op: c.op,
+          blobHash: c.blobHash,
+          baseRevision: c.baseRevision,
+          newRevision: c.newRevision,
+          sizeBytes: c.sizeBytes,
+          metadataJson: c.metadataJson,
+          createdAt: c.createdAt.toISOString(),
+        })),
+        blobRefs: result.blobRefs,
+        latestSeq: result.latestSeq,
+        hasMore: result.hasMore,
+      });
+    } catch (error: any) {
+      if (error.code === ErrorCodes.ACCESS_DENIED) {
+        return ResponseUtil.error(res, error.code, error.message, 403);
+      }
+      if (error.code === ErrorCodes.VALIDATION_ERROR) {
+        return ResponseUtil.error(res, error.code, error.message, 400);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * POST /api/v1/sync/ack
+   * Acknowledge that the client has processed up to a certain sequence number
+   */
+  @Post('/ack')
+  @OpenAPI({
+    summary: 'Acknowledge sync cursor',
+    description: 'Acknowledges that the client has processed commits up to a certain sequence number',
+    responses: {
+      200: { description: 'Ack successful' },
+      400: { description: 'Validation error (cursor regression)' },
+      401: { description: 'Not authenticated' },
+      403: { description: 'Access denied' },
+    },
+  })
+  async ack(@Body() body: SyncAckBody, @Req() req: AuthenticatedRequest, @Res() res: Response) {
+    if (!req.user) {
+      return ResponseUtil.error(
+        res,
+        ErrorCodes.AUTH_TOKEN_MISSING,
+        'Not authenticated',
+        401
+      );
+    }
+
+    const { vaultId, deviceId, ackedSeq } = body;
+
+    // Validate vaultId
+    if (!vaultId || typeof vaultId !== 'string') {
+      return ResponseUtil.error(
+        res,
+        ErrorCodes.VALIDATION_ERROR,
+        'vaultId is required',
+        400
+      );
+    }
+
+    // Validate deviceId
+    if (!deviceId || typeof deviceId !== 'string') {
+      return ResponseUtil.error(
+        res,
+        ErrorCodes.VALIDATION_ERROR,
+        'deviceId is required',
+        400
+      );
+    }
+
+    // Validate ackedSeq
+    if (typeof ackedSeq !== 'number' || ackedSeq < 0) {
+      return ResponseUtil.error(
+        res,
+        ErrorCodes.VALIDATION_ERROR,
+        'ackedSeq must be a number >= 0',
+        400
+      );
+    }
+
+    try {
+      const result = await this.cursorService.ack(req.user.id, {
+        vaultId,
+        deviceId,
+        ackedSeq,
+      });
+
+      return ResponseUtil.success(res, {
+        vaultId: result.vaultId,
+        deviceId: result.deviceId,
+        lastPulledSeq: result.lastPulledSeq,
+        updatedAt: result.updatedAt.toISOString(),
+      });
+    } catch (error: any) {
+      if (error.code === ErrorCodes.ACCESS_DENIED) {
+        return ResponseUtil.error(res, error.code, error.message, 403);
+      }
+      if (error.code === ErrorCodes.VALIDATION_ERROR) {
+        return ResponseUtil.error(res, error.code, error.message, 400);
       }
       throw error;
     }
