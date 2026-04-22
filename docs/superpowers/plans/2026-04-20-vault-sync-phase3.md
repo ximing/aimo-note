@@ -17,6 +17,7 @@
 - 客户端冲突记录与 conflict copy 文件落盘
 - renderer 显示未解决冲突
 - rollback 通过普通 commit 再传播给其他设备
+- 服务端冲突摘要 `resolve` API（摘要态、幂等）
 - rollback / resolve 结果能够接入自动同步引擎，而不是依赖用户手动 push / pull
 - 本地没有目标 revision 缓存时，仍可通过远端 blob 下载完成恢复
 
@@ -38,7 +39,7 @@
 | `/api/v1/sync/history?vaultId=&filePath=` | GET | 获取文件历史 revision |
 | `/api/v1/sync/history/blob?vaultId=&revision=` | GET | 获取历史 revision 对应 blob 引用 |
 | `/api/v1/sync/blob-download-url` | POST | 为历史 / pull 的 blob 引用换取短期下载地址 |
-| `/api/v1/sync/conflicts/:id/resolve` | POST | 标记服务端冲突摘要已解决（可选） |
+| `/api/v1/sync/conflicts/:id/resolve` | POST | 标记服务端冲突摘要已解决（必做，摘要态且幂等） |
 
 ### 服务端定位
 
@@ -117,6 +118,7 @@ Phase 3 只有在以下条件全部满足时才可视为完成：
 - renderer 无需进入设置页即可看到冲突
 - 用户无需进入设置页即可查看历史 revision 并执行 rollback
 - 同步关闭时，rollback / resolve 只更新本地状态与 queue，不会偷偷绕过 `DISABLED` 语义发起远端请求
+- 用户可通过同一套 canonical conflict contract 查询、标记 resolved，并让服务端摘要态保持幂等收敛
 - rollback 通过普通同步链路传播到其他设备
 
 ---
@@ -183,6 +185,7 @@ Phase 3 只有在以下条件全部满足时才可视为完成：
 
 - [ ] 将服务端 `ServerConflict` 映射到本地 `sync_conflicts`
 - [ ] 生成 `{basename}_conflict_{timestamp}_{random}{ext}`，保留原始文件扩展名
+- [ ] conflict copy 必须写回原文件同目录，避免把手动合并流程藏到独立缓存目录
 - [ ] 记录 `conflict_copy_path`
 - [ ] `resolve()` 记录用户的本地处理结果、解决意图与辅助诊断信息；在允许同步时再通过服务端摘要态幂等落库，不阻塞当前编辑流程
 - [ ] 提供 `getUnresolved()`、`resolve()`
@@ -273,6 +276,7 @@ Phase 3 只有在以下条件全部满足时才可视为完成：
 - [ ] 用户可从 UI 打开冲突副本并手动标记 resolved
 - [ ] 用户无需进入设置页即可在主界面查看历史 revision 并发起 rollback
 - [ ] rollback 到旧 revision 后，本地文件内容更新且生成新的 pending change
+- [ ] rollback 后当前文件的本地搜索 / 索引结果会收敛到恢复后的内容，不因历史恢复破坏本地可用性
 - [ ] 本地无旧 revision 缓存时，仍可通过远端 blob 下载完成 rollback
 - [ ] blob 下载失败或下载 URL 过期时，前端能给出明确失败原因并允许重试
 - [ ] 断网期间触发 rollback 或 resolve 不阻塞本地操作，恢复联网后可自动继续同步

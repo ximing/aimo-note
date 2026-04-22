@@ -15,7 +15,7 @@
 - `Express + routing-controllers + TypeScript + TypeDI` 启动链路
 - MySQL 连接、Drizzle schema、migration 机制
 - 用户注册 / 登录 / 当前用户接口
-- 设置页登录入口与同步开关
+- 设置页登录入口、远端 vault 创建/选择/绑定与同步开关
 - vault 创建与查询接口
 - device 注册与查询接口
 - `has-blobs`、`blob-upload-url`、`blob-download-url`、`commit`、`pull`、`ack` API
@@ -51,8 +51,9 @@
 
 ```text
 settings login
+  -> create or select remote vault
+  -> bind local vault to remote vault
   -> enable sync
-  -> create vault
   -> register device
   -> auto has-blobs
   -> auto upload missing blobs
@@ -203,6 +204,19 @@ controller 只负责：
 - `commit` 的幂等主键以 `(vaultId, requestId)` 为准；其中 `requestId` 在传输层与审计链路上以 `X-Request-Id` 为唯一真相源，body 仅作为同值业务副本，不允许出现第二套语义
 - `request-context` 中提取出的 `requestId` / `deviceId` 必须继续透传到审计写入、service 层日志与错误响应上下文
 - 客户端发生重试时必须复用同一 `requestId`，不能在自动重试中隐式更换幂等键
+
+### 本地 vault 与远端 vault 绑定基线
+
+为避免“用户已登录并打开同步开关，但当前本地 vault 还没有明确远端归属”时出现歧义，本阶段必须把桌面端闭环补齐：
+
+- 设置页必须允许用户为当前本地 vault 创建远端 vault，或从当前账号名下已有 vault 中选择一个进行绑定
+- 绑定关系必须按本地 `vaultId` 持久化，至少稳定记录 `remoteVaultId`、绑定时间与最近一次确认的账号上下文，避免重启后丢失
+- 自动同步前置条件必须同时满足：已登录、已开启同步、当前本地 vault 已绑定远端 vault；任一条件不满足都不得发起 `has-blobs` / `commit` / `pull` / `ack`
+- 若当前账号下还没有可用远端 vault，设置页需提供明确创建入口，而不是要求用户离开桌面端手工补数据
+- 若用户切换账号、解绑或改绑远端 vault，必须给出稳定的本地状态收敛规则；至少不能静默清空本地 pending queue、历史或运行态记录
+- 若当前绑定账号上下文与登录账号不一致，或用户正在改绑到另一远端 vault，当前 vault 必须进入待确认的绑定失效状态；在用户重新确认绑定关系前，不得自动把既有 pending queue 提交到任何远端 vault
+- 用户确认改绑后，只有新的账号上下文、远端 vault 绑定关系与本地 pending queue 的归属被重新确认，自动同步才允许恢复；整个过程不得静默丢弃旧 queue，也不得偷偷放行旧 queue 到新远端
+- 同一用户存在多个远端 vault 时，桌面端必须明确展示“当前本地 vault 正绑定到哪个远端 vault”，避免误同步到错误空间
 
 ### Runtime Metadata Contract Freeze
 
@@ -731,7 +745,13 @@ Phase 2 只有在以下条件全部满足时才可视为完成：
 - `apps/render/src/services/*`
 
 - [ ] 接入登录后 token
+- [ ] 设置页可查询当前账号下的远端 vault 列表，并展示当前本地 vault 的绑定状态
+- [ ] 设置页可为当前本地 vault 创建远端 vault，或选择已有远端 vault 完成绑定
+- [ ] 绑定关系按本地 `vaultId` 持久化保存，重启后仍可恢复；切换账号时能检测并提示当前绑定是否仍有效
+- [ ] 若当前绑定因切换账号、解绑或改绑而失效，自动同步必须被阻断，并给出明确的确认 / 重绑入口；在用户确认前不得把既有 pending queue 提交到新的远端 vault
+- [ ] 用户确认改绑后，只有新的账号上下文、远端 vault 绑定关系与本地 pending queue 的归属被重新确认，自动同步才允许恢复；整个过程不得静默丢弃旧 queue，也不得偷偷放行旧 queue 到新远端
 - [ ] 同步仅在用户于设置页显式开启后启动；未开启时保持纯本地模式
+- [ ] 当前本地 vault 未绑定远端 vault 时，不发起任何同步网络请求，并给出明确引导
 - [ ] 调用 `has-blobs`、`blob-upload-url`、`blob-download-url`、`commit`、`pull`、`ack`
 - [ ] 在启动、登录成功、开启同步、本地变更入队、网络恢复、周期性轮询时自动触发同步
 - [ ] 自动触发需带上明确来源，如 `startup` / `login` / `local_change` / `network_recovered` / `periodic` / `manual`
@@ -789,8 +809,11 @@ Phase 2 只有在以下条件全部满足时才可视为完成：
 ### 客户端 + 服务端联调
 
 - [ ] 用户未登录、未开启同步时，应用仍可正常使用本地能力
-- [ ] 用户可在设置页登录并开启同步，后台自动完成首次同步链路
+- [ ] 用户可在设置页登录、为当前本地 vault 创建或选择远端 vault 并完成绑定，然后开启同步，后台自动完成首次同步链路
 - [ ] 用户退出登录后，本地 pending queue 不丢失，同步状态回到 `DISABLED`，重新登录并开启同步后可继续提交旧变更
+- [ ] 切换账号、解绑或改绑远端 vault 后，若当前绑定关系已失效，自动同步会被阻断且本地 pending queue 继续保留，直到用户显式确认新的绑定关系
+- [ ] 未经用户显式确认，不会把旧账号或旧绑定关系下积累的 pending change 自动提交到新账号或新远端 vault
+- [ ] 当前本地 vault 未绑定远端 vault 时，即使用户已登录或本地 queue 持续累积，也不会继续发起任何同步网络请求
 - [ ] 同步被显式关闭或状态为 `DISABLED` 时，即使本地 queue 持续累积，也不会继续发起任何同步网络请求
 - [ ] 本地新建普通文件后，首次同步会先上传 blob 再成功 commit；`.aimo-note/**` 内容不会进入远端同步主链路
 - [ ] 第二次无变更同步时，不发生重复 blob 上传
@@ -801,11 +824,13 @@ Phase 2 只有在以下条件全部满足时才可视为完成：
 - [ ] 周期性轮询会进入与其他触发源相同的同步引擎，不会形成第二套手工同步流程
 - [ ] `blob-download-url` 过期、blob 下载网络失败、blob 不可见等场景的用户反馈与 `OFFLINE` / `ERROR` 分类稳定可预测
 - [ ] 同步关闭或离线期间，本地新增变更、历史与运行态信息仍被记录；重新开启同步或恢复联网后可继续与服务端状态对账
-- [ ] 同一用户同时开启两个 vault 的同步时，各自的 queue、cursor、runtime state 与最近错误保持隔离；其中一个 vault 断网或失败时，另一个 vault 仍可继续自动同步
+- [ ] 同一用户同时开启两个 vault 的同步时，各自的本地/远端 vault 绑定、queue、cursor、runtime state 与最近错误保持隔离；其中一个 vault 断网或失败时，另一个 vault 仍可继续自动同步
 - [ ] 连续离线抖动时不会无限并发触发多轮同步
 - [ ] `OFFLINE` 与 `ERROR` 的进入条件稳定可预测：网络类错误进入 `OFFLINE`，鉴权/权限类错误进入 `ERROR`
 - [ ] 从 `OFFLINE` 恢复后会重新回到 `PENDING` / `SYNCING` 完成待处理工作，而不是错误地直接显示 `IDLE`
 - [ ] 设置页点击“立即同步”可在自动调度之外立刻触发一次同步
+- [ ] 用户未登录、未开启同步或处于 `OFFLINE` 时，本地编辑、搜索、索引与历史能力继续可用，不因同步状态迁移而退化
+- [ ] 两台设备并发修改同一文件时，后提交设备会收到稳定 `head_mismatch` / `ServerConflict`，前提交设备仍可继续正常 `pull` / `ack`；完整冲突 UX 留到 Phase 3
 
 ### 隔离验证
 
@@ -821,12 +846,15 @@ Phase 2 只有在以下条件全部满足时才可视为完成：
 满足以下条件即可进入 Phase 3：
 
 - `apps/server` 已具备稳定的账号 + vault + sync 基础设施
+- 桌面端已具备“当前本地 vault -> 远端 vault”的创建、选择、绑定与恢复闭环
 - 服务端已把“仅同步 vault 内除 `.aimo-note/**` 外的文件”落实到 commit 校验与验收，避免仅靠客户端过滤维持边界
 - 用户隔离模型已真正落地到 service / schema / API
 - 客户端与服务端的自动同步 happy path 已跑通
 - `logout -> DISABLED` 与 pending queue 保留语义已明确落地
 - 预签名 URL 前缀隔离已可被稳定验证，Phase 3 无需再返工该基础约束
 - 设置页已经承载登录、同步开关、状态展示与“立即同步”入口
+- 本地编辑、搜索、索引与历史能力在 `DISABLED` / `OFFLINE` 场景下未因接入远端同步而退化
 - 多 vault 场景下的本地状态隔离与自动同步调度已具备基础验收，后续 phase 无需回头重做同步状态模型
 - 用户无需手动 `push` / `pull` 即可完成日常同步，且仍保留设置页“立即同步”兜底入口
+- 新设备或清空本地 blob cache 后，已可通过 `pull + blob-download-url` 稳定完成内容重建
 - Phase 3 只需要补冲突 UX、历史与回溯，不再重构服务端主干

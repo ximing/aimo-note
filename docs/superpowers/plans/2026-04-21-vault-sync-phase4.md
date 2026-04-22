@@ -133,9 +133,12 @@ Phase 4 新增成本、恢复、运维能力时，仍必须继续满足前序 ph
 为避免 Phase 4 做完功能却无法稳定联调，以下 contract 必须在本阶段明确下来：
 
 - `GET /api/v1/snapshots/:id` 必须返回稳定的任务状态枚举、结果摘要、失败原因、最终 `commitSeq`（如适用）与最近更新时间，供客户端轮询
+- snapshot / restore 任务状态至少固定为 `pending` / `running` / `succeeded` / `failed` 四态；只有 `succeeded` / `failed` 允许作为终态对外暴露，后续若扩展新状态必须先更新 DTO 与验收口径
 - `GET /api/v1/sync/diagnostics` 必须稳定返回最近触发源、最近失败请求上下文、离线开始/恢复时间、重试次数、下次重试时间等字段
 - `POST /api/v1/sync/diagnostics/events` 必须接受并持久化 `trigger`、`retryCount`、`offlineStartedAt`、`recoveredAt`、`nextRetryAt`、`requestId`、`deviceId` 等上下文
+- runtime event 写入必须定义稳定的幂等 / 去重 / 补报语义，保证离线积压事件恢复上报、重复重试或乱序补报不会把诊断面板污染成多套相互矛盾的“当前状态”
 - `snapshots`、`diagnostics`、`devices` 相关接口都必须继续执行 `currentUserId + vaultId` 或 `currentUserId + deviceId` 归属校验，不能只凭资源 ID 访问
+- 除注册 / 登录外，`GET /api/v1/snapshots`、`GET /api/v1/snapshots/:id`、`GET /api/v1/sync/diagnostics`、`GET /api/v1/devices` 等新增读接口也必须继续沿用 `X-Request-Id`、`X-Device-Id` 到 request context / audit context；缺失必需请求头时返回稳定 `400/422` 语义，避免读写链路的 request / audit context 分叉
 - `POST /api/v1/snapshots`、`POST /api/v1/snapshots/:id/restore`、`POST /api/v1/sync/diagnostics/events` 等新增写接口若缺失 `X-Request-Id` / `X-Device-Id`，或 body 中同名字段与 header 冲突，必须返回稳定 `400/422` 语义，不得静默补值或拆分审计上下文
 - 上述新增入口继续沿用 `X-Request-Id`、`X-Device-Id` 到 request context / audit context
 
@@ -208,7 +211,9 @@ Phase 4 只有在以下条件全部满足时才可视为完成：
 - [ ] 增加 `SyncDiagnostics`
 - [ ] 增加 `SyncRuntimeEvent` / `SyncRuntimeEventAck`
 - [ ] `SnapshotRecord` / restore DTO 明确任务状态枚举、失败原因、最终 `commitSeq`、更新时间等轮询必需字段
+- [ ] snapshot / restore 最小状态枚举固定为 `pending` / `running` / `succeeded` / `failed`，并明确终态语义与重复 restore 时的返回 contract
 - [ ] `SyncDiagnostics` 需覆盖最近触发源、离线原因、下次重试信息，以及最近失败请求的 `requestId` / `deviceId`
+- [ ] `SyncRuntimeEvent` / `SyncRuntimeEventAck` 需明确幂等键、去重与离线补报语义，避免同一轮离线恢复重试被重复计入“当前状态”
 
 ### Task 31: 本地 GC
 
@@ -230,10 +235,13 @@ Phase 4 只有在以下条件全部满足时才可视为完成：
 - [ ] 为指定 vault 触发快照创建
 - [ ] 创建 / 查询 / 恢复都必须校验当前用户对目标 vault / snapshot 的归属
 - [ ] 快照 key 必须落在当前用户当前 vault 的 prefix
+- [ ] snapshot 内容边界必须与主同步链路一致，只覆盖 vault 内除 `.aimo-note/**` 外的文件；不得把内部元数据目录打入 snapshot blob 或 restore 结果
 - [ ] 记录 snapshot 元数据与状态
+- [ ] snapshot 元数据至少固定 `baseSeq`、`sizeBytes`、`restoredCommitSeq`、`finishedAt`，避免列表、恢复追踪与排障时 contract 漂移
 - [ ] 支持列表、单项状态查询与恢复触发
 - [ ] `GET /snapshots/:id` 返回稳定状态枚举、结果摘要、失败原因、最终 commitSeq（如适用）与更新时间
 - [ ] restore 完成后写入可被其他设备 `pull` 到的 `restore commit`
+- [ ] restore 生成的 `restore commit` 必须继续遵守主同步链路的文件边界；其他设备 `pull` 后不得看到 `.aimo-note/**` 内容被重新带回
 - [ ] 记录 restore 任务状态、结果摘要与最终 commitSeq（如适用）
 - [ ] 服务端 restore 入口不猜测当前设备本地 pending 状态；相关预检与用户确认由桌面端在调用前完成
 - [ ] 用户在桌面端预检提示中取消 restore 时，不得创建 restore 任务，也不得改写 snapshot / restore 状态
@@ -284,6 +292,7 @@ Phase 4 只有在以下条件全部满足时才可视为完成：
 - [ ] 提供 `getSyncDiagnostics(vaultId)`
 - [ ] 提供 `recordSyncRuntimeEvent()`，把 trigger / offline / recovered / retry 等客户端运行态写入服务端诊断模型
 - [ ] `recordSyncRuntimeEvent()` 必须直接复用 Phase 2 已冻结的 `trigger`、`retryCount`、`offlineStartedAt`、`recoveredAt`、`nextRetryAt`、`requestId`、`deviceId` 字段 contract
+- [ ] `recordSyncRuntimeEvent()` 需定义稳定幂等键、去重规则与离线补报语义；同一轮离线恢复、自动重试或重复上报不会写出互相矛盾的当前态
 - [ ] `diagnostics` / `diagnostics/events` 必须校验当前用户对目标 vault / device 的归属
 - [ ] 诊断接口返回结构需稳定覆盖最近 commit、最近 pull、最近失败、最近冲突、最近设备状态
 - [ ] 当服务端诊断摘要与本地运行态同时存在时，明确并实现字段裁决规则：跨设备事实以服务端为准，当前设备未上报的瞬时状态以本地补充，前端可区分两类来源
@@ -338,23 +347,29 @@ Phase 4 只有在以下条件全部满足时才可视为完成：
 - [ ] 任一未吊销设备的 `lastPulledSeq` 未越过目标 tombstone 时，cleanup 不会错误清理该删除记录
 - [ ] snapshot 创建后可在列表中查询到
 - [ ] snapshot / restore / diagnostics / devices 等新增接口均校验当前用户归属，不能通过伪造 `vaultId`、`snapshotId`、`deviceId` 越权访问
+- [ ] 新增读写接口在缺失必需的 `X-Request-Id` / `X-Device-Id`、或 body 中同名字段与 header 冲突时，返回稳定 `400/422` 语义，且 request context / audit context 不分叉
 - [ ] snapshot restore 任务状态可追踪，并在完成后生成普通设备可 `pull` 的恢复结果
+- [ ] snapshot create / restore 不会把 `.aimo-note/**` 重新带回跨设备同步主链路
 - [ ] `GET /snapshots/:id` 返回稳定状态字段、失败原因与最终 `commitSeq`
+- [ ] snapshot / restore 任务状态只使用计划中冻结的最小枚举，终态与重复 restore 的返回语义稳定可预测
 - [ ] 新增写接口在缺失 `X-Request-Id` / `X-Device-Id` 或与 body 中同名字段冲突时，返回稳定 `400/422` 语义，且 request context / audit context 不分叉
 - [ ] 同一 vault 上重复触发 cleanup / snapshot / restore 不会造成重复删除、重复 restore commit 或状态错乱
 - [ ] 对 cleanup / restore 注入部分失败后，不会留下“对象已删但元数据未更新”或“restore commit 已写入但任务状态未收敛”的半成状态；系统要么完成补偿，要么保留可重试失败态
 - [ ] 同一 vault 的高风险任务不会无约束并发执行，避免 cleanup 与 restore 相互踩踏
 - [ ] 诊断 API 能返回最近同步摘要、关键请求上下文，以及最近一次 runtime event 上报内容
+- [ ] 离线积压 runtime event 在恢复上报、重复重试或乱序到达时，不会把诊断摘要污染成多条互相矛盾的当前状态
 - [ ] 新增入口写入的审计 / request context 能稳定关联 `requestId`、`deviceId`
 
 ### 客户端 + 前端
 
 - [ ] 本地运行 GC 后，旧缓存被清理，但当前历史功能仍可使用
+- [ ] GC / cleanup 运行后，当前 head 对应文件仍可被本地搜索 / 索引命中，不因成本优化破坏本地优先体验
 - [ ] snapshot restore 完成后，另一台设备通过普通 pull 即可收敛到恢复后的状态
 - [ ] 用户可在桌面端看到快照列表、restore 状态与失败原因，并主动触发恢复
 - [ ] 用户在 restore 确认步骤取消后，不会创建 restore 任务，也不会改变当前 pending queue / 快照状态
 - [ ] 当前设备存在未提交本地变更时，桌面端会在调用 restore API 前完成本地预检、给出明确提示，且 restore 不会静默清空 pending queue
 - [ ] 用户确认带着本地 pending change 继续 restore 后，pending queue 仍保留；后续若与 `restore commit` 形成 head 冲突，系统沿用既有冲突链路而不是静默覆盖
+- [ ] snapshot create / restore 不会把 `.aimo-note/**` 重新带回跨设备同步主链路
 - [ ] 新设备或清空本地 blob cache 后，在启用 GC、snapshot、orphan cleanup、tombstone retention 后，仍可仅依赖远端 `pull + blob-download-url` 完成内容重建
 - [ ] 启用 GC / cleanup 后，只要历史面板仍展示某个 revision，用户就仍可读取其内容并完成 rollback，不会因后台清理而失效
 - [ ] 诊断面板能看到最近一次同步结果、耗时、字节数与失败原因

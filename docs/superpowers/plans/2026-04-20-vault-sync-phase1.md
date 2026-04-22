@@ -262,6 +262,7 @@ Phase 1 只有在以下条件全部满足时才可视为完成：
 - [ ] 相同内容的两个文件共享同一 `blobHash`
 - [ ] `.aimo-note/**` 不会进入同步模型，其余普通文件类型可进入同步模型
 - [ ] 未登录、未开启同步时，应用仍能正常使用本地能力
+- [ ] 未登录、未开启同步时，本地编辑、搜索、索引与历史能力保持可用，不因同步状态骨架而退化
 - [ ] 未登录、未开启同步时，本地仍会记录 pending change、历史与运行态信息，供后续开启同步或问题排查使用
 - [ ] 开启或关闭同步开关不会破坏本地 revision / pending queue
 - [ ] `requestSync(trigger)` 可稳定记录 `startup` / `login` / `local_change` / `network_recovered` / `periodic` / `manual` 等来源
@@ -282,5 +283,6 @@ Phase 1 只有在以下条件全部满足时才可视为完成：
 - 本地已具备稳定的 revision / queue / blob cache / sync toggle 基础
 - 不再依赖旧的 `manifest` / `changelog` 思维组织本地数据
 - 设置页同步开关与自动同步触发骨架已有稳定本地状态承载
+- 未开启同步时，本地编辑、搜索、索引与历史底线已被明确验证，后续 phase 不得因接入远端同步而回退
 - `sync_enabled`、cursor 与运行态字段已验证按 `vaultId` 隔离，多 vault 不会串扰
 - 后续接服务端时无需重建本地数据库模型，只需补网络层、自动同步调度与协议编排
