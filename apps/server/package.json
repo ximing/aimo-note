@@ -1,0 +1,50 @@
+{
+  "name": "@aimo-note/server",
+  "version": "0.9.5",
+  "private": true,
+  "license": "BSL-1.1",
+  "type": "module",
+  "main": "dist/index.js",
+  "homepage": "https://github.com/ximing/aimo-note",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ximing/aimo-note.git"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix --fix-type problem",
+    "migrate": "drizzle-kit push"
+  },
+  "dependencies": {
+    "@aimo-note/dto": "workspace:*",
+    "express": "^4.21.2",
+    "routing-controllers": "^0.10.4",
+    "typedi": "^0.10.0",
+    "reflect-metadata": "^0.2.2",
+    "drizzle-orm": "^0.40.0",
+    "@aws-sdk/client-s3": "^3.1032.0",
+    "bcrypt": "^5.1.1",
+    "jsonwebtoken": "^9.0.2",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@aimo-note/eslint-config": "workspace:*",
+    "@aimo-note/typescript-config": "workspace:*",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.13.4",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/bcrypt": "^5.0.2",
+    "typescript": "^5.7.3",
+    "tsx": "^4.19.2",
+    "drizzle-kit": "^0.30.0",
+    "eslint": "^9.39.1",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-only-warn": "^1.1.0",
+    "eslint-plugin-turbo": "^2.4.2",
+    "globals": "^16.5.0",
+    "typescript-eslint": "^8.48.0"
+  }
+}
