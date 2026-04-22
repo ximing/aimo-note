@@ -9,6 +9,8 @@ export { clipboard } from './clipboard';
 export { imageStorage } from './image-storage';
 export { shell } from './shell';
 export { template } from './template';
+export { auth } from './auth';
+export { sync } from './sync';
 export type { RecentVault } from './config';
 // Re-export search types from dto
 export type { SearchMatch, SearchResult, SearchOptions, SearchResponse } from '@aimo-note/dto';

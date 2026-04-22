@@ -4,3 +4,4 @@ export { GraphService, useGraphService } from './graph.service';
 export { SearchService, useSearchService } from './search.service';
 export { UIService, useUIService } from './ui.service';
 export { PluginService, usePluginService } from './plugin.service';
+export { SyncService, useSyncService } from './sync.service';
