@@ -32,6 +32,9 @@ export const ErrorCodes = {
   // Internal errors (9xxx)
   INTERNAL_ERROR: 'INTERNAL_ERROR',
   DATABASE_ERROR: 'DATABASE_ERROR',
+
+  // Sync errors (8xxx)
+  SYNC_CONFLICT: 'SYNC_CONFLICT',
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
