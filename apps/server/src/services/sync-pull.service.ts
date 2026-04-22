@@ -177,6 +177,7 @@ export class SyncPullService {
     // Query blob metadata (only visible metadata, not download URLs)
     let blobRefs: Array<{ blobHash: string; sizeBytes: number; mimeType: string | null }> = [];
     if (blobHashes.size > 0) {
+      const hashArray = Array.from(blobHashes);
       const blobResult = await db
         .select({
           blobHash: blobs.blobHash,
@@ -186,8 +187,8 @@ export class SyncPullService {
         .from(blobs)
         .where(and(
           eq(blobs.vaultId, vaultId),
-          inArray(blobs.blobHash, [...blobHashes])
-        )));
+          inArray(blobs.blobHash, hashArray)
+        ));
 
       blobRefs = blobResult.map((b) => ({
           blobHash: b.blobHash,

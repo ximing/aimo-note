@@ -1,5 +1,5 @@
 import type { Response } from 'express';
-import type { ApiResponse, ApiError } from '../types/response.js';
+import type { ApiResponse } from '../types/response.js';
 
 /**
  * Response utility for consistent API responses

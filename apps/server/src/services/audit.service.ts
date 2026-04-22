@@ -57,11 +57,11 @@ export class AuditService {
 
     logger.debug('Audit event logged', {
       action,
-      userId: context.userId,
-      vaultId: context.vaultId,
-      deviceId: context.deviceId,
-      requestId: context.requestId,
-      status: context.status,
+      userId: context.userId ?? undefined,
+      vaultId: context.vaultId ?? undefined,
+      deviceId: context.deviceId ?? undefined,
+      requestId: context.requestId ?? undefined,
+      status: context.status ?? undefined,
     });
   }
 

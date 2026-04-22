@@ -20,8 +20,8 @@ export class RequestContextMiddleware {
       const deviceId = req.headers['x-device-id'] as string | undefined;
 
       // Attach to request for downstream use
-      req.requestId = requestId;
-      req.deviceId = deviceId ?? null;
+      (req as typeof req & { requestId: string; deviceId: string | null }).requestId = requestId;
+      (req as typeof req & { requestId: string; deviceId: string | null }).deviceId = deviceId ?? null;
 
       // Set response header for tracing
       res.setHeader('X-Request-ID', requestId);

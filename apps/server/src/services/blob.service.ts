@@ -1,5 +1,5 @@
 import { Service } from 'typedi';
-import { eq, and, inArray, sql, greatest } from 'drizzle-orm';
+import { eq, and, inArray, sql } from 'drizzle-orm';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { getDb } from '../db/connection.js';
@@ -178,7 +178,8 @@ export class BlobService {
       ContentType: mimeType,
     });
 
-    const uploadUrl = await getSignedUrl(s3Client, command, {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const uploadUrl = await getSignedUrl(s3Client as any, command, {
       expiresIn: config.syncS3.presignedUrlExpirySeconds,
     });
 
@@ -221,7 +222,8 @@ export class BlobService {
       Key: blob.storageKey,
     });
 
-    const downloadUrl = await getSignedUrl(s3Client, command, {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const downloadUrl = await getSignedUrl(s3Client as any, command, {
       expiresIn: config.syncS3.presignedUrlExpirySeconds,
     });
 
@@ -267,7 +269,7 @@ export class BlobService {
 
     await db
       .update(blobs)
-      .set({ refCount: greatest(sql`${blobs.refCount} - 1`, 0) })
+      .set({ refCount: sql`CASE WHEN ${blobs.refCount} > 0 THEN ${blobs.refCount} - 1 ELSE 0 END` })
       .where(and(eq(blobs.vaultId, vaultId), eq(blobs.blobHash, blobHash)));
 
     logger.debug('Blob refCount decremented', { vaultId, blobHash });

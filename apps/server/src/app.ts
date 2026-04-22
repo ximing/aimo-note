@@ -1,4 +1,4 @@
-import express, { Express } from 'express';
+import express, { Express, Request, Response, NextFunction } from 'express';
 import {
   RoutingControllersOptions,
   useContainer,
@@ -24,7 +24,7 @@ export async function bootstrap(container: Container): Promise<Express> {
   }
 
   // Set up TypeDI container for routing-controllers
-  useContainer(container);
+  useContainer(container as unknown as Parameters<typeof useContainer>[0]);
 
   const options: RoutingControllersOptions = {
     controllers: [], // Controllers will be registered here
@@ -36,7 +36,7 @@ export async function bootstrap(container: Container): Promise<Express> {
   const app = createExpressServer(options);
 
   // CORS configuration
-  app.use((req, res, next) => {
+  app.use((req: Request, res: Response, next: NextFunction) => {
     const origin = req.headers.origin;
     if (origin && config.cors.origin.includes(origin)) {
       res.setHeader('Access-Control-Allow-Origin', origin);
@@ -55,7 +55,7 @@ export async function bootstrap(container: Container): Promise<Express> {
   });
 
   // Health check endpoint
-  app.get('/health', async (_req, res) => {
+  app.get('/health', async (_req: Request, res: Response) => {
     const dbHealth = await testConnection();
     res.json({
       status: dbHealth.ok ? 'ok' : 'degraded',

@@ -1,5 +1,4 @@
 import type { Request } from 'express';
-import type { User } from '../db/schema/users.js';
 
 /**
  * Authenticated user attached to the request

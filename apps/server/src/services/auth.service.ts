@@ -7,7 +7,6 @@ import { users } from '../db/schema/users.js';
 import { authSessions } from '../db/schema/auth-sessions.js';
 import { getConfig } from '../config/config.js';
 import { generateId } from '../utils/id.js';
-import { sha256 } from '../utils/sha.js';
 import { logger } from '../utils/logger.js';
 import { ErrorCodes } from '../constants/error-codes.js';
 import type { AuthenticatedUser } from '../types/express.js';
@@ -210,9 +209,11 @@ export class AuthService {
    */
   private generateAccessToken(userId: string, email: string): string {
     const config = getConfig();
-    return jwt.sign({ userId, email }, config.jwt.secret, {
-      expiresIn: config.jwt.expiresIn,
-    });
+    return jwt.sign(
+      { userId, email },
+      config.jwt.secret,
+      { expiresIn: config.jwt.expiresIn as jwt.SignOptions['expiresIn'] }
+    );
   }
 
   /**

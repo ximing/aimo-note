@@ -1,5 +1,4 @@
 import type { MySql2Database } from 'drizzle-orm/mysql2';
-import type { Transaction } from 'drizzle-orm/mysql2';
 
 /**
  * Execute a function within a database transaction.
@@ -20,7 +19,8 @@ import type { Transaction } from 'drizzle-orm/mysql2';
  */
 export async function withTransaction<T>(
   db: MySql2Database,
-  fn: (tx: Transaction) => Promise<T>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  fn: (tx: any) => Promise<T>
 ): Promise<T> {
   return db.transaction(fn);
 }

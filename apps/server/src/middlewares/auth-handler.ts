@@ -2,7 +2,6 @@ import { Service } from 'typedi';
 import type { RequestHandler } from 'express';
 import { AuthService } from '../services/auth.service.js';
 import { logger } from '../utils/logger.js';
-import { ErrorCodes } from '../constants/error-codes.js';
 import type { AuthenticatedRequest } from '../types/express.js';
 
 /**
@@ -19,7 +18,7 @@ export class AuthHandlerMiddleware {
    * Attaches user to request if valid token is present
    */
   getMiddleware(): RequestHandler {
-    return async (req: AuthenticatedRequest, res, next) => {
+    return async (req: AuthenticatedRequest, _res, next) => {
       try {
         const token = this.extractToken(req);
 
