@@ -13,8 +13,9 @@ import { SearchService } from './services/search.service';
 import { PluginService } from './services/plugin.service';
 import { ImageStorageService } from './services/image-storage.service';
 import { TemplateService } from './services/template.service';
+import { SyncService } from './services/sync.service';
 
-// 注册顺序: UIService → VaultService → GraphService → SearchService → PluginService → ImageStorageService → TemplateService
+// 注册顺序: UIService → VaultService → GraphService → SearchService → PluginService → ImageStorageService → TemplateService → SyncService
 register(UIService);
 register(VaultService);
 register(GraphService);
@@ -22,6 +23,7 @@ register(SearchService);
 register(PluginService);
 register(ImageStorageService);
 register(TemplateService);
+register(SyncService);
 
 // Initialize VaultService to auto-open last vault (awaited to prevent race conditions)
 resolve(VaultService).initialize().catch(console.error);

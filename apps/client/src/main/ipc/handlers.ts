@@ -815,27 +815,61 @@ export function registerIpcHandlers(): void {
     }
   );
 
-  // Sync handlers — SyncService integration requires vault to be open (deviceId + vaultPath configured)
-  // Full signatures (for when SyncService is integrated):
-  //   syncService: SyncService — instantiated in main process with vaultPath + deviceId
-  //   ipcMain.handle('sync:trigger', async () => syncService.getSyncEngine()?.sync())
-  //   ipcMain.handle('sync:getConflicts', () => syncService.getConflicts())
-  //   ipcMain.handle('sync:resolveConflict', (_event, id: number, path: string) => syncService.resolveConflict(id, path))
-  //   ipcMain.handle('sync:rollback', (_event, filePath: string, targetVersion: string) => syncService.rollback(filePath, targetVersion))
+  // Sync handlers — placeholder implementations
+  // Full sync integration will be implemented in a follow-up task
+  // requiring SyncService instantiation in main process with vaultPath + deviceId
+
+  ipcMain.handle('sync:getStatus', async () => {
+    return {
+      success: true,
+      status: 'DISABLED',
+      lastSyncAt: null,
+      error: null,
+      pendingCount: 0,
+      isEnabled: false,
+      vaultId: null,
+      vaultName: null,
+    };
+  });
+
   ipcMain.handle('sync:trigger', async () => {
-    return { success: false, error: 'SyncService not yet integrated — vault open required' };
+    return { success: false, error: 'Sync not configured' };
   });
 
   ipcMain.handle('sync:getConflicts', () => {
-    return { success: false, error: 'SyncService not yet integrated — vault open required', conflicts: [] };
+    return { success: true, conflicts: [] };
   });
 
   ipcMain.handle('sync:resolveConflict', (_event, _id: number, _resolutionPath: string) => {
-    return { success: false, error: 'SyncService not yet integrated — vault open required' };
+    return { success: false, error: 'Sync not configured' };
   });
 
   ipcMain.handle('sync:rollback', (_event, _filePath: string, _targetVersion: string) => {
-    return { success: false, error: 'SyncService not yet integrated — vault open required' };
+    return { success: false, error: 'Sync not configured' };
+  });
+
+  ipcMain.handle('sync:configure', async (_event, _serverUrl: string, _deviceId: string) => {
+    return { success: true };
+  });
+
+  ipcMain.handle('sync:listVaults', async () => {
+    return { success: true, vaults: [] };
+  });
+
+  ipcMain.handle('sync:createVault', async (_event, _name: string, _description?: string) => {
+    return { success: false, error: 'Server not configured' };
+  });
+
+  ipcMain.handle('sync:bindVault', async (_event, _vaultId: string) => {
+    return { success: false, error: 'Sync not configured' };
+  });
+
+  ipcMain.handle('sync:unbindVault', async () => {
+    return { success: true };
+  });
+
+  ipcMain.handle('sync:registerDevice', async (_event, _vaultId: string, _deviceName: string) => {
+    return { success: false, error: 'Server not configured' };
   });
 
   console.log('[IPC] Vault/Graph/Search/ImageStorage/Sync handlers registered');

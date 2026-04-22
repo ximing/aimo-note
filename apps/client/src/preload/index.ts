@@ -271,6 +271,85 @@ contextBridge.exposeInMainWorld('electronAPI', {
         error?: string;
       }>,
   },
+
+  // Sync operations
+  sync: {
+    getStatus: () =>
+      ipcRenderer.invoke('sync:getStatus') as Promise<{
+        success: boolean;
+        status?: string;
+        lastSyncAt?: string | null;
+        error?: string | null;
+        pendingCount?: number;
+        isEnabled?: boolean;
+        vaultId?: string | null;
+        vaultName?: string | null;
+      }>,
+    trigger: () =>
+      ipcRenderer.invoke('sync:trigger') as Promise<{
+        success: boolean;
+        error?: string;
+      }>,
+    getConflicts: () =>
+      ipcRenderer.invoke('sync:getConflicts') as Promise<{
+        success: boolean;
+        conflicts: Array<{
+          id: number;
+          filePath: string;
+          localVersion: string;
+          remoteVersion: string;
+          localHash: string;
+          remoteHash: string;
+          createdAt: string;
+          resolved: boolean;
+          resolutionPath: string | null;
+        }>;
+        error?: string;
+      }>,
+    resolveConflict: (id: number, resolutionPath: string) =>
+      ipcRenderer.invoke('sync:resolveConflict', id, resolutionPath) as Promise<{
+        success: boolean;
+        error?: string;
+      }>,
+    rollback: (filePath: string, targetVersion: string) =>
+      ipcRenderer.invoke('sync:rollback', filePath, targetVersion) as Promise<{
+        success: boolean;
+        error?: string;
+      }>,
+    configure: (serverUrl: string, deviceId: string) =>
+      ipcRenderer.invoke('sync:configure', serverUrl, deviceId) as Promise<{
+        success: boolean;
+        error?: string;
+      }>,
+    listVaults: () =>
+      ipcRenderer.invoke('sync:listVaults') as Promise<{
+        success: boolean;
+        vaults?: Array<{ id: string; name: string; description?: string }>;
+        error?: string;
+      }>,
+    createVault: (name: string, description?: string) =>
+      ipcRenderer.invoke('sync:createVault', name, description) as Promise<{
+        success: boolean;
+        vault?: { id: string; name: string; description?: string };
+        error?: string;
+      }>,
+    bindVault: (vaultId: string) =>
+      ipcRenderer.invoke('sync:bindVault', vaultId) as Promise<{
+        success: boolean;
+        error?: string;
+      }>,
+    unbindVault: () =>
+      ipcRenderer.invoke('sync:unbindVault') as Promise<{
+        success: boolean;
+        error?: string;
+      }>,
+    registerDevice: (vaultId: string, deviceName: string) =>
+      ipcRenderer.invoke('sync:registerDevice', vaultId, deviceName) as Promise<{
+        success: boolean;
+        deviceId?: string;
+        error?: string;
+      }>,
+  },
 });
 
 // --------- Type definitions for Renderer process ---------
@@ -403,8 +482,69 @@ declare global {
         ) => Promise<{
           success: boolean;
           error?: string;
+        }>,
+      },
+
+      // Sync operations
+      sync: {
+        getStatus: () => Promise<{
+          success: boolean;
+          status?: string;
+          lastSyncAt?: string | null;
+          error?: string | null;
+          pendingCount?: number;
+          isEnabled?: boolean;
+          vaultId?: string | null;
+          vaultName?: string | null;
         }>;
-      };
+        trigger: () => Promise<{ success: boolean; error?: string }>;
+        getConflicts: () => Promise<{
+          success: boolean;
+          conflicts: Array<{
+            id: number;
+            filePath: string;
+            localVersion: string;
+            remoteVersion: string;
+            localHash: string;
+            remoteHash: string;
+            createdAt: string;
+            resolved: boolean;
+            resolutionPath: string | null;
+          }>;
+          error?: string;
+        }>;
+        resolveConflict: (
+          id: number,
+          resolutionPath: string
+        ) => Promise<{ success: boolean; error?: string }>;
+        rollback: (
+          filePath: string,
+          targetVersion: string
+        ) => Promise<{ success: boolean; error?: string }>;
+        configure: (
+          serverUrl: string,
+          deviceId: string
+        ) => Promise<{ success: boolean; error?: string }>;
+        listVaults: () => Promise<{
+          success: boolean;
+          vaults?: Array<{ id: string; name: string; description?: string }>;
+          error?: string;
+        }>;
+        createVault: (
+          name: string,
+          description?: string
+        ) => Promise<{
+          success: boolean;
+          vault?: { id: string; name: string; description?: string };
+          error?: string;
+        }>;
+        bindVault: (vaultId: string) => Promise<{ success: boolean; error?: string }>;
+        unbindVault: () => Promise<{ success: boolean; error?: string }>;
+        registerDevice: (
+          vaultId: string,
+          deviceName: string
+        ) => Promise<{ success: boolean; deviceId?: string; error?: string }>;
+      },
     };
   }
 }
