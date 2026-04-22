@@ -85,6 +85,7 @@ export interface SyncCommitRequest {
   deviceId: string;
   requestId: string;
   baseSeq: number | null;
+  summary?: string;
   changes: Array<{
     filePath: string;
     op: 'upsert' | 'delete';
@@ -140,7 +141,7 @@ export class SyncCommitService {
     userId: string,
     request: SyncCommitRequest
   ): Promise<SyncCommitResult> {
-    const { vaultId, deviceId, requestId, baseSeq, changes } = request;
+    const { vaultId, deviceId, requestId, baseSeq, summary, changes } = request;
 
     logger.info('SyncCommitService.commit started', {
       userId,
@@ -156,19 +157,37 @@ export class SyncCommitService {
     // Step 2: Validate device ownership
     await this.deviceService.assertDeviceOwnership(userId, deviceId);
 
-    // Step 3: Check for duplicate requestId (idempotency)
-    await this.checkDuplicateRequestId(vaultId, requestId);
-
+    // Step 3: Check for duplicate requestId (idempotency) - moved inside transaction
     // Step 4: Validate file paths
     this.validateFilePaths(changes);
 
     // Step 5: Validate blob hashes exist
     await this.validateBlobHashes(vaultId, changes);
 
+    // Sort changes by filePath to prevent deadlock
+    const sortedChanges = changes.slice().sort((a, b) => a.filePath.localeCompare(b.filePath));
+
     // Step 6-13: Execute within transaction
     const result = await withTransaction(getDb(), async (tx) => {
-      // Step 7: Check baseRevision against sync_file_heads for each change
-      const conflicts = await this.checkConflicts(tx, vaultId, changes);
+      // Step 3 (inside transaction): Check for duplicate requestId with FOR UPDATE lock
+      const existing = await tx
+        .select()
+        .from(syncCommits)
+        .where(
+          and(
+            eq(syncCommits.vaultId, vaultId),
+            eq(syncCommits.requestId, requestId)
+          )
+        )
+        .limit(1)
+        .forUpdate();
+
+      if (existing.length > 0) {
+        throw new DuplicateRequestIdError(vaultId, requestId);
+      }
+
+      // Step 7: Check baseRevision against sync_file_heads for each change (sorted)
+      const conflicts = await this.checkConflicts(tx, vaultId, sortedChanges);
 
       if (conflicts.length > 0) {
         // Step 8: Write sync_conflicts and fail
@@ -193,6 +212,7 @@ export class SyncCommitService {
         deviceId,
         requestId,
         baseSeq,
+        summary,
         changeCount: changes.length,
         createdAt: now,
       });
@@ -226,27 +246,6 @@ export class SyncCommitService {
     });
 
     return result;
-  }
-
-  /**
-   * Check for duplicate requestId (idempotency check)
-   */
-  private async checkDuplicateRequestId(vaultId: string, requestId: string): Promise<void> {
-    const db = getDb();
-    const existing = await db
-      .select()
-      .from(syncCommits)
-      .where(
-        and(
-          eq(syncCommits.vaultId, vaultId),
-          eq(syncCommits.requestId, requestId)
-        )
-      )
-      .limit(1);
-
-    if (existing.length > 0) {
-      throw new DuplicateRequestIdError(vaultId, requestId);
-    }
   }
 
   /**
@@ -324,7 +323,7 @@ export class SyncCommitService {
         continue;
       }
 
-      // Look up current head for this file
+      // Look up current head for this file with row lock to prevent concurrent writes
       const heads = await tx
         .select()
         .from(syncFileHeads)
@@ -334,7 +333,8 @@ export class SyncCommitService {
             eq(syncFileHeads.filePath, change.filePath)
           )
         )
-        .limit(1);
+        .limit(1)
+        .forUpdate();
 
       if (heads.length === 0) {
         // No head exists - this is a new file, no conflict
@@ -495,8 +495,10 @@ export class SyncCommitService {
     const oldBlobHashes = new Map<string, string | null>();
 
     for (const change of changes) {
-      if (change.op === 'delete') {
-        // For delete operations, we need the current blob to decrement its refCount
+      // For delete operations, we need the current blob to decrement its refCount
+      // For upsert operations, we also need the old blob if this file already exists
+      // (i.e., an upsert that replaces an existing file's blob)
+      if (change.op === 'delete' || change.op === 'upsert') {
         const heads = await tx
           .select({ blobHash: syncFileHeads.blobHash })
           .from(syncFileHeads)
@@ -508,7 +510,10 @@ export class SyncCommitService {
           )
           .limit(1);
 
-        oldBlobHashes.set(change.filePath, heads.length > 0 ? heads[0].blobHash : null);
+        // Only set if there was a previous blob (to decrement its refCount)
+        if (heads.length > 0 && heads[0].blobHash) {
+          oldBlobHashes.set(change.filePath, heads[0].blobHash);
+        }
       }
     }
 
@@ -520,7 +525,8 @@ export class SyncCommitService {
    * - For upsert: increments refCount for the new blob
    * - For delete: decrements refCount for the old blob (passed via oldBlobHashes)
    *
-   * Note: Audit logging (Step 14) is intentionally outside the transaction.
+   * Note: refCount update (Step 12) is executed inside the transaction.
+   * Audit logging (Step 14) is intentionally outside the transaction.
    * If audit logging fails, the commit is already persisted. This is best-effort
    * audit - we accept potential inconsistency rather than risking commit failure.
    */
@@ -538,6 +544,13 @@ export class SyncCommitService {
         // New blob gets +1
         const delta = blobRefDeltas.get(change.blobHash) || 0;
         blobRefDeltas.set(change.blobHash, delta + 1);
+
+        // If this upsert replaces an existing file's blob, decrement the old blob
+        const oldBlobHash = oldBlobHashes.get(change.filePath);
+        if (oldBlobHash && oldBlobHash !== change.blobHash) {
+          const oldDelta = blobRefDeltas.get(oldBlobHash) || 0;
+          blobRefDeltas.set(oldBlobHash, oldDelta - 1);
+        }
       } else if (change.op === 'delete') {
         // Old blob gets -1 (if it existed and had a blobHash)
         const oldBlobHash = oldBlobHashes.get(change.filePath);
@@ -552,7 +565,7 @@ export class SyncCommitService {
     for (const [blobHash, delta] of blobRefDeltas.entries()) {
       await tx
         .update(blobs)
-        .set({ refCount: sql`${blobs.refCount} + ${delta}` })
+        .set({ refCount: sql`GREATEST(0, ${blobs.refCount} + ${delta})` })
         .where(
           and(
             eq(blobs.vaultId, vaultId),

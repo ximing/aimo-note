@@ -7,6 +7,7 @@ import { blobs } from '../db/schema/blobs.js';
 import { logger } from '../utils/logger.js';
 import { ErrorCodes } from '../constants/error-codes.js';
 import { VaultService } from './vault.service.js';
+import { AuditService } from './audit.service.js';
 
 const DEFAULT_PULL_LIMIT = 200;
 const MAX_PULL_LIMIT = 1000;
@@ -54,6 +55,7 @@ export interface PullParams {
   vaultId: string;
   sinceSeq: number;
   limit?: number;
+  requestId?: string;
 }
 
 /**
@@ -62,7 +64,10 @@ export interface PullParams {
  */
 @Service()
 export class SyncPullService {
-  constructor(private readonly vaultService: VaultService) {}
+  constructor(
+    private readonly vaultService: VaultService,
+    private readonly auditService: AuditService
+  ) {}
 
   /**
    * Pull sync commits and changes since a given sequence number.
@@ -206,6 +211,12 @@ export class SyncPullService {
       blobRefCount: blobRefs.length,
       latestSeq,
       hasMore,
+    });
+
+    // Audit logging for pull
+    await this.auditService.logSyncPull(userId, vaultId, params.requestId ?? '', '', {
+      status: 'success',
+      detail: { commitCount: commits.length, latestSeq },
     });
 
     return {

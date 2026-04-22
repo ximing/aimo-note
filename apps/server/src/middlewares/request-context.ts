@@ -1,6 +1,5 @@
 import { Service } from 'typedi';
 import type { RequestHandler } from 'express';
-import { generateId } from '../utils/id.js';
 import { logger } from '../utils/logger.js';
 
 /**
@@ -15,16 +14,18 @@ export class RequestContextMiddleware {
    */
   getMiddleware(): RequestHandler {
     return (req, res, next) => {
-      // Extract or generate request ID
-      const requestId = (req.headers['x-request-id'] as string) || generateId();
+      // Extract request ID from header — do NOT auto-generate; sync endpoints require stable IDs
+      const requestId = (req.headers['x-request-id'] as string) || undefined;
       const deviceId = req.headers['x-device-id'] as string | undefined;
 
       // Attach to request for downstream use
-      (req as typeof req & { requestId: string; deviceId: string | null }).requestId = requestId;
-      (req as typeof req & { requestId: string; deviceId: string | null }).deviceId = deviceId ?? null;
+      (req as typeof req & { requestId: string | undefined; deviceId: string | null }).requestId = requestId;
+      (req as typeof req & { requestId: string | undefined; deviceId: string | null }).deviceId = deviceId ?? null;
 
-      // Set response header for tracing
-      res.setHeader('X-Request-ID', requestId);
+      // Set response header for tracing (only if client provided an ID)
+      if (requestId) {
+        res.setHeader('X-Request-ID', requestId);
+      }
 
       // Log request
       logger.info('Incoming request', {

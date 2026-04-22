@@ -8,6 +8,13 @@ import { Container } from 'typedi';
 import { getConfig } from './config/config.js';
 import { loadEnv } from './config/env.js';
 import { testConnection } from './db/connection.js';
+import { AuthController } from './controllers/v1/auth.controller.js';
+import { UserController } from './controllers/v1/user.controller.js';
+import { VaultController } from './controllers/v1/vault.controller.js';
+import { DeviceController } from './controllers/v1/device.controller.js';
+import { SyncController } from './controllers/v1/sync.controller.js';
+import { AuthHandlerMiddleware } from './middlewares/auth-handler.js';
+import { RequestContextMiddleware } from './middlewares/request-context.js';
 
 export async function bootstrap(container: Container): Promise<Express> {
   // Load environment and validate
@@ -27,8 +34,8 @@ export async function bootstrap(container: Container): Promise<Express> {
   useContainer(container as unknown as Parameters<typeof useContainer>[0]);
 
   const options: RoutingControllersOptions = {
-    controllers: [], // Controllers will be registered here
-    middlewares: [], // Middlewares will be registered here
+    controllers: [AuthController, UserController, VaultController, DeviceController, SyncController], // Controllers will be registered here
+    middlewares: [AuthHandlerMiddleware, RequestContextMiddleware],
     defaultErrorHandler: true,
     validation: false, // Enable when zod-validation-interceptor is ready
   };
@@ -43,7 +50,7 @@ export async function bootstrap(container: Container): Promise<Express> {
       res.setHeader('Access-Control-Allow-Credentials', String(config.cors.credentials));
       res.setHeader(
         'Access-Control-Allow-Headers',
-        'Content-Type, Authorization, X-Requested-With'
+        'Content-Type, Authorization, X-Requested-With, X-Request-Id, X-Device-Id'
       );
       res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
     }

@@ -8,7 +8,8 @@ import { generateId } from '../utils/id.js';
 import { logger } from '../utils/logger.js';
 import { ErrorCodes } from '../constants/error-codes.js';
 import { VaultService } from './vault.service.js';
-import { DeviceService } from './device.service.js';
+import { DeviceService, DeviceNotFoundError, DeviceAccessDeniedError } from './device.service.js';
+import { AuditService } from './audit.service.js';
 
 export class CursorNotFoundError extends Error {
   code = ErrorCodes.RESOURCE_NOT_FOUND;
@@ -47,6 +48,7 @@ export interface AckParams {
   vaultId: string;
   deviceId: string;
   ackedSeq: number;
+  requestId?: string;
 }
 
 /**
@@ -57,12 +59,14 @@ export interface AckParams {
 export class CursorService {
   constructor(
     private readonly vaultService: VaultService,
-    private readonly deviceService: DeviceService
+    private readonly deviceService: DeviceService,
+    private readonly auditService: AuditService
   ) {}
 
   /**
    * Get or create a cursor for a device in a vault.
-   * If the cursor doesn't exist, creates one with lastPulledSeq = 0.
+   * If the cursor doesn't exist, returns a virtual cursor with lastPulledSeq = 0.
+   * The actual cursor record is created on first ack, which provides the real userId.
    */
   async getOrCreateCursor(vaultId: string, deviceId: string): Promise<CursorState> {
     const db = getDb();
@@ -83,24 +87,13 @@ export class CursorService {
       };
     }
 
-    // Create new cursor with lastPulledSeq = 0
-    const now = new Date();
-    const id = generateId();
-
-    await db.insert(syncDeviceCursors).values({
-      id,
-      vaultId,
-      userId: '', // Will be set properly during ack
-      deviceId,
-      lastPulledSeq: 0,
-      updatedAt: now,
-    });
-
+    // Return a virtual cursor — do NOT insert with invalid userId placeholder.
+    // The actual record with real userId is created on first ack.
     return {
       vaultId,
       deviceId,
       lastPulledSeq: 0,
-      updatedAt: now,
+      updatedAt: new Date(),
     };
   }
 
@@ -146,6 +139,15 @@ export class CursorService {
 
     // Assert device ownership
     await this.deviceService.assertDeviceOwnership(userId, deviceId);
+
+    // Check if device is revoked
+    const device = await this.deviceService.findById(deviceId);
+    if (!device) {
+      throw new DeviceNotFoundError(deviceId);
+    }
+    if (device.revokedAt !== null) {
+      throw new DeviceAccessDeniedError(userId, deviceId);
+    }
 
     const db = getDb();
     const now = new Date();
@@ -208,6 +210,12 @@ export class CursorService {
       deviceId,
       previousSeq: cursor.lastPulledSeq,
       newSeq: ackedSeq,
+    });
+
+    // Audit log for ack
+    await this.auditService.logSyncAck(userId, vaultId, deviceId, params.requestId ?? '', {
+      status: 'success',
+      detail: { previousSeq: cursor.lastPulledSeq, newSeq: ackedSeq },
     });
 
     return {

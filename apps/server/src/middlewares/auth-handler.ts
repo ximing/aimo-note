@@ -19,6 +19,16 @@ export class AuthHandlerMiddleware {
    */
   getMiddleware(): RequestHandler {
     return async (req: AuthenticatedRequest, _res, next) => {
+      // Reject missing X-Request-Id for sync endpoints (idempotency requirement)
+      if (
+        req.requestId === undefined &&
+        req.path.startsWith('/api/v1/sync')
+      ) {
+        const error = new Error('X-Request-Id header is required for sync endpoints');
+        (error as any).httpCode = 400;
+        throw error;
+      }
+
       try {
         const token = this.extractToken(req);
 

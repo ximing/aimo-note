@@ -36,13 +36,7 @@ export class BlobUploader {
 
     try {
       const response = await this.serverAdapter.hasBlobs({ vaultId, blobHashes });
-      const existingHashes = new Set<string>();
-
-      for (const result of response.results) {
-        if (result.exists) {
-          existingHashes.add(result.blobHash);
-        }
-      }
+      const existingHashes = new Set<string>(response.existing);
 
       return existingHashes;
     } catch (error) {

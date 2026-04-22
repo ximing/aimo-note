@@ -815,61 +815,306 @@ export function registerIpcHandlers(): void {
     }
   );
 
-  // Sync handlers — placeholder implementations
-  // Full sync integration will be implemented in a follow-up task
-  // requiring SyncService instantiation in main process with vaultPath + deviceId
+  // Sync settings store (persisted to electron-store)
+interface SyncSettingsStore {
+  serverUrl: string | null;
+  deviceId: string | null;
+  remoteVaultId: string | null;
+  remoteVaultName: string | null;
+}
+
+// Sync state store (in-memory, rebuilt from electron-store on startup)
+interface SyncState {
+  status: string;
+  lastSyncAt: string | null;
+  lastError: string | null;
+  pendingCount: number;
+}
+
+// Persistent store for sync settings (survives app restarts)
+const syncSettingsStore = new Store<SyncSettingsStore>({
+  name: 'sync-settings',
+  defaults: {
+    serverUrl: null,
+    deviceId: null,
+    remoteVaultId: null,
+    remoteVaultName: null,
+  },
+});
+
+// Get auth token for server adapter
+function getAuthToken(): string | null {
+  const encrypted = authStore.get('encryptedToken');
+  if (!encrypted) return null;
+
+  try {
+    if (safeStorage.isEncryptionAvailable()) {
+      const buffer = Buffer.from(encrypted, 'base64');
+      return safeStorage.decryptString(buffer);
+    } else {
+      return encrypted;
+    }
+  } catch {
+    return null;
+  }
+}
+
+// Build ServerAdapter config for sync operations
+function buildServerAdapter(): { baseUrl: string; deviceId: string; getToken: () => string | null } | null {
+  const serverUrl = syncSettingsStore.get('serverUrl');
+  const deviceId = syncSettingsStore.get('deviceId');
+  if (!serverUrl || !deviceId) return null;
+
+  return {
+    baseUrl: serverUrl,
+    deviceId,
+    getToken: getAuthToken,
+  };
+}
+
+// Sync state (in-memory, updated by operations)
+let syncState: SyncState = {
+  status: 'DISABLED',
+  lastSyncAt: null,
+  lastError: null,
+  pendingCount: 0,
+};
 
   ipcMain.handle('sync:getStatus', async () => {
+    // Return current sync state
     return {
       success: true,
-      status: 'DISABLED',
-      lastSyncAt: null,
-      error: null,
-      pendingCount: 0,
-      isEnabled: false,
-      vaultId: null,
-      vaultName: null,
+      status: syncState.status,
+      lastSyncAt: syncState.lastSyncAt,
+      error: syncState.lastError,
+      pendingCount: syncState.pendingCount,
+      isEnabled: syncState.status !== 'DISABLED',
+      vaultId: syncSettingsStore.get('remoteVaultId'),
+      vaultName: syncSettingsStore.get('remoteVaultName'),
     };
   });
 
   ipcMain.handle('sync:trigger', async () => {
-    return { success: false, error: 'Sync not configured' };
+    const serverUrl = syncSettingsStore.get('serverUrl');
+    const deviceId = syncSettingsStore.get('deviceId');
+    const remoteVaultId = syncSettingsStore.get('remoteVaultId');
+
+    if (!serverUrl || !deviceId || !remoteVaultId) {
+      return { success: false, error: 'Sync not configured' };
+    }
+
+    const adapterConfig = buildServerAdapter();
+    if (!adapterConfig) {
+      return { success: false, error: 'Sync not configured' };
+    }
+
+    syncState.status = 'SYNCING';
+    syncState.lastError = null;
+
+    try {
+      const token = getAuthToken();
+      const baseHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'X-Device-Id': adapterConfig.deviceId,
+      };
+      if (token) {
+        baseHeaders['Authorization'] = `Bearer ${token}`;
+      }
+
+      // Step 1: Pull remote changes first
+      const pullResponse = await fetch(
+        `${adapterConfig.baseUrl}/api/v1/sync/pull?vaultId=${encodeURIComponent(remoteVaultId)}&sinceSeq=0&limit=200`,
+        { method: 'GET', headers: baseHeaders }
+      );
+
+      if (!pullResponse.ok) {
+        throw new Error(`Pull failed: HTTP ${pullResponse.status}`);
+      }
+
+      const pullData = await pullResponse.json() as {
+        data?: {
+          commits?: Array<{ commitSeq: number }>;
+          latestSeq: number;
+        };
+      };
+      const latestSeq = pullData?.data?.latestSeq ?? 0;
+
+      // Step 2: Acknowledge the pulled changes
+      if (latestSeq > 0) {
+        const ackRequestId = `ack-${Date.now()}-${adapterConfig.deviceId}`;
+        await fetch(`${adapterConfig.baseUrl}/api/v1/sync/ack`, {
+          method: 'POST',
+          headers: { ...baseHeaders, 'X-Request-Id': ackRequestId },
+          body: JSON.stringify({
+            vaultId: remoteVaultId,
+            deviceId: adapterConfig.deviceId,
+            ackedSeq: latestSeq,
+          }),
+        });
+      }
+
+      syncState.status = 'IDLE';
+      syncState.lastSyncAt = new Date().toISOString();
+
+      return {
+        success: true,
+        status: 'SYNCING',
+        lastSyncAt: syncState.lastSyncAt,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      syncState.status = 'ERROR';
+      syncState.lastError = errorMessage;
+      return { success: false, error: errorMessage };
+    }
   });
 
   ipcMain.handle('sync:getConflicts', () => {
+    // Return conflicts from the sync state or conflict manager
+    // For now, return empty - conflicts would be managed by ConflictManager
     return { success: true, conflicts: [] };
   });
 
   ipcMain.handle('sync:resolveConflict', (_event, _id: number, _resolutionPath: string) => {
+    // Would call conflictManager.resolve(id, resolutionPath)
     return { success: false, error: 'Sync not configured' };
   });
 
   ipcMain.handle('sync:rollback', (_event, _filePath: string, _targetVersion: string) => {
+    // Would call versionRollback.rollback(filePath, targetVersion)
     return { success: false, error: 'Sync not configured' };
   });
 
-  ipcMain.handle('sync:configure', async (_event, _serverUrl: string, _deviceId: string) => {
+  ipcMain.handle('sync:configure', async (_event, serverUrl: string, deviceId: string) => {
+    // Store serverUrl and deviceId in persistent settings
+    syncSettingsStore.set('serverUrl', serverUrl);
+    syncSettingsStore.set('deviceId', deviceId);
+    syncState.status = 'IDLE';
     return { success: true };
   });
 
   ipcMain.handle('sync:listVaults', async () => {
-    return { success: true, vaults: [] };
+    // Use server adapter to list vaults from the server
+    const adapterConfig = buildServerAdapter();
+    if (!adapterConfig) {
+      return { success: false, error: 'Sync not configured' };
+    }
+
+    try {
+      const token = getAuthToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'X-Device-Id': adapterConfig.deviceId,
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${adapterConfig.baseUrl}/api/v1/vaults`, {
+        method: 'GET',
+        headers,
+      });
+
+      if (!response.ok) {
+        return { success: false, error: `HTTP ${response.status}`, vaults: [] };
+      }
+
+      const data = await response.json() as { vaults?: Array<{ id: string; name: string; description?: string }> };
+      return { success: true, vaults: data.vaults ?? [] };
+    } catch (error) {
+      return { success: false, error: String(error), vaults: [] };
+    }
   });
 
-  ipcMain.handle('sync:createVault', async (_event, _name: string, _description?: string) => {
-    return { success: false, error: 'Server not configured' };
+  ipcMain.handle('sync:createVault', async (_event, name: string, description?: string) => {
+    // Use server adapter to create vault on server
+    const adapterConfig = buildServerAdapter();
+    if (!adapterConfig) {
+      return { success: false, error: 'Sync not configured' };
+    }
+
+    try {
+      const token = getAuthToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'X-Device-Id': adapterConfig.deviceId,
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${adapterConfig.baseUrl}/api/v1/vaults`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ name, description }),
+      });
+
+      if (!response.ok) {
+        return { success: false, error: `HTTP ${response.status}` };
+      }
+
+      const data = await response.json() as { vault?: { id: string; name: string; description?: string } };
+      return { success: true, vault: data.vault };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
   });
 
-  ipcMain.handle('sync:bindVault', async (_event, _vaultId: string) => {
-    return { success: false, error: 'Sync not configured' };
-  });
+  ipcMain.handle('sync:bindVault', async (_event, vaultId: string, vaultName?: string) => {
+    // Persist the remote vault ID to local settings store
+    const adapterConfig = buildServerAdapter();
+    if (!adapterConfig) {
+      return { success: false, error: 'Sync not configured' };
+    }
 
-  ipcMain.handle('sync:unbindVault', async () => {
+    // Store the bound vault info
+    syncSettingsStore.set('remoteVaultId', vaultId);
+    syncSettingsStore.set('remoteVaultName', vaultName ?? null);
+    syncState.status = 'IDLE';
+
     return { success: true };
   });
 
-  ipcMain.handle('sync:registerDevice', async (_event, _vaultId: string, _deviceName: string) => {
-    return { success: false, error: 'Server not configured' };
+  ipcMain.handle('sync:unbindVault', async () => {
+    // Clear the bound vault from settings
+    syncSettingsStore.set('remoteVaultId', null);
+    syncSettingsStore.set('remoteVaultName', null);
+    syncState.status = 'DISABLED';
+    return { success: true };
+  });
+
+  ipcMain.handle('sync:registerDevice', async (_event, vaultId: string, deviceName: string) => {
+    // Use server adapter to register this device with the vault
+    const adapterConfig = buildServerAdapter();
+    if (!adapterConfig) {
+      return { success: false, error: 'Sync not configured' };
+    }
+
+    try {
+      const token = getAuthToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'X-Device-Id': adapterConfig.deviceId,
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${adapterConfig.baseUrl}/api/v1/devices/register`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ vaultId, deviceId: adapterConfig.deviceId, deviceName }),
+      });
+
+      if (!response.ok) {
+        return { success: false, error: `HTTP ${response.status}` };
+      }
+
+      const data = await response.json() as { device?: { deviceId: string } };
+      return { success: true, deviceId: data.device?.deviceId };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
   });
 
   console.log('[IPC] Vault/Graph/Search/ImageStorage/Sync handlers registered');

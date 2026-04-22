@@ -26,6 +26,7 @@ export class DeviceAccessDeniedError extends Error {
 export interface RegisterDeviceParams {
   vaultId: string;
   userId: string;
+  deviceId?: string;
   name?: string;
   platform?: string;
   clientVersion?: string;
@@ -39,10 +40,10 @@ export class DeviceService {
    * Register a new device with lastSeenAt refresh
    */
   async registerDevice(params: RegisterDeviceParams): Promise<Device> {
-    const { vaultId, userId, name, platform, clientVersion } = params;
+    const { vaultId, userId, deviceId: clientDeviceId, name, platform, clientVersion } = params;
     const db = getDb();
     const now = new Date();
-    const deviceId = generateId();
+    const deviceId = clientDeviceId ?? generateId();
 
     // Assert vault ownership to ensure user has access
     await this.vaultService.assertVaultOwnership(userId, vaultId);

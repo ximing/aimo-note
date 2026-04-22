@@ -124,7 +124,7 @@ export class BlobService {
     blobHash: string,
     sizeBytes: number,
     mimeType: string
-  ): Promise<{ uploadUrl: string; storageKey: string }> {
+  ): Promise<{ uploadUrl: string; storageKey: string; blobHash: string; expiresIn: number; headers: Record<string, string> }> {
     // Assert vault ownership
     await this.vaultService.assertVaultOwnership(userId, vaultId);
 
@@ -185,7 +185,13 @@ export class BlobService {
 
     logger.debug('Presigned upload URL generated', { vaultId, blobHash, sizeBytes });
 
-    return { uploadUrl, storageKey };
+    return {
+      uploadUrl,
+      storageKey,
+      blobHash,
+      expiresIn: config.syncS3.presignedUrlExpirySeconds,
+      headers: { 'Content-Type': mimeType },
+    };
   }
 
   /**

@@ -28,8 +28,11 @@ export interface BlobUploadUrlBody {
 }
 
 export interface BlobUploadUrlResponse {
-  uploadUrl: string;
+  blobHash: string;
   storageKey: string;
+  uploadUrl: string;
+  headers?: Record<string, string>;
+  expiresIn: number;
 }
 
 export interface BlobDownloadUrlBody {
@@ -63,6 +66,7 @@ export interface SyncCommitBody {
   deviceId: string;
   requestId: string;
   baseSeq: number | null;
+  summary?: string;
   changes: SyncChangeInput[];
 }
 
@@ -167,6 +171,16 @@ export class SyncController {
       );
     }
 
+    // Validate X-Device-Id header is present
+    if (!req.deviceId) {
+      return ResponseUtil.error(
+        res,
+        ErrorCodes.VALIDATION_ERROR,
+        'X-Device-Id header is required for sync endpoints',
+        400
+      );
+    }
+
     const { vaultId, blobHashes } = body;
 
     // Validate input
@@ -200,12 +214,17 @@ export class SyncController {
     try {
       const existsMap = await this.blobService.hasBlobs(req.user.id, vaultId, blobHashes);
 
-      const results: Array<{ blobHash: string; exists: boolean }> = [];
+      const existing: string[] = [];
+      const missing: string[] = [];
       existsMap.forEach((exists, blobHash) => {
-        results.push({ blobHash, exists });
+        if (exists) {
+          existing.push(blobHash);
+        } else {
+          missing.push(blobHash);
+        }
       });
 
-      return ResponseUtil.success(res, { results });
+      return ResponseUtil.success(res, { existing, missing });
     } catch (error: any) {
       if (error.code === ErrorCodes.ACCESS_DENIED) {
         return ResponseUtil.error(res, error.code, error.message, 403);
@@ -243,6 +262,16 @@ export class SyncController {
         ErrorCodes.AUTH_TOKEN_MISSING,
         'Not authenticated',
         401
+      );
+    }
+
+    // Validate X-Device-Id header is present
+    if (!req.deviceId) {
+      return ResponseUtil.error(
+        res,
+        ErrorCodes.VALIDATION_ERROR,
+        'X-Device-Id header is required for sync endpoints',
+        400
       );
     }
 
@@ -286,7 +315,7 @@ export class SyncController {
     }
 
     try {
-      const { uploadUrl, storageKey } = await this.blobService.createBlobUploadUrl(
+      const result = await this.blobService.createBlobUploadUrl(
         req.user.id,
         vaultId,
         blobHash,
@@ -294,7 +323,13 @@ export class SyncController {
         mimeType
       );
 
-      return ResponseUtil.success(res, { uploadUrl, storageKey });
+      return ResponseUtil.success(res, {
+        blobHash: result.blobHash,
+        storageKey: result.storageKey,
+        uploadUrl: result.uploadUrl,
+        headers: result.headers,
+        expiresIn: result.expiresIn,
+      });
     } catch (error: any) {
       if (error.code === ErrorCodes.ACCESS_DENIED) {
         return ResponseUtil.error(res, error.code, error.message, 403);
@@ -333,6 +368,16 @@ export class SyncController {
         ErrorCodes.AUTH_TOKEN_MISSING,
         'Not authenticated',
         401
+      );
+    }
+
+    // Validate X-Device-Id header is present
+    if (!req.deviceId) {
+      return ResponseUtil.error(
+        res,
+        ErrorCodes.VALIDATION_ERROR,
+        'X-Device-Id header is required for sync endpoints',
+        400
       );
     }
 
@@ -411,7 +456,17 @@ export class SyncController {
       );
     }
 
-    const { vaultId, deviceId, requestId, baseSeq, changes } = body;
+    // Validate X-Device-Id header is present
+    if (!req.deviceId) {
+      return ResponseUtil.error(
+        res,
+        ErrorCodes.VALIDATION_ERROR,
+        'X-Device-Id header is required for sync endpoints',
+        400
+      );
+    }
+
+    const { vaultId, deviceId, requestId, baseSeq, summary, changes } = body;
 
     // Validate input
     if (!vaultId || typeof vaultId !== 'string') {
@@ -424,6 +479,16 @@ export class SyncController {
 
     if (!requestId || typeof requestId !== 'string') {
       return ResponseUtil.error(res, ErrorCodes.VALIDATION_ERROR, 'requestId is required', 400);
+    }
+
+    // Validate header/body consistency for deviceId
+    if (req.deviceId !== deviceId) {
+      return ResponseUtil.error(res, ErrorCodes.VALIDATION_ERROR, 'deviceId in body must match X-Device-Id header', 400);
+    }
+
+    // Validate header/body consistency for requestId
+    if (req.requestId !== requestId) {
+      return ResponseUtil.error(res, ErrorCodes.VALIDATION_ERROR, 'requestId in body must match X-Request-Id header', 400);
     }
 
     if (baseSeq !== null && typeof baseSeq !== 'number') {
@@ -460,10 +525,12 @@ export class SyncController {
         deviceId,
         requestId,
         baseSeq,
+        summary,
         changes,
       });
 
       return ResponseUtil.success(res, {
+        accepted: true,
         commitSeq: result.commitSeq,
         appliedChanges: result.appliedChanges,
       });
@@ -548,11 +615,22 @@ export class SyncController {
       );
     }
 
+    // Validate X-Device-Id header is present
+    if (!req.deviceId) {
+      return ResponseUtil.error(
+        res,
+        ErrorCodes.VALIDATION_ERROR,
+        'X-Device-Id header is required for pull endpoint',
+        400
+      );
+    }
+
     try {
       const result = await this.syncPullService.pull(req.user.id, {
         vaultId,
         sinceSeq,
         limit,
+        requestId: req.requestId,
       });
 
       return ResponseUtil.success(res, {
@@ -617,6 +695,16 @@ export class SyncController {
       );
     }
 
+    // Validate X-Device-Id header is present
+    if (!req.deviceId) {
+      return ResponseUtil.error(
+        res,
+        ErrorCodes.VALIDATION_ERROR,
+        'X-Device-Id header is required for sync endpoints',
+        400
+      );
+    }
+
     const { vaultId, deviceId, ackedSeq } = body;
 
     // Validate vaultId
@@ -639,6 +727,16 @@ export class SyncController {
       );
     }
 
+    // Validate header/body consistency for deviceId
+    if (req.deviceId !== deviceId) {
+      return ResponseUtil.error(
+        res,
+        ErrorCodes.VALIDATION_ERROR,
+        'deviceId in body must match X-Device-Id header',
+        400
+      );
+    }
+
     // Validate ackedSeq
     if (typeof ackedSeq !== 'number' || ackedSeq < 0) {
       return ResponseUtil.error(
@@ -654,6 +752,7 @@ export class SyncController {
         vaultId,
         deviceId,
         ackedSeq,
+        requestId: req.requestId,
       });
 
       return ResponseUtil.success(res, {

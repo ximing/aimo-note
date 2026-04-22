@@ -2,6 +2,7 @@ import { Controller, Post, Get, Body, Req, Res } from 'routing-controllers';
 import { OpenAPI } from 'routing-controllers-openapi';
 import type { Response } from 'express';
 import { VaultService } from '../../services/vault.service.js';
+import { AuditService } from '../../services/audit.service.js';
 import { ResponseUtil } from '../../utils/response.js';
 import { ErrorCodes } from '../../constants/error-codes.js';
 import type { AuthenticatedRequest } from '../../types/express.js';
@@ -15,7 +16,10 @@ export interface CreateVaultBody {
 @Service()
 @Controller('/api/v1/vaults')
 export class VaultController {
-  constructor(private readonly vaultService: VaultService) {}
+  constructor(
+    private readonly vaultService: VaultService,
+    private readonly auditService: AuditService
+  ) {}
 
   /**
    * POST /api/v1/vaults
@@ -54,6 +58,7 @@ export class VaultController {
 
     try {
       const vault = await this.vaultService.createVault(req.user.id, name.trim(), description);
+      await this.auditService.logVaultCreate(req.user.id, vault.id);
       return ResponseUtil.created(res, { vault });
     } catch (error: any) {
       if (error.code === ErrorCodes.ACCESS_DENIED) {

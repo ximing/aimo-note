@@ -3,6 +3,7 @@ import { OpenAPI } from 'routing-controllers-openapi';
 import type { Response } from 'express';
 import { DeviceService } from '../../services/device.service.js';
 import { VaultService } from '../../services/vault.service.js';
+import { AuditService } from '../../services/audit.service.js';
 import { ResponseUtil } from '../../utils/response.js';
 import { ErrorCodes } from '../../constants/error-codes.js';
 import type { AuthenticatedRequest } from '../../types/express.js';
@@ -10,6 +11,7 @@ import { Service } from 'typedi';
 
 export interface RegisterDeviceBody {
   vaultId: string;
+  deviceId?: string;
   name?: string;
   platform?: string;
   clientVersion?: string;
@@ -29,6 +31,7 @@ export class DeviceController {
   constructor(
     private readonly deviceService: DeviceService,
     private readonly vaultService: VaultService,
+    private readonly auditService: AuditService
   ) {}
 
   /**
@@ -56,7 +59,7 @@ export class DeviceController {
       );
     }
 
-    const { vaultId, name, platform, clientVersion } = body;
+    const { vaultId, deviceId, name, platform, clientVersion } = body;
 
     if (!vaultId || typeof vaultId !== 'string') {
       return ResponseUtil.error(
@@ -71,10 +74,12 @@ export class DeviceController {
       const device = await this.deviceService.registerDevice({
         vaultId,
         userId: req.user.id,
+        deviceId,
         name,
         platform,
         clientVersion,
       });
+      await this.auditService.logDeviceRegister(req.user.id, device.id);
       return ResponseUtil.created(res, { device });
     } catch (error: any) {
       if (error.code === ErrorCodes.ACCESS_DENIED) {

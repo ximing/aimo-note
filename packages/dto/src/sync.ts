@@ -183,7 +183,8 @@ export interface HasBlobsRequest {
 }
 
 export interface HasBlobsResponse {
-  results: Array<{ blobHash: string; exists: boolean }>;
+  existing: string[];
+  missing: string[];
 }
 
 export interface CreateBlobUploadUrlRequest {
