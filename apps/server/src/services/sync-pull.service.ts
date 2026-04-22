@@ -24,6 +24,7 @@ export interface PullResult {
   commits: Array<{
     seq: number;
     id: string;
+    userId: string;
     deviceId: string;
     requestId: string;
     baseSeq: number | null;
@@ -56,6 +57,7 @@ export interface PullParams {
   sinceSeq: number;
   limit?: number;
   requestId?: string;
+  deviceId?: string;
 }
 
 /**
@@ -109,6 +111,7 @@ export class SyncPullService {
       .select({
         seq: syncCommits.seq,
         id: syncCommits.id,
+        userId: syncCommits.userId,
         deviceId: syncCommits.deviceId,
         requestId: syncCommits.requestId,
         baseSeq: syncCommits.baseSeq,
@@ -214,7 +217,7 @@ export class SyncPullService {
     });
 
     // Audit logging for pull
-    await this.auditService.logSyncPull(userId, vaultId, params.requestId ?? '', '', {
+    await this.auditService.logSyncPull(userId, vaultId, params.requestId ?? '', params.deviceId ?? '', {
       status: 'success',
       detail: { commitCount: commits.length, latestSeq },
     });
@@ -223,6 +226,7 @@ export class SyncPullService {
       commits: commits.map((c) => ({
         seq: Number(c.seq),
         id: c.id,
+        userId: c.userId,
         deviceId: c.deviceId,
         requestId: c.requestId,
         baseSeq: c.baseSeq != null ? Number(c.baseSeq) : null,

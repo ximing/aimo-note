@@ -138,7 +138,7 @@ export class CursorService {
     await this.vaultService.assertVaultOwnership(userId, vaultId);
 
     // Assert device ownership
-    await this.deviceService.assertDeviceOwnership(userId, deviceId);
+    await this.deviceService.assertDeviceOwnership(userId, vaultId, deviceId);
 
     // Check if device is revoked
     const device = await this.deviceService.findById(deviceId);

@@ -212,7 +212,7 @@ export class SyncController {
     }
 
     try {
-      const existsMap = await this.blobService.hasBlobs(req.user.id, vaultId, blobHashes);
+      const existsMap = await this.blobService.hasBlobs(req.user.id, vaultId, req.deviceId!, blobHashes);
 
       const existing: string[] = [];
       const missing: string[] = [];
@@ -318,6 +318,7 @@ export class SyncController {
       const result = await this.blobService.createBlobUploadUrl(
         req.user.id,
         vaultId,
+        req.deviceId!,
         blobHash,
         sizeBytes,
         mimeType
@@ -406,6 +407,7 @@ export class SyncController {
       const { downloadUrl, metadata } = await this.blobService.createBlobDownloadUrl(
         req.user.id,
         vaultId,
+        req.deviceId!,
         blobHash
       );
 
@@ -531,6 +533,7 @@ export class SyncController {
 
       return ResponseUtil.success(res, {
         accepted: true,
+        commitId: result.commitId,
         commitSeq: result.commitSeq,
         appliedChanges: result.appliedChanges,
       });
@@ -551,8 +554,12 @@ export class SyncController {
         return ResponseUtil.error(res, error.code, error.message, 400);
       }
       if (error.code === ErrorCodes.RESOURCE_ALREADY_EXISTS) {
-        // Duplicate requestId - idempotent success
-        return ResponseUtil.error(res, error.code, error.message, 409);
+        // Duplicate requestId - idempotent success, return existing commit result
+        return ResponseUtil.success(res, {
+          accepted: true,
+          commitSeq: error.existingCommitSeq,
+          appliedChanges: error.appliedChanges ?? 0,
+        });
       }
       throw error;
     }
@@ -631,12 +638,15 @@ export class SyncController {
         sinceSeq,
         limit,
         requestId: req.requestId,
+        deviceId: req.deviceId ?? undefined,
       });
 
       return ResponseUtil.success(res, {
+        vaultId,
         commits: result.commits.map((c) => ({
           seq: c.seq,
           id: c.id,
+          userId: c.userId,
           deviceId: c.deviceId,
           requestId: c.requestId,
           baseSeq: c.baseSeq,

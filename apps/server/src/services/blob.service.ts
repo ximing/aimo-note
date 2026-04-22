@@ -9,6 +9,7 @@ import { generateId } from '../utils/id.js';
 import { logger } from '../utils/logger.js';
 import { ErrorCodes } from '../constants/error-codes.js';
 import { VaultService } from './vault.service.js';
+import { DeviceService } from './device.service.js';
 
 // Maximum file size: 100MB
 const MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024;
@@ -58,7 +59,10 @@ function generateStorageKey(userId: string, vaultId: string, blobHash: string): 
 export class BlobService {
   private s3Client: S3Client | null = null;
 
-  constructor(private readonly vaultService: VaultService) {}
+  constructor(
+    private readonly vaultService: VaultService,
+    private readonly deviceService: DeviceService
+  ) {}
 
   /**
    * Get or create S3 client lazily
@@ -86,10 +90,12 @@ export class BlobService {
   async hasBlobs(
     userId: string,
     vaultId: string,
+    deviceId: string,
     blobHashes: string[]
   ): Promise<Map<string, boolean>> {
-    // Assert vault ownership first
+    // Assert vault ownership and device-vault binding
     await this.vaultService.assertVaultOwnership(userId, vaultId);
+    await this.deviceService.assertDeviceOwnership(userId, vaultId, deviceId);
 
     const db = getDb();
     const result = await db
@@ -116,17 +122,19 @@ export class BlobService {
 
   /**
    * Generate a presigned URL for uploading a blob
-   * Records blob metadata with refCount = 1 if not already exists
+   * Records blob metadata with refCount = 0 if not already exists (refCount driven by commit transaction)
    */
   async createBlobUploadUrl(
     userId: string,
     vaultId: string,
+    deviceId: string,
     blobHash: string,
     sizeBytes: number,
     mimeType: string
   ): Promise<{ uploadUrl: string; storageKey: string; blobHash: string; expiresIn: number; headers: Record<string, string> }> {
-    // Assert vault ownership
+    // Assert vault ownership and device-vault binding
     await this.vaultService.assertVaultOwnership(userId, vaultId);
+    await this.deviceService.assertDeviceOwnership(userId, vaultId, deviceId);
 
     const config = getConfig();
     const storageKey = generateStorageKey(userId, vaultId, blobHash);
@@ -155,7 +163,7 @@ export class BlobService {
         storageKey,
         sizeBytes,
         mimeType: mimeType ?? null,
-        refCount: 1,
+        refCount: 0,
         createdByUserId: userId,
         createdAt: now,
       };
@@ -200,10 +208,12 @@ export class BlobService {
   async createBlobDownloadUrl(
     userId: string,
     vaultId: string,
+    deviceId: string,
     blobHash: string
   ): Promise<{ downloadUrl: string; metadata: BlobMetadata }> {
-    // Assert vault ownership
+    // Assert vault ownership and device-vault binding
     await this.vaultService.assertVaultOwnership(userId, vaultId);
+    await this.deviceService.assertDeviceOwnership(userId, vaultId, deviceId);
 
     const db = getDb();
 

@@ -56,8 +56,9 @@ export class SyncConflictError extends Error {
   constructor(
     public readonly conflicts: Array<{
       filePath: string;
-      baseRevision: string;
-      headRevision: string;
+      expectedBaseRevision: string;
+      actualHeadRevision: string;
+      remoteBlobHash: string | null;
       winningCommitSeq: number;
     }>
   ) {
@@ -71,9 +72,13 @@ export class SyncConflictError extends Error {
  */
 export class DuplicateRequestIdError extends Error {
   code = ErrorCodes.RESOURCE_ALREADY_EXISTS;
-  constructor(vaultId: string, requestId: string) {
+  existingCommitSeq: number;
+  appliedChanges: number;
+  constructor(vaultId: string, requestId: string, existingCommitSeq: number, appliedChanges: number) {
     super(`Duplicate requestId: ${requestId} for vault ${vaultId}`);
     this.name = 'DuplicateRequestIdError';
+    this.existingCommitSeq = existingCommitSeq;
+    this.appliedChanges = appliedChanges;
   }
 }
 
@@ -102,6 +107,7 @@ export interface SyncCommitRequest {
  */
 export interface SyncCommitResult {
   commitSeq: number;
+  commitId: string;
   appliedChanges: number;
 }
 
@@ -155,7 +161,7 @@ export class SyncCommitService {
     await this.vaultService.assertVaultOwnership(userId, vaultId);
 
     // Step 2: Validate device ownership
-    await this.deviceService.assertDeviceOwnership(userId, deviceId);
+    await this.deviceService.assertDeviceOwnership(userId, vaultId, deviceId);
 
     // Step 3: Check for duplicate requestId (idempotency) - moved inside transaction
     // Step 4: Validate file paths
@@ -183,7 +189,14 @@ export class SyncCommitService {
         .forUpdate();
 
       if (existing.length > 0) {
-        throw new DuplicateRequestIdError(vaultId, requestId);
+        // Throw with existing commit data for idempotent success response
+        const existingCommit = existing[0];
+        throw new DuplicateRequestIdError(
+          vaultId,
+          requestId,
+          Number(existingCommit.seq),
+          Number(existingCommit.changeCount)
+        );
       }
 
       // Step 7: Check baseRevision against sync_file_heads for each change (sorted)
@@ -227,7 +240,7 @@ export class SyncCommitService {
       // Step 12: Update blobs.refCount (decrement old blobs, increment new blobs)
       await this.updateBlobRefCounts(tx, vaultId, changes, oldBlobHashes);
 
-      return { commitSeq, appliedChanges: changes.length };
+      return { commitSeq, commitId, appliedChanges: changes.length };
     });
 
     // Step 14: Audit log for success
@@ -306,14 +319,16 @@ export class SyncCommitService {
     changes: Array<{ filePath: string; baseRevision: string | null }>
   ): Promise<Array<{
     filePath: string;
-    baseRevision: string;
-    headRevision: string;
+    expectedBaseRevision: string;
+    actualHeadRevision: string;
+    remoteBlobHash: string | null;
     winningCommitSeq: number;
   }>> {
     const conflicts: Array<{
       filePath: string;
-      baseRevision: string;
-      headRevision: string;
+      expectedBaseRevision: string;
+      actualHeadRevision: string;
+      remoteBlobHash: string | null;
       winningCommitSeq: number;
     }> = [];
 
@@ -348,8 +363,9 @@ export class SyncCommitService {
         // Conflict detected
         conflicts.push({
           filePath: change.filePath,
-          baseRevision: change.baseRevision,
-          headRevision: head.headRevision,
+          expectedBaseRevision: change.baseRevision,
+          actualHeadRevision: head.headRevision,
+          remoteBlobHash: head.blobHash,
           winningCommitSeq: Number(head.lastCommitSeq),
         });
       }
@@ -367,8 +383,9 @@ export class SyncCommitService {
     vaultId: string,
     conflicts: Array<{
       filePath: string;
-      baseRevision: string;
-      headRevision: string;
+      expectedBaseRevision: string;
+      actualHeadRevision: string;
+      remoteBlobHash: string | null;
       winningCommitSeq: number;
     }>
   ): Promise<void> {
@@ -380,8 +397,8 @@ export class SyncCommitService {
         userId,
         filePath: conflict.filePath,
         losingDeviceId: null,
-        winningRevision: conflict.headRevision,
-        losingRevision: conflict.baseRevision,
+        winningRevision: conflict.actualHeadRevision,
+        losingRevision: conflict.expectedBaseRevision,
         winningCommitSeq: conflict.winningCommitSeq,
         resolvedAt: null,
         createdAt: new Date(),

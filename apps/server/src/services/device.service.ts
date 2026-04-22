@@ -131,16 +131,21 @@ export class DeviceService {
   }
 
   /**
-   * Assert that a user has access to a device
+   * Assert that a user has access to a device and the device belongs to the specified vault
    * Throws DeviceAccessDeniedError if not
    */
-  async assertDeviceOwnership(userId: string, deviceId: string): Promise<void> {
+  async assertDeviceOwnership(userId: string, vaultId: string, deviceId: string): Promise<void> {
     const device = await this.findById(deviceId);
     if (!device) {
       throw new DeviceNotFoundError(deviceId);
     }
 
-    await this.vaultService.assertVaultOwnership(userId, device.vaultId);
+    // Verify device belongs to the specified vault
+    if (device.vaultId !== vaultId) {
+      throw new DeviceAccessDeniedError(userId, deviceId);
+    }
+
+    await this.vaultService.assertVaultOwnership(userId, vaultId);
   }
 
   /**
