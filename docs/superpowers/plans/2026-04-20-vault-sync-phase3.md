@@ -74,6 +74,8 @@
 - UI 展示冲突列表与操作入口
 - 允许用户查看历史 revision 并恢复
 - rollback 后写入本地 queue，沿自动同步链路提交；必要时也可由设置页“立即同步”立即触发
+- 本阶段历史能力验收边界是“服务端 revision 元数据查询 + blob 引用 + 本地无缓存时通过 `blob-download-url` 完成 rollback”
+- `packages/core/src/sync/history.ts` 在本阶段可先作为薄封装、IPC 代理或后续缓存扩展点，不要求先实现独立本地 history cache
 
 ---
 
@@ -117,6 +119,7 @@ Phase 3 只有在以下条件全部满足时才可视为完成：
 - 客户端会生成 conflict copy，且不丢本地修改
 - renderer 无需进入设置页即可看到冲突
 - 用户无需进入设置页即可查看历史 revision 并执行 rollback
+- 历史能力验收以“revision 元数据查询 + blob 引用 + 本地无缓存时通过 `blob-download-url` 完成 rollback”闭环为准，不以独立本地 history cache 实现为前提
 - 同步关闭时，rollback / resolve 只更新本地状态与 queue，不会偷偷绕过 `DISABLED` 语义发起远端请求
 - 用户可通过同一套 canonical conflict contract 查询、标记 resolved，并让服务端摘要态保持幂等收敛
 - rollback 通过普通同步链路传播到其他设备
@@ -201,13 +204,14 @@ Phase 3 只有在以下条件全部满足时才可视为完成：
 
 本阶段新增冲突与回溯能力时，必须继续遵守 Phase 1 / Phase 2 已经固定下来的基础约束，避免局部闭环破坏主同步模型：
 
-- `logout` 或用户手动关闭同步后，状态仍回到 `DISABLED`，但本地 conflict record、history cache、pending queue 不得被清空
+- `logout` 或用户手动关闭同步后，状态仍回到 `DISABLED`，但本地 conflict record、pending queue 与 history 相关本地状态（若实现了缓存）不得被清空
 - rollback / resolve 在 `DISABLED` 或 `OFFLINE` 状态下可以完成本地动作，但不得偷偷绕过开关直接发起网络同步
 - 本地 conflict copy、解决意图与辅助诊断信息只代表当前设备视角，不能替代服务端冲突摘要作为跨设备同步语义的唯一真相源
 - 所有冲突、历史、rollback 相关运行态仍必须按 `vaultId` 隔离，不能与其他 vault 串扰
 - rollback 最终必须回到与普通本地编辑一致的 pending queue + 自动同步主链路，而不是形成单独的“恢复专用上传流程”
 - conflict / rollback 相关运行态字段必须继续复用 Phase 2 已冻结的 `trigger`、`retryCount`、`offlineStartedAt`、`recoveredAt`、`nextRetryAt`、`requestId`、`deviceId` contract，避免为 Phase 4 diagnostics 再做字段迁移
 - rollback 只是对既有 `trigger` 枚举的扩展来源，不新增第二套“来源字段”；客户端本地状态、服务端审计写路径与 diagnostics 聚合都以 `trigger` 为唯一来源字段
+- snapshot restore、diagnostics 聚合面板与 tombstone cleanup 调度仍属于 Phase 4；Phase 3 仅保持与这些后续能力的边界兼容，不提前落地实现
 
 ### Task 27: 客户端 History + Rollback
 
@@ -220,6 +224,8 @@ Phase 3 只有在以下条件全部满足时才可视为完成：
 - [ ] 拉取服务端历史 revision 列表
 - [ ] 获取旧 revision 的 blob 引用
 - [ ] 本地无缓存时通过 `blob-download-url` 下载 blob 内容
+- [ ] `packages/core/src/sync/history.ts` 在本阶段可作为薄封装、IPC 代理或后续缓存扩展点
+- [ ] 是否实现独立本地 history cache 不作为本阶段验收前提
 - [ ] 写回本地文件并生成新的 pending change
 - [ ] 对下载 URL 过期、下载失败、目标 revision 不可见等异常提供稳定反馈与重试入口
 - [ ] rollback 结果进入 pending queue 后由后台自动同步，必要时可被“立即同步”按钮显式触发

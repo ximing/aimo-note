@@ -5,6 +5,7 @@ import {
   createExpressServer,
 } from 'routing-controllers';
 import { Container } from 'typedi';
+import { logger } from './utils/logger.js';
 import { getConfig } from './config/config.js';
 import { loadEnv } from './config/env.js';
 import { testConnection } from './db/connection.js';
@@ -13,8 +14,10 @@ import { UserController } from './controllers/v1/user.controller.js';
 import { VaultController } from './controllers/v1/vault.controller.js';
 import { DeviceController } from './controllers/v1/device.controller.js';
 import { SyncController } from './controllers/v1/sync.controller.js';
+import { SnapshotController } from './controllers/v1/snapshot.controller.js';
 import { AuthHandlerMiddleware } from './middlewares/auth-handler.js';
 import { RequestContextMiddleware } from './middlewares/request-context.js';
+import { SchedulerService } from './services/scheduler.service.js';
 
 export async function bootstrap(container: Container): Promise<Express> {
   // Load environment and validate
@@ -30,11 +33,30 @@ export async function bootstrap(container: Container): Promise<Express> {
     throw new Error(`Database connection failed: ${dbHealth.error}`);
   }
 
+  // Initialize SchedulerService (non-blocking - log errors but don't crash server)
+  try {
+    const schedulerService = Container.get(SchedulerService);
+    logger.info('SchedulerService initialized', {
+      tasks: schedulerService.getTaskStatuses().map((t: { taskName: string }) => t.taskName),
+    });
+
+    // Run cleanup tasks every hour
+    setInterval(() => {
+      schedulerService.runAllCleanupTasks().catch(err => {
+        logger.error('Scheduled cleanup failed', { error: err instanceof Error ? err.message : String(err) });
+      });
+    }, 60 * 60 * 1000);
+  } catch (err) {
+    logger.error('SchedulerService initialization failed - background tasks will not run', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
   // Set up TypeDI container for routing-controllers
   useContainer(container as unknown as Parameters<typeof useContainer>[0]);
 
   const options: RoutingControllersOptions = {
-    controllers: [AuthController, UserController, VaultController, DeviceController, SyncController], // Controllers will be registered here
+    controllers: [AuthController, UserController, VaultController, DeviceController, SyncController, SnapshotController], // Controllers will be registered here
     middlewares: [AuthHandlerMiddleware, RequestContextMiddleware],
     defaultErrorHandler: true,
     validation: false, // Enable when zod-validation-interceptor is ready

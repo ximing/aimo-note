@@ -14,6 +14,9 @@ export const AuditActions = {
   SYNC_COMMIT: 'sync.commit',
   SYNC_PULL: 'sync.pull',
   SYNC_ACK: 'sync.ack',
+  SYNC_CONFLICT: 'sync.conflict',
+  SNAPSHOT_CREATE: 'snapshot.create',
+  SNAPSHOT_RESTORE: 'snapshot.restore',
 } as const;
 
 export type AuditAction = (typeof AuditActions)[keyof typeof AuditActions];
@@ -156,6 +159,63 @@ export class AuditService {
     context: Omit<AuditContext, 'userId' | 'vaultId' | 'deviceId' | 'requestId'> = {}
   ): Promise<void> {
     await this.log(AuditActions.SYNC_ACK, {
+      ...context,
+      userId,
+      vaultId,
+      deviceId,
+      requestId,
+    });
+  }
+
+  /**
+   * Log sync conflict event
+   */
+  async logSyncConflict(
+    userId: string,
+    vaultId: string,
+    deviceId: string,
+    requestId: string,
+    context: Omit<AuditContext, 'userId' | 'vaultId' | 'deviceId' | 'requestId'> = {}
+  ): Promise<void> {
+    await this.log(AuditActions.SYNC_CONFLICT, {
+      ...context,
+      userId,
+      vaultId,
+      deviceId,
+      requestId,
+    });
+  }
+
+  /**
+   * Log snapshot creation event
+   */
+  async logSnapshotCreate(
+    userId: string,
+    vaultId: string,
+    deviceId: string,
+    requestId: string,
+    context: Omit<AuditContext, 'userId' | 'vaultId' | 'deviceId' | 'requestId'> = {}
+  ): Promise<void> {
+    await this.log(AuditActions.SNAPSHOT_CREATE, {
+      ...context,
+      userId,
+      vaultId,
+      deviceId,
+      requestId,
+    });
+  }
+
+  /**
+   * Log snapshot restore event
+   */
+  async logSnapshotRestore(
+    userId: string,
+    vaultId: string,
+    deviceId: string,
+    requestId: string,
+    context: Omit<AuditContext, 'userId' | 'vaultId' | 'deviceId' | 'requestId'> = {}
+  ): Promise<void> {
+    await this.log(AuditActions.SNAPSHOT_RESTORE, {
       ...context,
       userId,
       vaultId,

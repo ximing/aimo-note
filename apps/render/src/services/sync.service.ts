@@ -7,7 +7,7 @@
  */
 
 import { Service, resolve } from '@rabjs/react';
-import type { SyncStatus } from '@aimo-note/dto';
+import type { SyncStatus, SnapshotRecord, SnapshotRestoreResult } from '@aimo-note/dto';
 import { auth } from '@/ipc/auth';
 import { sync } from '@/ipc/sync';
 import { VaultService } from './vault.service';
@@ -299,6 +299,233 @@ export class SyncService extends Service {
   configure(serverUrl: string, deviceId: string): void {
     this.serverUrl = serverUrl;
     this.deviceId = deviceId;
+  }
+
+  // =============================================================================
+  // Diagnostics
+  // =============================================================================
+
+  /**
+   * Get sync diagnostics from server
+   * Uses server as single source of truth for cross-device facts
+   */
+  async getDiagnostics(): Promise<{
+    lastTriggerSource: string | null;
+    offlineReason: string | null;
+    nextRetryAt: string | null;
+    lastFailedRequestId: string | null;
+    lastFailedRequestDeviceId: string | null;
+    lastSuccessfulSyncAt: string | null;
+    consecutiveFailures: number;
+  } | null> {
+    try {
+      const result = await sync.getDiagnostics(this.vaultId ?? undefined);
+      if (result.success && result.diagnostics) {
+        return result.diagnostics;
+      }
+    } catch (error) {
+      console.error('[SyncService] Failed to get diagnostics:', error);
+    }
+    return null;
+  }
+
+  /**
+   * Record a sync runtime event
+   */
+  async recordRuntimeEvent(event: {
+    trigger: string;
+    retryCount: number;
+    offlineStartedAt?: string | null;
+    recoveredAt?: string | null;
+    nextRetryAt?: string | null;
+    requestId: string;
+  }): Promise<{ accepted: boolean; deduplicated: boolean }> {
+    if (!this.vaultId || !this.deviceId) {
+      return { accepted: false, deduplicated: false };
+    }
+
+    try {
+      const result = await sync.recordRuntimeEvent({
+        vaultId: this.vaultId,
+        deviceId: this.deviceId,
+        trigger: event.trigger,
+        retryCount: event.retryCount,
+        offlineStartedAt: event.offlineStartedAt,
+        recoveredAt: event.recoveredAt,
+        nextRetryAt: event.nextRetryAt,
+        requestId: event.requestId,
+      });
+
+      if (result.success) {
+        return { accepted: result.accepted, deduplicated: result.deduplicated };
+      }
+    } catch (error) {
+      console.error('[SyncService] Failed to record runtime event:', error);
+    }
+
+    return { accepted: false, deduplicated: false };
+  }
+
+  // =============================================================================
+  // Snapshot Operations
+  // =============================================================================
+
+  /**
+   * Snapshot list options
+   */
+  async listSnapshots(page = 1, pageSize = 20): Promise<{
+    items: SnapshotRecord[];
+    page: number;
+    pageSize: number;
+    total: number;
+    hasMore: boolean;
+  }> {
+    if (!this.vaultId) {
+      return { items: [], page: 1, pageSize: 20, total: 0, hasMore: false };
+    }
+
+    try {
+      const result = await sync.listSnapshots(this.vaultId, page, pageSize);
+      if (result.success) {
+        return {
+          items: result.items,
+          page: result.page,
+          pageSize: result.pageSize,
+          total: result.total,
+          hasMore: result.hasMore,
+        };
+      }
+    } catch (error) {
+      console.error('[SyncService] Failed to list snapshots:', error);
+    }
+    return { items: [], page: 1, pageSize: 20, total: 0, hasMore: false };
+  }
+
+  /**
+   * Create a new snapshot
+   */
+  async createSnapshot(description?: string): Promise<{
+    success: boolean;
+    snapshotId?: string;
+    error?: string;
+  }> {
+    if (!this.vaultId) {
+      return { success: false, error: 'No vault bound' };
+    }
+
+    try {
+      const result = await sync.createSnapshot(this.vaultId, description);
+      if (result.success && result.snapshot) {
+        return { success: true, snapshotId: result.snapshot.id };
+      }
+      return { success: false, error: result.error ?? 'Failed to create snapshot' };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  }
+
+  /**
+   * Get snapshot status by ID
+   */
+  async getSnapshot(snapshotId: string): Promise<{
+    success: boolean;
+    snapshot?: {
+      id: string;
+      vaultId: string;
+      status: string;
+      baseSeq: number;
+      sizeBytes: number | null;
+      createdAt: string;
+      finishedAt: string | null;
+      restoredCommitSeq: number | null;
+      failureReason: string | null;
+      finalCommitSeq: number | null;
+      updatedAt: string;
+    };
+    error?: string;
+  }> {
+    try {
+      const result = await sync.getSnapshot(snapshotId);
+      if (result.success && result.snapshot) {
+        return { success: true, snapshot: result.snapshot };
+      }
+      return { success: false, error: result.error ?? 'Snapshot not found' };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  }
+
+  /**
+   * Restore a snapshot
+   */
+  async restoreSnapshot(snapshotId: string): Promise<{
+    success: boolean;
+    result?: SnapshotRestoreResult;
+    existingTask?: SnapshotRestoreResult;
+    error?: string;
+  }> {
+    if (!this.vaultId) {
+      return { success: false, error: 'No vault bound' };
+    }
+
+    try {
+      const result = await sync.restoreSnapshot(snapshotId, this.vaultId, this.deviceId || undefined);
+      if (result.success) {
+        return { success: true, result: result.result };
+      }
+      // Handle existing task case (409 Conflict)
+      if (result.existingTask) {
+        return { success: true, existingTask: result.existingTask };
+      }
+      return { success: false, error: result.error ?? 'Failed to restore snapshot' };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  }
+
+  /**
+   * Poll restore status until completion
+   */
+  async pollRestoreStatus(
+    snapshotId: string,
+    onPoll?: (status: string, attempt: number) => void,
+    signal?: AbortSignal
+  ): Promise<{
+    success: boolean;
+    status?: string;
+    failureReason?: string | null;
+    error?: string;
+  }> {
+    const maxAttempts = 30;
+    const intervalMs = 2000;
+    let attempts = 0;
+
+    while (attempts < maxAttempts) {
+      if (signal?.aborted) {
+        throw new Error('Restore polling aborted');
+      }
+
+      const result = await this.getSnapshot(snapshotId);
+      if (!result.success || !result.snapshot) {
+        return { success: false, error: result.error ?? 'Failed to get snapshot status' };
+      }
+
+      const status = result.snapshot.status;
+      onPoll?.(status, attempts + 1);
+
+      if (status === 'succeeded' || status === 'failed') {
+        return {
+          success: true,
+          status,
+          failureReason: result.snapshot.failureReason,
+        };
+      }
+
+      await new Promise(resolve => setTimeout(resolve, intervalMs));
+      attempts++;
+    }
+
+    return { success: false, error: 'Restore polling timed out' };
   }
 }
 

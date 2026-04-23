@@ -84,10 +84,11 @@ export class SyncEngine {
       if (this.conflictManager) {
         const record = this.conflictManager.record({
           filePath,
-          localVersion: localEntry?.version ?? '',
-          remoteVersion: remoteEntry.version,
+          expectedBaseRevision: localEntry?.version ?? '',
+          actualHeadRevision: remoteEntry.version,
+          remoteBlobHash: remoteEntry.hash,
+          winningCommitSeq: 0,
           localHash: localEntry?.hash ?? '',
-          remoteHash: remoteEntry.hash,
         });
 
         // Write the remote version to a conflict rename file
@@ -141,10 +142,11 @@ export class SyncEngine {
             // Record the conflict
             const record = this.conflictManager.record({
               filePath,
-              localVersion: localLatest.version,
-              remoteVersion: version,
+              expectedBaseRevision: localLatest.version,
+              actualHeadRevision: version,
+              remoteBlobHash: remoteEntry.hash,
+              winningCommitSeq: 0,
               localHash: localLatest.hash,
-              remoteHash: remoteEntry.hash,
             });
             // Mark as resolved with the conflict filename (use record.id, not a second query)
             this.conflictManager.resolve(record.id, conflictFilename);

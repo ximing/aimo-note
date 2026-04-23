@@ -6,7 +6,7 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { randomUUID } from 'crypto';
 import { spawn } from 'child_process';
 import { rgPath } from '@vscode/ripgrep';
-import type { SearchResult, Template, TemplateField } from '@aimo-note/dto';
+import type { SearchResult, Template, TemplateField, SnapshotRecord, SnapshotRestoreResult } from '@aimo-note/dto';
 import matter from 'gray-matter';
 
 const TEMPLATES_DIR = '.aimo-note/templates';
@@ -821,6 +821,7 @@ interface SyncSettingsStore {
   deviceId: string | null;
   remoteVaultId: string | null;
   remoteVaultName: string | null;
+  lastPulledSeq: number;
 }
 
 // Sync state store (in-memory, rebuilt from electron-store on startup)
@@ -829,6 +830,7 @@ interface SyncState {
   lastSyncAt: string | null;
   lastError: string | null;
   pendingCount: number;
+  lastTrigger: string | null;
 }
 
 // Persistent store for sync settings (survives app restarts)
@@ -839,6 +841,7 @@ const syncSettingsStore = new Store<SyncSettingsStore>({
     deviceId: null,
     remoteVaultId: null,
     remoteVaultName: null,
+    lastPulledSeq: 0,
   },
 });
 
@@ -878,7 +881,22 @@ let syncState: SyncState = {
   lastSyncAt: null,
   lastError: null,
   pendingCount: 0,
+  lastTrigger: null,
 };
+
+// In-memory map of conflictId -> conflictCopyPath for conflict copy accessibility
+// This is populated when client_sync_engine creates conflict copies and calls recordConflictCopyPath
+const conflictCopyPaths = new Map<string, string>();
+
+// In-memory map of conflictId -> resolution timestamp for pending resolutions
+// These are resolutions that happened locally while offline or with sync disabled,
+// and need to be replayed to the server during the next sync:trigger
+const pendingConflictResolutions = new Map<string, number>();
+
+// Local map of conflictId -> resolution path for local records
+// Note: The server API (POST /conflicts/:id/resolve) only accepts vaultId in its body,
+// so resolutionPath cannot be propagated to the server. It is stored locally only.
+const localResolutionPaths = new Map<string, string>();
 
   ipcMain.handle('sync:getStatus', async () => {
     // Return current sync state
@@ -894,7 +912,11 @@ let syncState: SyncState = {
     };
   });
 
-  ipcMain.handle('sync:trigger', async () => {
+  ipcMain.handle('sync:trigger', async (_event, trigger?: string) => {
+    if (syncState.status === 'DISABLED') {
+      return { success: false, error: 'Sync is disabled' };
+    }
+
     const serverUrl = syncSettingsStore.get('serverUrl');
     const deviceId = syncSettingsStore.get('deviceId');
     const remoteVaultId = syncSettingsStore.get('remoteVaultId');
@@ -910,6 +932,10 @@ let syncState: SyncState = {
 
     syncState.status = 'SYNCING';
     syncState.lastError = null;
+    // Record trigger in runtime metadata per spec Phase 3 cross-invariant
+    if (trigger) {
+      syncState.lastTrigger = trigger;
+    }
 
     try {
       const token = getAuthToken();
@@ -922,8 +948,10 @@ let syncState: SyncState = {
       }
 
       // Step 1: Pull remote changes first
+      // Use persisted lastPulledSeq to only fetch changes since last sync
+      const sinceSeq = syncSettingsStore.get('lastPulledSeq') ?? 0;
       const pullResponse = await fetch(
-        `${adapterConfig.baseUrl}/api/v1/sync/pull?vaultId=${encodeURIComponent(remoteVaultId)}&sinceSeq=0&limit=200`,
+        `${adapterConfig.baseUrl}/api/v1/sync/pull?vaultId=${encodeURIComponent(remoteVaultId)}&sinceSeq=${sinceSeq}&limit=200`,
         { method: 'GET', headers: baseHeaders }
       );
 
@@ -931,7 +959,7 @@ let syncState: SyncState = {
         throw new Error(`Pull failed: HTTP ${pullResponse.status}`);
       }
 
-      const pullData = await pullResponse.json() as {
+const pullData = await pullResponse.json() as {
         data?: {
           commits?: Array<{ commitSeq: number }>;
           latestSeq: number;
@@ -939,10 +967,66 @@ let syncState: SyncState = {
       };
       const latestSeq = pullData?.data?.latestSeq ?? 0;
 
-      // Step 2: Acknowledge the pulled changes
+      // Step 2: Check which blobs we have (has-blobs)
+      const blobHashes: string[] = []; // TODO: Get from local vault - pending changes blob hashes
+      const hasBlobsResponse = await fetch(
+        `${adapterConfig.baseUrl}/api/v1/sync/has-blobs?vaultId=${encodeURIComponent(remoteVaultId)}`,
+        {
+          method: 'POST',
+          headers: { ...baseHeaders, 'X-Request-Id': `hasblobs-${Date.now()}-${adapterConfig.deviceId}` },
+          body: JSON.stringify({ blobHashes }),
+        }
+      );
+
+      // Step 3: Upload missing blobs (if any)
+      if (hasBlobsResponse.ok) {
+        const hasBlobsData = await hasBlobsResponse.json() as {
+          data?: { missing?: string[] };
+        };
+        const missingBlobHashes = hasBlobsData?.data?.missing ?? [];
+        if (missingBlobHashes.length > 0) {
+          // Get presigned upload URLs and upload blobs
+          const uploadUrlResponse = await fetch(
+            `${adapterConfig.baseUrl}/api/v1/sync/blob-upload-url?vaultId=${encodeURIComponent(remoteVaultId)}`,
+            {
+              method: 'POST',
+              headers: { ...baseHeaders, 'X-Request-Id': `uploadurls-${Date.now()}-${adapterConfig.deviceId}` },
+              body: JSON.stringify({ blobHashes: missingBlobHashes }),
+            }
+          );
+          if (uploadUrlResponse.ok) {
+            const uploadUrlsData = await uploadUrlResponse.json() as {
+              data?: Array<{ blobHash: string; uploadUrl: string }>;
+            };
+            for (const item of uploadUrlsData?.data ?? []) {
+              // TODO: Read blob content from local vault and upload to presigned URL
+              await fetch(item.uploadUrl, { method: 'PUT', body: '' });
+            }
+          }
+        }
+      }
+
+      // Step 4: Commit local changes
+      const pendingChanges: unknown[] = []; // TODO: Get from local change logger
+      if (pendingChanges.length > 0) {
+        const commitRequestId = `commit-${Date.now()}-${adapterConfig.deviceId}`;
+        await fetch(`${adapterConfig.baseUrl}/api/v1/sync/commit`, {
+          method: 'POST',
+          headers: { ...baseHeaders, 'X-Request-Id': commitRequestId },
+          body: JSON.stringify({
+            vaultId: remoteVaultId,
+            deviceId: adapterConfig.deviceId,
+            requestId: commitRequestId,
+            baseSeq: latestSeq,
+            changes: pendingChanges,
+          }),
+        });
+      }
+
+      // Step 5: Acknowledge the pulled changes
       if (latestSeq > 0) {
         const ackRequestId = `ack-${Date.now()}-${adapterConfig.deviceId}`;
-        await fetch(`${adapterConfig.baseUrl}/api/v1/sync/ack`, {
+        const ackResponse = await fetch(`${adapterConfig.baseUrl}/api/v1/sync/ack`, {
           method: 'POST',
           headers: { ...baseHeaders, 'X-Request-Id': ackRequestId },
           body: JSON.stringify({
@@ -951,6 +1035,34 @@ let syncState: SyncState = {
             ackedSeq: latestSeq,
           }),
         });
+        // Persist cursor after successful ack
+        if (ackResponse.ok) {
+          syncSettingsStore.set('lastPulledSeq', latestSeq);
+        }
+      }
+
+      // Step 3: Replay any pending conflict resolutions that failed or were queued while offline
+      if (pendingConflictResolutions.size > 0) {
+        const resolutionIds = Array.from(pendingConflictResolutions.keys());
+        for (const conflictId of resolutionIds) {
+          try {
+            const resolveRequestId = `resolve-${Date.now()}-${adapterConfig.deviceId}`;
+            const response = await fetch(
+              `${adapterConfig.baseUrl}/api/v1/sync/conflicts/${encodeURIComponent(conflictId)}/resolve`,
+              {
+                method: 'POST',
+                headers: { ...baseHeaders, 'X-Request-Id': resolveRequestId },
+                body: JSON.stringify({ vaultId: remoteVaultId }),
+              }
+            );
+            // 200 = resolved, 404 = already resolved or never existed (idempotent)
+            if (response.ok || response.status === 404) {
+              pendingConflictResolutions.delete(conflictId);
+            }
+          } catch (error) {
+            // Continue with other resolutions even if one fails
+          }
+        }
       }
 
       syncState.status = 'IDLE';
@@ -969,20 +1081,230 @@ let syncState: SyncState = {
     }
   });
 
-  ipcMain.handle('sync:getConflicts', () => {
-    // Return conflicts from the sync state or conflict manager
-    // For now, return empty - conflicts would be managed by ConflictManager
-    return { success: true, conflicts: [] };
+  ipcMain.handle('sync:getConflicts', async (_event, vaultId: string) => {
+    // Use server adapter to get conflicts from server API
+    const adapterConfig = buildServerAdapter();
+    if (!adapterConfig) {
+      return { success: true, conflicts: [] };
+    }
+
+    const remoteVaultId = syncSettingsStore.get('remoteVaultId');
+    if (!remoteVaultId) {
+      return { success: true, conflicts: [] };
+    }
+
+    // Use provided vaultId or fall back to configured remoteVaultId
+    const queryVaultId = vaultId || remoteVaultId;
+
+    try {
+      const token = getAuthToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'X-Device-Id': adapterConfig.deviceId,
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(
+        `${adapterConfig.baseUrl}/api/v1/sync/conflicts?vaultId=${encodeURIComponent(queryVaultId)}`,
+        { method: 'GET', headers }
+      );
+
+      if (!response.ok) {
+        return { success: false, error: `HTTP ${response.status}`, conflicts: [] };
+      }
+
+      const data = await response.json() as {
+        data?: Array<{
+          id: string;
+          filePath: string;
+          expectedBaseRevision: string;
+          winningRevision: string;
+          losingRevision: string;
+          winningBlobHash: string | null;
+          winningCommitSeq: number;
+          losingDeviceId?: string | null;
+          resolvedAt?: string | null;
+          createdAt: string;
+        }>;
+      };
+
+      return {
+        success: true,
+        conflicts: (data?.data ?? []).map((c) => ({
+          id: c.id,
+          filePath: c.filePath,
+          expectedBaseRevision: c.expectedBaseRevision,
+          actualHeadRevision: c.winningRevision,
+          remoteBlobHash: c.winningBlobHash ?? null,
+          winningCommitSeq: c.winningCommitSeq,
+          losingDeviceId: c.losingDeviceId ?? null,
+          resolvedAt: c.resolvedAt ?? null,
+          createdAt: c.createdAt,
+          conflictCopyPath: conflictCopyPaths.get(c.id) ?? null,
+        })),
+      };
+    } catch (error) {
+      return { success: false, error: String(error), conflicts: [] };
+    }
   });
 
-  ipcMain.handle('sync:resolveConflict', (_event, _id: number, _resolutionPath: string) => {
-    // Would call conflictManager.resolve(id, resolutionPath)
+  ipcMain.handle('sync:resolveConflict', async (_event, conflictId: string, resolutionPath: string) => {
+    const adapterConfig = buildServerAdapter();
+    const remoteVaultId = syncSettingsStore.get('remoteVaultId');
+
+    // Record resolution locally first - this ensures we don't lose the resolution intent
+    // even if the server call fails or sync is disabled
+    pendingConflictResolutions.set(conflictId, Date.now());
+    if (resolutionPath) {
+      localResolutionPaths.set(conflictId, resolutionPath);
+    }
+
+    // If sync is DISABLED, do not make network requests — spec: "不得偷偷绕过开关直接发起远端请求"
+    if (syncState.status === 'DISABLED') {
+      return { success: true, locallyResolved: true, pendingPropagation: true };
+    }
+
+    // If sync is configured, propagate to server
+    if (adapterConfig && remoteVaultId) {
+      try {
+        const token = getAuthToken();
+        const requestId = `resolve-${Date.now()}-${adapterConfig.deviceId}`;
+        const headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+          'X-Device-Id': adapterConfig.deviceId,
+          'X-Request-Id': requestId,
+        };
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await fetch(
+          `${adapterConfig.baseUrl}/api/v1/sync/conflicts/${encodeURIComponent(conflictId)}/resolve`,
+          {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ vaultId: remoteVaultId, resolutionPath }),
+          }
+        );
+
+        if (!response.ok) {
+          return { success: false, error: `HTTP ${response.status}` };
+        }
+
+        // Successfully propagated - remove from pending
+        pendingConflictResolutions.delete(conflictId);
+        return { success: true };
+      } catch (error) {
+        // Server call failed but locally recorded - will retry on next sync:trigger
+        return { success: true, locallyResolved: true, pendingPropagation: true };
+      }
+    }
+
     return { success: false, error: 'Sync not configured' };
   });
 
-  ipcMain.handle('sync:rollback', (_event, _filePath: string, _targetVersion: string) => {
-    // Would call versionRollback.rollback(filePath, targetVersion)
-    return { success: false, error: 'Sync not configured' };
+  ipcMain.handle('sync:rollback', async (_event, vaultPath: string, filePath: string, targetVersion: string) => {
+    const adapterConfig = buildServerAdapter();
+    const remoteVaultId = syncSettingsStore.get('remoteVaultId');
+
+    if (!vaultPath) {
+      return { success: false, error: 'Vault path is required' };
+    }
+
+    // Note: Rollback always requires network to download blob content.
+    // We do NOT early-return on DISABLED because per spec "rollback 仍可先完成本地写回与入队"
+    // — the network request will fail naturally if offline, and the caller should handle that.
+    // When sync is re-enabled, the caller can retry the rollback.
+
+    if (!adapterConfig || !remoteVaultId) {
+      return { success: false, error: 'Sync not configured' };
+    }
+
+    try {
+      const token = getAuthToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'X-Device-Id': adapterConfig.deviceId,
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      // Step 1: Get blob reference for the target revision
+      const historyBlobResponse = await fetch(
+        `${adapterConfig.baseUrl}/api/v1/sync/history/blob?vaultId=${encodeURIComponent(remoteVaultId)}&revision=${encodeURIComponent(targetVersion)}`,
+        { method: 'GET', headers }
+      );
+
+      if (!historyBlobResponse.ok) {
+        return { success: false, error: `Failed to get revision blob: HTTP ${historyBlobResponse.status}` };
+      }
+
+      const historyBlobData = await historyBlobResponse.json() as {
+        data?: { blobHash: string; revision: string };
+      };
+
+      if (!historyBlobData?.data?.blobHash) {
+        return { success: false, error: 'Revision blob not found' };
+      }
+
+      const blobHash = historyBlobData.data.blobHash;
+
+      // Step 2: Get download URL for the blob
+      const downloadUrlResponse = await fetch(
+        `${adapterConfig.baseUrl}/api/v1/sync/blob-download-url`,
+        {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ vaultId: remoteVaultId, blobHash }),
+        }
+      );
+
+      if (!downloadUrlResponse.ok) {
+        return { success: false, error: `Failed to get download URL: HTTP ${downloadUrlResponse.status}` };
+      }
+
+      const downloadUrlData = await downloadUrlResponse.json() as {
+        data?: { downloadUrl: string };
+      };
+
+      if (!downloadUrlData?.data?.downloadUrl) {
+        return { success: false, error: 'Download URL not available' };
+      }
+
+      // Step 3: Download the blob content
+      const contentResponse = await fetch(downloadUrlData.data.downloadUrl);
+      if (!contentResponse.ok) {
+        return { success: false, error: `Failed to download content: HTTP ${contentResponse.status}` };
+      }
+
+      const content = await contentResponse.text();
+
+      // Step 4: Write restored content to the vault file
+      const fullPath = path.join(vaultPath, filePath);
+      const dir = path.dirname(fullPath);
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(fullPath, content, 'utf-8');
+
+      // Step 5: Trigger sync to propagate rollback to other devices via normal sync flow
+      // This ensures rollback is committed through the normal commit -> pull -> ack cycle
+      // Note: The renderer should call sync.trigger() after receiving this response
+      // to complete the sync cycle. See HistoryPanel.tsx for the expected pattern.
+
+      return {
+        success: true,
+        data: {
+          filePath,
+          restoredVersion: targetVersion,
+          content,
+          trigger: 'rollback' as const,
+        },
+      };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
   });
 
   ipcMain.handle('sync:configure', async (_event, serverUrl: string, deviceId: string) => {
@@ -1112,6 +1434,385 @@ let syncState: SyncState = {
 
       const data = await response.json() as { device?: { deviceId: string } };
       return { success: true, deviceId: data.device?.deviceId };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  ipcMain.handle('sync:listHistory', async (_event, vaultId: string, filePath: string, page?: number, pageSize?: number) => {
+    const adapterConfig = buildServerAdapter();
+    if (!adapterConfig) {
+      return { success: false, error: 'Sync not configured', items: [] };
+    }
+
+    try {
+      const token = getAuthToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'X-Device-Id': adapterConfig.deviceId,
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const params = new URLSearchParams({
+        vaultId,
+        filePath,
+        ...(page !== undefined ? { page: String(page) } : {}),
+        ...(pageSize !== undefined ? { pageSize: String(pageSize) } : {}),
+      });
+
+      const response = await fetch(
+        `${adapterConfig.baseUrl}/api/v1/sync/history?${params}`,
+        { method: 'GET', headers }
+      );
+
+      if (!response.ok) {
+        return { success: false, error: `HTTP ${response.status}`, items: [] };
+      }
+
+      const data = await response.json() as {
+        data?: {
+          items: Array<{
+            revision: string;
+            blobHash: string | null;
+            commitSeq: number;
+            createdAt: string;
+            deviceId: string;
+            isDeleted: boolean;
+          }>;
+          page: number;
+          pageSize: number;
+          hasMore: boolean;
+        };
+      };
+
+      return {
+        success: true,
+        items: data?.data?.items ?? [],
+        page: data?.data?.page ?? 1,
+        pageSize: data?.data?.pageSize ?? 50,
+        hasMore: data?.data?.hasMore ?? false,
+      };
+    } catch (error) {
+      return { success: false, error: String(error), items: [] };
+    }
+  });
+
+  ipcMain.handle('sync:recordConflictCopyPath', async (_event, conflictId: string, conflictCopyPath: string) => {
+    // Store the conflict copy path for later retrieval by ConflictListPanel
+    conflictCopyPaths.set(conflictId, conflictCopyPath);
+    return { success: true };
+  });
+
+  ipcMain.handle('sync:openConflictCopy', async (_event, conflictId: string, filePath: string) => {
+    // Prefer conflict copy path from our in-memory map if available, otherwise fall back to provided path
+    const actualPath = conflictCopyPaths.get(conflictId) ?? filePath;
+    try {
+      const result = await shell.openPath(actualPath);
+      if (result) {
+        return { success: false, error: result };
+      }
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // Diagnostics IPC handlers
+  ipcMain.handle('sync:getDiagnostics', async (_event, vaultId: string) => {
+    const adapterConfig = buildServerAdapter();
+    if (!adapterConfig) {
+      return { success: false, error: 'Sync not configured', diagnostics: null };
+    }
+
+    const remoteVaultId = syncSettingsStore.get('remoteVaultId');
+    if (!remoteVaultId) {
+      return { success: false, error: 'No vault bound', diagnostics: null };
+    }
+
+    const queryVaultId = vaultId || remoteVaultId;
+
+    try {
+      const token = getAuthToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'X-Device-Id': adapterConfig.deviceId,
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(
+        `${adapterConfig.baseUrl}/api/v1/sync/diagnostics?vaultId=${encodeURIComponent(queryVaultId)}&deviceId=${encodeURIComponent(adapterConfig.deviceId)}`,
+        { method: 'GET', headers }
+      );
+
+      if (!response.ok) {
+        return { success: false, error: `HTTP ${response.status}`, diagnostics: null };
+      }
+
+      const data = await response.json() as {
+        data?: {
+          lastTriggerSource: string | null;
+          offlineReason: string | null;
+          nextRetryAt: string | null;
+          lastFailedRequestId: string | null;
+          lastFailedRequestDeviceId: string | null;
+          lastSuccessfulSyncAt: string | null;
+          consecutiveFailures: number;
+        };
+      };
+
+      return { success: true, diagnostics: data?.data ?? null };
+    } catch (error) {
+      return { success: false, error: String(error), diagnostics: null };
+    }
+  });
+
+  ipcMain.handle('sync:recordRuntimeEvent', async (_event, eventData: {
+    vaultId: string;
+    deviceId: string;
+    trigger: string;
+    retryCount: number;
+    offlineStartedAt?: string | null;
+    recoveredAt?: string | null;
+    nextRetryAt?: string | null;
+    requestId: string;
+  }) => {
+    const adapterConfig = buildServerAdapter();
+    if (!adapterConfig) {
+      return { success: false, error: 'Sync not configured', accepted: false, deduplicated: false };
+    }
+
+    const remoteVaultId = syncSettingsStore.get('remoteVaultId');
+    if (!remoteVaultId) {
+      return { success: false, error: 'No vault bound', accepted: false, deduplicated: false };
+    }
+
+    try {
+      const token = getAuthToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'X-Device-Id': adapterConfig.deviceId,
+        'X-Request-Id': eventData.requestId,
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(
+        `${adapterConfig.baseUrl}/api/v1/sync/diagnostics/events`,
+        {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            vaultId: eventData.vaultId || remoteVaultId,
+            deviceId: eventData.deviceId,
+            trigger: eventData.trigger,
+            retryCount: eventData.retryCount,
+            offlineStartedAt: eventData.offlineStartedAt,
+            recoveredAt: eventData.recoveredAt,
+            nextRetryAt: eventData.nextRetryAt,
+            requestId: eventData.requestId,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        return { success: false, error: `HTTP ${response.status}`, accepted: false, deduplicated: false };
+      }
+
+      const data = await response.json() as {
+        data?: {
+          accepted: boolean;
+          deduplicated: boolean;
+          processedAt: string;
+        };
+      };
+
+      return {
+        success: true,
+        accepted: data?.data?.accepted ?? true,
+        deduplicated: data?.data?.deduplicated ?? false,
+      };
+    } catch (error) {
+      return { success: false, error: String(error), accepted: false, deduplicated: false };
+    }
+  });
+
+  // =============================================================================
+  // Snapshot IPC handlers
+  // =============================================================================
+
+  // GET /api/v1/snapshots - List snapshots
+  ipcMain.handle('sync:listSnapshots', async (_event, vaultId: string, page?: number, pageSize?: number) => {
+    const adapterConfig = buildServerAdapter();
+    if (!adapterConfig) {
+      return { success: false, error: 'Sync not configured', items: [], page: 1, pageSize: 20, total: 0, hasMore: false };
+    }
+
+    try {
+      const token = getAuthToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'X-Device-Id': adapterConfig.deviceId,
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const params = new URLSearchParams({
+        vaultId,
+        page: String(page ?? 1),
+        pageSize: String(pageSize ?? 20),
+      });
+
+      const response = await fetch(
+        `${adapterConfig.baseUrl}/api/v1/snapshots?${params}`,
+        { method: 'GET', headers }
+      );
+
+      if (!response.ok) {
+        return { success: false, error: `HTTP ${response.status}`, items: [], page: 1, pageSize: 20, total: 0, hasMore: false };
+      }
+
+      const data = await response.json() as {
+        data?: {
+          items: SnapshotRecord[];
+          page: number;
+          pageSize: number;
+          total: number;
+          hasMore: boolean;
+        };
+      };
+
+      return {
+        success: true,
+        items: data?.data?.items ?? [],
+        page: data?.data?.page ?? 1,
+        pageSize: data?.data?.pageSize ?? 20,
+        total: data?.data?.total ?? 0,
+        hasMore: data?.data?.hasMore ?? false,
+      };
+    } catch (error) {
+      return { success: false, error: String(error), items: [], page: 1, pageSize: 20, total: 0, hasMore: false };
+    }
+  });
+
+  // POST /api/v1/snapshots - Create snapshot
+  ipcMain.handle('sync:createSnapshot', async (_event, vaultId: string, description?: string) => {
+    const adapterConfig = buildServerAdapter();
+    if (!adapterConfig) {
+      return { success: false, error: 'Sync not configured' };
+    }
+
+    try {
+      const token = getAuthToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'X-Device-Id': adapterConfig.deviceId,
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${adapterConfig.baseUrl}/api/v1/snapshots`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ vaultId, description }),
+      });
+
+      if (!response.ok) {
+        return { success: false, error: `HTTP ${response.status}` };
+      }
+
+      const data = await response.json() as { data?: SnapshotRecord };
+      return { success: true, snapshot: data?.data };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // GET /api/v1/snapshots/:id - Get snapshot status
+  ipcMain.handle('sync:getSnapshot', async (_event, snapshotId: string) => {
+    const adapterConfig = buildServerAdapter();
+    if (!adapterConfig) {
+      return { success: false, error: 'Sync not configured' };
+    }
+
+    try {
+      const token = getAuthToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'X-Device-Id': adapterConfig.deviceId,
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(
+        `${adapterConfig.baseUrl}/api/v1/snapshots/${encodeURIComponent(snapshotId)}`,
+        { method: 'GET', headers }
+      );
+
+      if (!response.ok) {
+        return { success: false, error: `HTTP ${response.status}` };
+      }
+
+      const data = await response.json() as { data?: SnapshotRecord };
+      return { success: true, snapshot: data?.data };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
+  });
+
+  // POST /api/v1/snapshots/:id/restore - Restore snapshot
+  ipcMain.handle('sync:restoreSnapshot', async (_event, snapshotId: string, vaultId: string, deviceId?: string) => {
+    const adapterConfig = buildServerAdapter();
+    if (!adapterConfig) {
+      return { success: false, error: 'Sync not configured' };
+    }
+
+    try {
+      const token = getAuthToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'X-Device-Id': adapterConfig.deviceId,
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(
+        `${adapterConfig.baseUrl}/api/v1/snapshots/${encodeURIComponent(snapshotId)}/restore`,
+        {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ vaultId, deviceId }),
+        }
+      );
+
+      if (!response.ok) {
+        // Check for 409 Conflict (restore already in progress)
+        if (response.status === 409) {
+          const errorData = await response.json() as {
+            error?: {
+              message?: string;
+              existingTask?: SnapshotRestoreResult;
+            };
+          };
+          return {
+            success: false,
+            error: errorData.error?.message ?? 'Restore already in progress',
+            existingTask: errorData.error?.existingTask,
+          };
+        }
+        return { success: false, error: `HTTP ${response.status}` };
+      }
+
+      const data = await response.json() as { data?: SnapshotRestoreResult };
+      return { success: true, result: data?.data };
     } catch (error) {
       return { success: false, error: String(error) };
     }

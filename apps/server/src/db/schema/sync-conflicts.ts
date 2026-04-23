@@ -21,6 +21,7 @@ export const syncConflicts = mysqlTable(
     winningRevision: varchar('winning_revision', { length: 191 }),
     losingRevision: varchar('losing_revision', { length: 191 }),
     winningCommitSeq: bigint('winning_commit_seq', { mode: 'number' }).notNull(),
+    resolutionPath: varchar('resolution_path', { length: 1000 }),
     resolvedAt: datetime('resolved_at', { fsp: 3 }),
     createdAt: datetime('created_at', { fsp: 3 }).notNull(),
   },

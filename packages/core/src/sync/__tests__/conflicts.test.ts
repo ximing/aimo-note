@@ -22,10 +22,11 @@ describe('ConflictManager', () => {
     it('should insert a conflict record', () => {
       const record = conflictManager.record({
         filePath: 'note1.md',
-        localVersion: 'v2',
-        remoteVersion: 'v2',
+        expectedBaseRevision: 'v2',
+        actualHeadRevision: 'v2',
+        remoteBlobHash: 'sha256:remote',
+        winningCommitSeq: 1,
         localHash: 'sha256:local',
-        remoteHash: 'sha256:remote',
       });
 
       expect(record.id).toBeDefined();
@@ -49,17 +50,19 @@ describe('ConflictManager', () => {
     it('should return only unresolved conflicts', () => {
       conflictManager.record({
         filePath: 'note1.md',
-        localVersion: 'v1',
-        remoteVersion: 'v1',
+        expectedBaseRevision: 'v1',
+        actualHeadRevision: 'v1',
+        remoteBlobHash: 'sha256:b',
+        winningCommitSeq: 1,
         localHash: 'sha256:a',
-        remoteHash: 'sha256:b',
       });
       conflictManager.record({
         filePath: 'note2.md',
-        localVersion: 'v1',
-        remoteVersion: 'v1',
+        expectedBaseRevision: 'v1',
+        actualHeadRevision: 'v1',
+        remoteBlobHash: 'sha256:d',
+        winningCommitSeq: 1,
         localHash: 'sha256:c',
-        remoteHash: 'sha256:d',
       });
 
       const unresolved = conflictManager.getUnresolved();
@@ -76,17 +79,19 @@ describe('ConflictManager', () => {
     it('should return unresolved conflicts for a specific file', () => {
       conflictManager.record({
         filePath: 'note1.md',
-        localVersion: 'v1',
-        remoteVersion: 'v1',
+        expectedBaseRevision: 'v1',
+        actualHeadRevision: 'v1',
+        remoteBlobHash: 'sha256:b',
+        winningCommitSeq: 1,
         localHash: 'sha256:a',
-        remoteHash: 'sha256:b',
       });
       conflictManager.record({
         filePath: 'note2.md',
-        localVersion: 'v1',
-        remoteVersion: 'v1',
+        expectedBaseRevision: 'v1',
+        actualHeadRevision: 'v1',
+        remoteBlobHash: 'sha256:d',
+        winningCommitSeq: 1,
         localHash: 'sha256:c',
-        remoteHash: 'sha256:d',
       });
 
       const note1Conflicts = conflictManager.getUnresolvedForFile('note1.md');
@@ -99,10 +104,11 @@ describe('ConflictManager', () => {
     it('should mark a conflict as resolved with a resolution path', () => {
       const record = conflictManager.record({
         filePath: 'note1.md',
-        localVersion: 'v1',
-        remoteVersion: 'v1',
+        expectedBaseRevision: 'v1',
+        actualHeadRevision: 'v1',
+        remoteBlobHash: 'sha256:b',
+        winningCommitSeq: 1,
         localHash: 'sha256:a',
-        remoteHash: 'sha256:b',
       });
 
       conflictManager.resolve(record.id, 'note1_conflict_20260420_143052.md');
@@ -120,15 +126,38 @@ describe('ConflictManager', () => {
     it('should retrieve a conflict by id', () => {
       const record = conflictManager.record({
         filePath: 'note1.md',
-        localVersion: 'v1',
-        remoteVersion: 'v1',
+        expectedBaseRevision: 'v1',
+        actualHeadRevision: 'v1',
+        remoteBlobHash: 'sha256:b',
+        winningCommitSeq: 1,
         localHash: 'sha256:a',
-        remoteHash: 'sha256:b',
       });
 
       const found = conflictManager.getById(record.id);
       expect(found?.id).toBe(record.id);
       expect(found?.filePath).toBe('note1.md');
+    });
+  });
+
+  describe('recordFromServer', () => {
+    it('should record a conflict from server response', () => {
+      const serverConflict = {
+        filePath: 'note1.md',
+        expectedBaseRevision: 'v1',
+        actualHeadRevision: 'v2',
+        remoteBlobHash: 'sha256:remote',
+        winningCommitSeq: 5,
+      };
+      const record = conflictManager.recordFromServer(serverConflict, 'sha256:local');
+
+      expect(record.id).toBeDefined();
+      expect(record.filePath).toBe('note1.md');
+      expect(record.expectedBaseRevision).toBe('v1');
+      expect(record.actualHeadRevision).toBe('v2');
+      expect(record.remoteBlobHash).toBe('sha256:remote');
+      expect(record.winningCommitSeq).toBe(5);
+      expect(record.localHash).toBe('sha256:local');
+      expect(record.resolved).toBe(false);
     });
   });
 });

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router';
 import { observer } from '@rabjs/react';
 import { useUIService } from '@/services/ui.service';
@@ -11,11 +11,16 @@ import { SearchPanel } from './left-sidebar/SearchPanel';
 import { SettingsModal } from './common/SettingsModal';
 import { StatusBar } from './common/StatusBar';
 import { ResizeHandle } from './common/ResizeHandle';
-import { PanelLeftClose, PanelLeft } from 'lucide-react';
+import { PanelLeftClose, PanelLeft, Clock, RefreshCw, Camera } from 'lucide-react';
+import { ConflictBanner, ConflictListPanel, HistoryPanel, DiagnosticsPanel, SnapshotPanel } from './conflicts';
 
 export const Layout = observer(() => {
   const uiService = useUIService();
   const vaultService = useVaultService();
+  const [showConflictList, setShowConflictList] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [showSnapshot, setShowSnapshot] = useState(false);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -128,11 +133,66 @@ export const Layout = observer(() => {
         <SidePanel />
       </div>
 
+      {/* Conflict Banner */}
+      <ConflictBanner onClick={() => setShowConflictList(true)} />
+
+      {/* History Button - shown when a file is open */}
+      {vaultService.currentNotePath && (
+        <button
+          type="button"
+          onClick={() => setShowHistory(true)}
+          className="fixed bottom-12 right-4 z-40 flex items-center gap-1.5 px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-full text-sm shadow-md transition-colors"
+          title="View revision history"
+        >
+          <Clock size={14} />
+          History
+        </button>
+      )}
+
       {/* Status Bar */}
       <StatusBar />
 
       {/* Settings Modal */}
       {uiService.settingsModalOpen && <SettingsModal />}
+
+      {/* Conflict List Modal */}
+      {showConflictList && <ConflictListPanel onClose={() => setShowConflictList(false)} />}
+
+      {/* History Modal - shown when a file is open */}
+      {showHistory && vaultService.currentNotePath && (
+        <HistoryPanel
+          filePath={vaultService.currentNotePath}
+          onClose={() => setShowHistory(false)}
+        />
+      )}
+
+      {/* Diagnostics Modal - shown when triggered */}
+      {showDiagnostics && <DiagnosticsPanel onClose={() => setShowDiagnostics(false)} />}
+
+      {/* Diagnostics trigger button - small floating button */}
+      <button
+        type="button"
+        onClick={() => setShowDiagnostics(true)}
+        className="fixed bottom-12 left-4 z-40 flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full text-sm shadow-md transition-colors"
+        title="Sync Diagnostics"
+      >
+        <RefreshCw size={14} />
+        Diagnostics
+      </button>
+
+      {/* Snapshot trigger button - shown when sync is enabled */}
+      <button
+        type="button"
+        onClick={() => setShowSnapshot(true)}
+        className="fixed bottom-12 right-20 z-40 flex items-center gap-1.5 px-3 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-full text-sm shadow-md transition-colors"
+        title="Vault Snapshots"
+      >
+        <Camera size={14} />
+        Snapshots
+      </button>
+
+      {/* Snapshot Modal */}
+      {showSnapshot && <SnapshotPanel onClose={() => setShowSnapshot(false)} />}
     </div>
   );
 });

@@ -204,7 +204,7 @@ export class SyncCommitService {
 
       if (conflicts.length > 0) {
         // Step 8: Write sync_conflicts and fail
-        await this.writeConflicts(tx, userId, vaultId, conflicts);
+        await this.writeConflicts(tx, userId, vaultId, deviceId, conflicts);
 
         // Audit log for failure
         await this.auditService.logSyncCommit(userId, vaultId, deviceId, requestId, {
@@ -381,6 +381,7 @@ export class SyncCommitService {
     tx: any,
     userId: string,
     vaultId: string,
+    losingDeviceId: string,
     conflicts: Array<{
       filePath: string;
       expectedBaseRevision: string;
@@ -396,7 +397,7 @@ export class SyncCommitService {
         vaultId,
         userId,
         filePath: conflict.filePath,
-        losingDeviceId: null,
+        losingDeviceId,
         winningRevision: conflict.actualHeadRevision,
         losingRevision: conflict.expectedBaseRevision,
         winningCommitSeq: conflict.winningCommitSeq,

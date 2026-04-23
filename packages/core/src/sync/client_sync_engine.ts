@@ -28,6 +28,8 @@ import type {
   SyncChangeInput,
   PullResponse,
 } from '@aimo-note/dto';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { join, dirname } from 'path';
 
 export interface ClientSyncEngineConfig {
   serverAdapter: ServerAdapter;
@@ -38,6 +40,11 @@ export interface ClientSyncEngineConfig {
   deviceId: string;
   vaultId: string;
   vaultPath?: string;
+  // Sync state store for cursor management
+  syncStateStore?: {
+    getLastPulledSeq(vaultId: string): number;
+    updateCursor(vaultId: string, lastPulledSeq: number, lastSuccessfulCommitSeq: number): void;
+  };
   // Callbacks
   onStatusChange?: (status: SyncStatus, reason?: string) => void;
   onProgress?: (stage: string, progress: number, total: number) => void;
@@ -58,6 +65,8 @@ export class ClientSyncEngine {
   private pendingQueue: SyncChangeInput[] = [];
   private isOnline = true;
   private periodicTimer: ReturnType<typeof setInterval> | null = null;
+  // Track conflict IDs resolved locally that need to be propagated to server
+  private pendingResolutions: Set<number> = new Set();
 
   constructor(private config: ClientSyncEngineConfig) {}
 
@@ -102,6 +111,7 @@ export class ClientSyncEngine {
   async enable(trigger: SyncTrigger = 'startup'): Promise<void> {
     this.setStatus('IDLE', 'enabled');
     await this.sync(trigger);
+    this.startPeriodicSync();
   }
 
   /**
@@ -118,7 +128,7 @@ export class ClientSyncEngine {
   startPeriodicSync(intervalMs = 5 * 60 * 1000): void {
     this.stopPeriodicSync();
     this.periodicTimer = setInterval(() => {
-      this.sync('periodic_poll').catch((err) => {
+      this.sync('periodic').catch((err) => {
         console.error('[ClientSyncEngine] Periodic sync failed:', err);
       });
     }, intervalMs);
@@ -147,10 +157,15 @@ export class ClientSyncEngine {
 
     if (online && wasOffline) {
       this.setStatus('IDLE', 'network recovered');
-      this.sync('network_recovery').catch((err) => {
+      this.sync('network_recovered').catch((err) => {
         console.error('[ClientSyncEngine] Network recovery sync failed:', err);
+        // Set OFFLINE (not ERROR) when network recovery fails - the network may be
+        // intermittently unavailable and we should retry rather than treating it as
+        // a permanent error state
+        this.setStatus('OFFLINE', 'network recovery failed');
       });
     } else if (!online) {
+      this.stopPeriodicSync();
       this.setStatus('OFFLINE', 'network lost');
     }
   }
@@ -158,6 +173,28 @@ export class ClientSyncEngine {
   // =============================================================================
   // Sync Trigger
   // =============================================================================
+
+  /**
+   * Determine if an error is a network error (should result in OFFLINE status)
+   */
+  private isNetworkError(error: unknown): boolean {
+    if (error instanceof Error) {
+      // Node.js network errors have a 'code' property
+      const nodeError = error as Error & { code?: string };
+      if (nodeError.code === 'ECONNREFUSED' || nodeError.code === 'ETIMEDOUT' || nodeError.code === 'ENOTFOUND') {
+        return true;
+      }
+      // Message indicates network failure
+      const msg = error.message.toLowerCase();
+      if (msg.includes('fetch') && (msg.includes('network') || msg.includes('failed') || msg.includes('connection'))) {
+        return true;
+      }
+      if (msg.includes('econnrefused') || msg.includes('etimedout') || msg.includes('enotfound')) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   /**
    * Trigger a sync
@@ -214,6 +251,10 @@ export class ClientSyncEngine {
       await this.acknowledgeChanges();
       this.config.onProgress?.('ack', 1, 1);
 
+      // Step 6: Propagate any locally-resolved conflicts to the server
+      const propagateResult = await this.propagateConflictResolutions();
+      result.errors.push(...propagateResult.errors);
+
       // Success
       this.lastSyncAt = new Date().toISOString();
       this.lastError = null;
@@ -224,7 +265,11 @@ export class ClientSyncEngine {
       const errorMessage = error instanceof Error ? error.message : String(error);
       this.lastError = errorMessage;
       result.errors.push(errorMessage);
-      this.setStatus('ERROR', errorMessage);
+      // Network errors (ECONNREFUSED, ETIMEDOUT, fetch network failures) should set OFFLINE
+      // regardless of trigger - only 401/403/data errors = ERROR
+      const isNetworkError = this.isNetworkError(error);
+      const status = isNetworkError ? 'OFFLINE' : 'ERROR';
+      this.setStatus(status, errorMessage);
       this.config.onError?.(error instanceof Error ? error : new Error(errorMessage));
       return result;
     }
@@ -365,15 +410,25 @@ export class ClientSyncEngine {
       if (response.conflicts && response.conflicts.length > 0) {
         for (const conflict of response.conflicts) {
           if (this.config.conflictManager) {
-            // Record the conflict
+            // Record the conflict using canonical ServerConflict fields
             const record = this.config.conflictManager.record({
               filePath: conflict.filePath,
-              localVersion: '', // TODO: Get from pending change
-              remoteVersion: conflict.actualHeadRevision,
+              expectedBaseRevision: conflict.expectedBaseRevision,
+              actualHeadRevision: conflict.actualHeadRevision,
+              remoteBlobHash: conflict.remoteBlobHash,
+              winningCommitSeq: conflict.winningCommitSeq,
               localHash: '',
-              remoteHash: conflict.remoteBlobHash,
             });
             console.log(`[ClientSyncEngine] Recorded conflict for ${conflict.filePath}:`, record);
+
+            // Create conflict copy file in same directory as original file
+            // remoteBlobHash may be null if server did not provide blob reference
+            const conflictCopyPath = conflict.remoteBlobHash
+              ? await this.createConflictCopy(conflict.filePath, conflict.remoteBlobHash)
+              : null;
+            if (conflictCopyPath && record.id) {
+              this.config.conflictManager.updateConflictCopyPath(record.id, conflictCopyPath);
+            }
           }
         }
       }
@@ -382,6 +437,50 @@ export class ClientSyncEngine {
     }
 
     return { errors };
+  }
+
+  /**
+   * Download remote blob and write conflict copy file to the same subdirectory as original file.
+   * Returns the conflict copy path on success, null on failure.
+   */
+  private async createConflictCopy(filePath: string, blobHash: string): Promise<string | null> {
+    if (!this.config.conflictManager || !this.config.vaultPath || !blobHash) {
+      return null;
+    }
+
+    try {
+      // Get download URL for the blob
+      const downloadUrlResponse = await this.config.serverAdapter.createBlobDownloadUrl({
+        vaultId: this.config.vaultId,
+        blobHash,
+      });
+
+      // Download the blob content
+      const blobResponse = await fetch(downloadUrlResponse.downloadUrl);
+      if (!blobResponse.ok) {
+        console.error(`[ClientSyncEngine] Failed to download blob for conflict copy: HTTP ${blobResponse.status}`);
+        return null;
+      }
+
+      const content = await blobResponse.text();
+
+      // Generate conflict filename (preserves subdirectory structure)
+      const conflictFilename = this.config.conflictManager.generateConflictFilename(filePath);
+      const conflictPath = join(this.config.vaultPath, conflictFilename);
+
+      // Write conflict file to same subdirectory as original
+      const dir = dirname(conflictPath);
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
+      }
+      writeFileSync(conflictPath, content, 'utf-8');
+
+      console.log(`[ClientSyncEngine] Created conflict copy: ${conflictFilename}`);
+      return conflictPath;
+    } catch (error) {
+      console.error(`[ClientSyncEngine] Failed to create conflict copy for ${filePath}:`, error);
+      return null;
+    }
   }
 
   // =============================================================================
@@ -398,8 +497,8 @@ export class ClientSyncEngine {
     const errors: string[] = [];
 
     try {
-      // Get last known sequence number (from local storage or cursor)
-      const sinceSeq = 0; // TODO: Persist and retrieve last acked sequence
+      // Get last pulled sequence from persistent store
+      const sinceSeq = this.config.syncStateStore?.getLastPulledSeq(this.config.vaultId) ?? 0;
 
       const response = await this.config.serverAdapter.pull(
         this.config.vaultId,
@@ -469,7 +568,18 @@ export class ClientSyncEngine {
       });
 
       // Download from presigned URL
-      const blobResponse = await fetch(response.downloadUrl);
+      let blobResponse = await fetch(response.downloadUrl);
+
+      // On 401/403, the URL may have expired - get a fresh URL and retry once
+      if (blobResponse.status === 401 || blobResponse.status === 403) {
+        console.log(`[ClientSyncEngine] Blob download URL expired (${blobResponse.status}), refreshing...`);
+        const freshResponse = await this.config.serverAdapter.createBlobDownloadUrl({
+          vaultId: this.config.vaultId,
+          blobHash,
+        });
+        blobResponse = await fetch(freshResponse.downloadUrl);
+      }
+
       if (!blobResponse.ok) {
         throw new Error(`Failed to download blob: HTTP ${blobResponse.status}`);
       }
@@ -488,14 +598,17 @@ export class ClientSyncEngine {
 
   private async acknowledgeChanges(): Promise<void> {
     try {
-      // Get last processed sequence number
-      const lastSeq = 0; // TODO: Track and persist last processed sequence
+      // Get last pulled sequence from persistent store
+      const lastSeq = this.config.syncStateStore?.getLastPulledSeq(this.config.vaultId) ?? 0;
 
-      await this.config.serverAdapter.ack({
+      const response = await this.config.serverAdapter.ack({
         vaultId: this.config.vaultId,
         deviceId: this.config.deviceId,
         ackedSeq: lastSeq,
       });
+
+      // Update persisted cursor after successful ack
+      this.config.syncStateStore?.updateCursor(this.config.vaultId, response.lastPulledSeq, lastSeq);
 
       // Mark all pending changes as synced
       const entries = this.config.changeLogger.getUnsyncedEntries();
@@ -541,5 +654,51 @@ export class ClientSyncEngine {
    */
   restorePendingQueue(changes: SyncChangeInput[]): void {
     this.pendingQueue.push(...changes);
+  }
+
+  // =============================================================================
+  // Conflict Resolution Tracking
+  // =============================================================================
+
+  /**
+   * Queue a conflict resolution to be propagated to the server during the next sync.
+   * Called when a conflict is resolved locally via ConflictManager.
+   */
+  queueConflictResolution(conflictId: number): void {
+    this.pendingResolutions.add(conflictId);
+    console.log(`[ClientSyncEngine] Queued conflict resolution for propagation: ${conflictId}`);
+  }
+
+  /**
+   * Get pending conflict resolutions that need to be propagated to server.
+   */
+  getPendingResolutions(): number[] {
+    return Array.from(this.pendingResolutions);
+  }
+
+  /**
+   * Propagate pending conflict resolutions to the server.
+   * Called during the sync cycle to ensure server has the resolution state.
+   */
+  private async propagateConflictResolutions(): Promise<{ errors: string[] }> {
+    const errors: string[] = [];
+    const resolutionIds = Array.from(this.pendingResolutions);
+
+    if (resolutionIds.length === 0) {
+      return { errors };
+    }
+
+    for (const conflictId of resolutionIds) {
+      try {
+        await this.config.serverAdapter.resolveConflict(this.config.vaultId, conflictId);
+        // Remove from pending after successful propagation
+        this.pendingResolutions.delete(conflictId);
+        console.log(`[ClientSyncEngine] Propagated conflict resolution: ${conflictId}`);
+      } catch (error) {
+        errors.push(`Failed to propagate conflict resolution ${conflictId}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+
+    return { errors };
   }
 }

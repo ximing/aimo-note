@@ -227,4 +227,16 @@ export class ServerAdapter {
   async ack(dto: AckRequest): Promise<AckResponse> {
     return this.request<AckResponse>('/api/v1/sync/ack', 'POST', dto);
   }
+
+  /**
+   * POST /api/v1/sync/conflicts/:id/resolve
+   * Mark a conflict as resolved on the server (idempotent)
+   */
+  async resolveConflict(vaultId: string, conflictId: number): Promise<void> {
+    await this.request<void>(
+      `/api/v1/sync/conflicts/${encodeURIComponent(String(conflictId))}/resolve`,
+      'POST',
+      { vaultId }
+    );
+  }
 }

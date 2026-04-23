@@ -6,6 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 
 Local-first Obsidian-like note-taking app built with Electron + React.
 
+## Communication
+
+- Use Chinese when conversing with the user unless they explicitly request another language.
+
 ## Project Structure
 
 ```text

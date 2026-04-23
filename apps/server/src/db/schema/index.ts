@@ -14,3 +14,13 @@ export { syncFileHeads, type SyncFileHead, type NewSyncFileHead } from './sync-f
 export { syncDeviceCursors, type SyncDeviceCursor, type NewSyncDeviceCursor } from './sync-device-cursors.js';
 export { syncConflicts, type SyncConflict, type NewSyncConflict } from './sync-conflicts.js';
 export { syncAuditLogs, type SyncAuditLog, type NewSyncAuditLog } from './sync-audit-logs.js';
+export { snapshots, SNAPSHOT_STATUS, type Snapshot, type NewSnapshot } from './snapshots.js';
+export { syncTombstones, type SyncTombstone, type NewSyncTombstone } from './sync-tombstones.js';
+export {
+  syncDiagnostics,
+  type SyncDiagnostic,
+  type NewSyncDiagnostic,
+  syncRuntimeEvents,
+  type SyncRuntimeEvent,
+  type NewSyncRuntimeEvent,
+} from './sync-diagnostics.js';

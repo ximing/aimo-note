@@ -31,6 +31,7 @@
 - rollback UI
 - snapshot 恢复
 - GC / orphan blob cleanup 后台任务
+- Phase 4 的 cleanup / diagnostics / snapshot restore 仅复用本阶段冻结的 `X-Request-Id`、`X-Device-Id` 与 runtime metadata contract；Phase 2 不提前实现这些能力或对应 API
 
 ---
 
@@ -163,7 +164,7 @@ controller 只负责：
 - `AuthService`：密码校验、hash、JWT / session 逻辑
 - `VaultService`：vault 创建、owner 校验、member 查询
 - `DeviceService`：设备注册、刷新 lastSeen、吊销与列表
-- `BlobService`：blob 命中检查、预签名上传/下载 URL、blob 元数据落库
+- `BlobService`：blob 命中检查、预签名上传/下载 URL、blob 元数据落库；`blob-upload-url` 到 `commit` 之间允许短暂 orphan window，未被 commit 引用且超过安全窗口的对象由后续 orphan cleanup 回收，presigned URL expiry 是自然收敛边界之一
 - `SyncCommitService`：幂等、事务、head 校验、commit 落库
 - `SyncPullService`：增量拉取、聚合 changes 与 `blobRefs`
 - `CursorService`：推进 cursor，禁止回退
@@ -226,6 +227,7 @@ controller 只负责：
 - `trigger` 至少覆盖 `startup` / `login` / `local_change` / `network_recovered` / `periodic` / `manual`，后续 `rollback` 等来源只能在此集合基础上扩展，不能重命名既有字段
 - 客户端本地状态、服务端审计写路径、后续 diagnostics 聚合都必须复用这些字段名与含义，避免 Phase 4 再做语义迁移
 - Phase 3 的 conflict / rollback 运行态、Phase 4 的 `diagnostics/events` 与诊断面板都必须直接复用本节 contract
+- Phase 4 的 orphan cleanup、diagnostics、snapshot restore 只能复用本节与 Request Header Contract 中已冻结的 `requestId` / `deviceId` / runtime metadata 语义；Phase 2 不新增这些能力的 API 与执行链路
 
 ---
 
@@ -636,6 +638,8 @@ Phase 2 只有在以下条件全部满足时才可视为完成：
 - [ ] 上传 / 下载 URL 都必须限定到当前用户 + 当前 vault 的 prefix
 - [ ] 预签名 URL 的 object key 规则必须由服务端固定生成，不允许客户端自定义目标 prefix
 - [ ] 写入 / 更新 blob 元数据
+- [ ] 固化 `blob-upload-url -> commit` 间短暂 orphan window 语义：未被 commit 引用且超过安全窗口的对象由后续 orphan cleanup 回收，presigned URL expiry 可作为自然收敛边界之一
+- [ ] 本任务仅冻结 orphan window contract，不实现 orphan cleanup 调度链路
 
 ### Task 16A: AuditService 与审计落库
 
@@ -733,6 +737,7 @@ Phase 2 只有在以下条件全部满足时才可视为完成：
 - [ ] 明确 `PullQueryDto.limit`、`PullResponse.hasMore` 等分页字段
 - [ ] 明确关键错误码 / 错误类型，避免客户端恢复策略依赖隐式约定
 - [ ] 明确 `blob_download_expired`、`blob_download_failed`、`blob_not_visible` 等下载相关错误，以及它们对应的 `OFFLINE` / `ERROR` / 可重试语义
+- [ ] 在 DTO contract 说明中标注：Phase 4 cleanup / diagnostics / snapshot restore 复用 Phase 2 冻结的 `requestId` / `deviceId` / runtime metadata 语义，Phase 2 不新增 diagnostics API 与 snapshot restore DTO
 
 ### Task 20: 客户端接入服务端 happy path
 
@@ -804,6 +809,7 @@ Phase 2 只有在以下条件全部满足时才可视为完成：
 - [ ] 审计日志可查询到 `user.register`、`user.login`、`vault.create`、`device.register`、`sync.commit`、`sync.pull`、`sync.ack`
 - [ ] 审计记录稳定包含 `userId`、`vaultId`、`deviceId`、`requestId`
 - [ ] `commit` 成功时 `sync_file_heads` 与 `blobs.refCount` 原子一致；失败回滚时不会留下脏 refCount
+- [ ] `blob-upload-url` 到 `commit` 间允许短暂 orphan window；未被 commit 引用对象的回收仅作为后续 phase contract，不阻塞本阶段 happy path
 - [ ] `blob_missing`、`head_mismatch`、非法 `sinceSeq`、ack 回退等错误返回稳定语义
 
 ### 客户端 + 服务端联调
@@ -855,6 +861,7 @@ Phase 2 只有在以下条件全部满足时才可视为完成：
 - 设置页已经承载登录、同步开关、状态展示与“立即同步”入口
 - 本地编辑、搜索、索引与历史能力在 `DISABLED` / `OFFLINE` 场景下未因接入远端同步而退化
 - 多 vault 场景下的本地状态隔离与自动同步调度已具备基础验收，后续 phase 无需回头重做同步状态模型
+- `blob-upload-url -> commit` orphan window 语义与后续 cleanup 收敛边界（含 presigned URL expiry）已冻结；但 cleanup / diagnostics / snapshot restore 实现未提前纳入 Phase 2
 - 用户无需手动 `push` / `pull` 即可完成日常同步，且仍保留设置页“立即同步”兜底入口
 - 新设备或清空本地 blob cache 后，已可通过 `pull + blob-download-url` 稳定完成内容重建
 - Phase 3 只需要补冲突 UX、历史与回溯，不再重构服务端主干

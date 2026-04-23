@@ -76,13 +76,22 @@ export interface SyncManifest {
 export interface SyncConflictRecord {
   id: number;
   filePath: string;
-  localVersion: string;
-  remoteVersion: string;
+  // Shared fields from ServerConflict canonical contract
+  expectedBaseRevision: string;
+  actualHeadRevision: string;
+  remoteBlobHash: string | null;
+  winningCommitSeq: number;
+  // Local auxiliary fields
   localHash: string;
-  remoteHash: string;
+  conflictCopyPath?: string;
   createdAt: string;
   resolved: boolean;
   resolutionPath: string | null;
+}
+
+export interface RollbackRequest {
+  filePath: string;
+  targetVersion: string;
 }
 
 export interface RollbackResult {
@@ -314,20 +323,26 @@ export type SyncStatus =
 export type SyncTrigger =
   | 'startup'
   | 'login'
-  | 'network_recovery'
+  | 'network_recovered'
   | 'pending_change'
-  | 'periodic_poll'
-  | 'manual';
+  | 'periodic'
+  | 'manual'
+  | 'rollback';
 
 // =============================================================================
 // Conflict DTOs
 // =============================================================================
 
+/**
+ * Canonical transport contract for sync conflicts across client and server.
+ * All conflict representations must use these exact field names.
+ * Any field rename or semantic extension must update this contract first.
+ */
 export interface ServerConflict {
   filePath: string;
   expectedBaseRevision: string;
   actualHeadRevision: string;
-  remoteBlobHash: string;
+  remoteBlobHash: string | null;
   winningCommitSeq: number;
 }
 
@@ -356,20 +371,190 @@ export interface HistoryBlobResponse {
 // Snapshot DTOs
 // =============================================================================
 
+/**
+ * Task status for snapshot operations.
+ * Only `succeeded` and `failed` are terminal states.
+ */
+export type SnapshotTaskStatus = 'pending' | 'running' | 'succeeded' | 'failed';
+
+/**
+ * Configuration for snapshot creation.
+ */
+export interface SnapshotConfig {
+  /** Human-readable description for this snapshot */
+  description?: string;
+  /** Retention days - snapshot will be automatically deleted after this many days (default: 30) */
+  retentionDays?: number;
+  /** Include blob content in snapshot (default: false) */
+  includeBlobs?: boolean;
+  /** Tags for organizing snapshots */
+  tags?: string[];
+}
+
+/**
+ * Snapshot record with polling and task status fields.
+ */
 export interface SnapshotRecord {
   id: string;
   vaultId: string;
-  status: string;
+  status: SnapshotTaskStatus;
   baseSeq: number;
   sizeBytes: number | null;
   createdAt: string;
   finishedAt: string | null;
+  /** Commit seq restored from this snapshot (if applicable) */
+  restoredCommitSeq: number | null;
+  /** Reason for failure if status is 'failed' */
+  failureReason: string | null;
+  /** Final commit seq after restore completes */
+  finalCommitSeq: number | null;
+  /** Last update timestamp for polling */
+  updatedAt: string;
 }
 
+/**
+ * Snapshot restore result with task status and failure information.
+ */
 export interface SnapshotRestoreResult {
   snapshotId: string;
+  status: SnapshotTaskStatus;
   restoredCommitSeq: number;
   restoredFiles: number;
+  /** Summary of restore results */
+  resultSummary: string | null;
+  /** Reason for failure if status is 'failed' */
+  failureReason: string | null;
+  /** Final commit seq after restore completes */
+  finalCommitSeq: number | null;
+}
+
+// =============================================================================
+// Tombstone DTOs
+// =============================================================================
+
+/**
+ * Tombstone retention configuration.
+ */
+export interface TombstoneRetentionConfig {
+  /** Number of days to retain tombstones before cleanup (default: 30) */
+  retentionDays: number;
+  /** Protect tombstones newer than this cursor from cleanup */
+  deviceCursorProtectedDays?: number;
+  /** Automatically clean up tombstones older than retention period */
+  autoCleanup?: boolean;
+}
+
+/**
+ * Result of a tombstone cleanup operation.
+ */
+export interface TombstoneCleanupResult {
+  /** Number of tombstones deleted */
+  deletedCount: number;
+  /** Errors encountered during cleanup */
+  errors: string[];
+  /** Timestamp when cleanup was performed */
+  cleanedAt: string;
+}
+
+// =============================================================================
+// Sync Metrics DTOs
+// =============================================================================
+
+/**
+ * Metrics snapshot for sync observability.
+ */
+export interface SyncMetricsSnapshot {
+  /** Total number of successful commit operations */
+  commitSuccessTotal: number;
+  /** Total number of failed commit operations */
+  commitFailureTotal: number;
+  /** Total number of successful pull operations */
+  pullSuccessTotal: number;
+  /** Total number of failed pull operations */
+  pullFailureTotal: number;
+  /** Total number of blob upload requests */
+  blobUploadRequestTotal: number;
+  /** Total number of failed blob upload requests */
+  blobUploadFailureTotal: number;
+  /** Total number of blob download requests */
+  blobDownloadRequestTotal: number;
+  /** Total number of failed blob download requests */
+  blobDownloadFailureTotal: number;
+  /** Total bytes uploaded */
+  bytesUploaded: number;
+  /** Total bytes downloaded */
+  bytesDownloaded: number;
+  /** Current sync status */
+  currentStatus: SyncStatus;
+  /** Timestamp of snapshot */
+  capturedAt: string;
+}
+
+// =============================================================================
+// Sync Diagnostics DTOs
+// =============================================================================
+
+/**
+ * Sync diagnostics covering trigger, offline state, and retry information.
+ */
+export interface SyncDiagnostics {
+  /** Source that triggered the last sync operation */
+  lastTriggerSource: SyncTrigger | null;
+  /** Reason for being offline (if currently offline) */
+  offlineReason: string | null;
+  /** Timestamp of next scheduled retry */
+  nextRetryAt: string | null;
+  /** Request ID of the last failed request */
+  lastFailedRequestId: string | null;
+  /** Device ID associated with the last failed request */
+  lastFailedRequestDeviceId: string | null;
+  /** Timestamp of the last successful sync */
+  lastSuccessfulSyncAt: string | null;
+  /** Number of consecutive failures */
+  consecutiveFailures: number;
+}
+
+// =============================================================================
+// Sync Runtime Event DTOs
+// =============================================================================
+
+/**
+ * Runtime event emitted during sync operations.
+ * These events are used for offline replay and diagnostics.
+ *
+ * Idempotency key: combination of `requestId` + `deviceId` + `trigger`
+ * Deduplication: events with the same idempotency key within a 24h window are deduplicated
+ * Offline replay: events captured while offline are replayed on reconnection
+ */
+export interface SyncRuntimeEvent {
+  /** What triggered this sync event */
+  trigger: SyncTrigger;
+  /** Number of retry attempts */
+  retryCount: number;
+  /** Timestamp when offline state started (if applicable) */
+  offlineStartedAt: string | null;
+  /** Timestamp when connection was recovered (if applicable) */
+  recoveredAt: string | null;
+  /** Timestamp of next scheduled retry (if applicable) */
+  nextRetryAt: string | null;
+  /** Unique request ID for this sync operation */
+  requestId: string;
+  /** Device ID performing the sync */
+  deviceId: string;
+  /** Event timestamp */
+  occurredAt: string;
+}
+
+/**
+ * Acknowledgment for runtime event reporting.
+ */
+export interface SyncRuntimeEventAck {
+  /** Whether the event was accepted */
+  accepted: boolean;
+  /** Whether the event was deduplicated */
+  deduplicated: boolean;
+  /** Timestamp when the event was processed */
+  processedAt: string;
 }
 
 // =============================================================================

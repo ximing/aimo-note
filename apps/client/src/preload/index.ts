@@ -285,36 +285,61 @@ contextBridge.exposeInMainWorld('electronAPI', {
         vaultId?: string | null;
         vaultName?: string | null;
       }>,
-    trigger: () =>
-      ipcRenderer.invoke('sync:trigger') as Promise<{
+    trigger: (trigger?: string) =>
+      ipcRenderer.invoke('sync:trigger', trigger) as Promise<{
         success: boolean;
         error?: string;
       }>,
-    getConflicts: () =>
-      ipcRenderer.invoke('sync:getConflicts') as Promise<{
+    getConflicts: (vaultId?: string) =>
+      ipcRenderer.invoke('sync:getConflicts', vaultId) as Promise<{
         success: boolean;
         conflicts: Array<{
-          id: number;
+          id: string;
           filePath: string;
-          localVersion: string;
-          remoteVersion: string;
-          localHash: string;
-          remoteHash: string;
+          expectedBaseRevision: string;
+          actualHeadRevision: string;
+          remoteBlobHash: string;
+          winningCommitSeq: number;
+          losingDeviceId: string | null;
+          resolvedAt: string | null;
           createdAt: string;
-          resolved: boolean;
-          resolutionPath: string | null;
         }>;
         error?: string;
       }>,
-    resolveConflict: (id: number, resolutionPath: string) =>
-      ipcRenderer.invoke('sync:resolveConflict', id, resolutionPath) as Promise<{
+    resolveConflict: (conflictId: string, resolutionPath: string) =>
+      ipcRenderer.invoke('sync:resolveConflict', conflictId, resolutionPath) as Promise<{
         success: boolean;
         error?: string;
       }>,
-    rollback: (filePath: string, targetVersion: string) =>
-      ipcRenderer.invoke('sync:rollback', filePath, targetVersion) as Promise<{
+    rollback: (vaultPath: string, filePath: string, targetVersion: string) =>
+      ipcRenderer.invoke('sync:rollback', vaultPath, filePath, targetVersion) as Promise<{
         success: boolean;
         error?: string;
+      }>,
+    listHistory: (vaultId: string, filePath: string, page?: number, pageSize?: number) =>
+      ipcRenderer.invoke('sync:listHistory', vaultId, filePath, page, pageSize) as Promise<{
+        success: boolean;
+        items: Array<{
+          revision: string;
+          blobHash: string | null;
+          commitSeq: number;
+          createdAt: string;
+          deviceId: string;
+          isDeleted: boolean;
+        }>;
+        page: number;
+        pageSize: number;
+        hasMore: boolean;
+        error?: string;
+      }>,
+    openConflictCopy: (conflictId: string, filePath: string) =>
+      ipcRenderer.invoke('sync:openConflictCopy', conflictId, filePath) as Promise<{
+        success: boolean;
+        error?: string;
+      }>,
+    recordConflictCopyPath: (conflictId: string, conflictCopyPath: string) =>
+      ipcRenderer.invoke('sync:recordConflictCopyPath', conflictId, conflictCopyPath) as Promise<{
+        success: boolean;
       }>,
     configure: (serverUrl: string, deviceId: string) =>
       ipcRenderer.invoke('sync:configure', serverUrl, deviceId) as Promise<{
@@ -347,6 +372,118 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.invoke('sync:registerDevice', vaultId, deviceName) as Promise<{
         success: boolean;
         deviceId?: string;
+        error?: string;
+      }>,
+    getDiagnostics: (vaultId?: string) =>
+      ipcRenderer.invoke('sync:getDiagnostics', vaultId) as Promise<{
+        success: boolean;
+        diagnostics: {
+          lastTriggerSource: string | null;
+          offlineReason: string | null;
+          nextRetryAt: string | null;
+          lastFailedRequestId: string | null;
+          lastFailedRequestDeviceId: string | null;
+          lastSuccessfulSyncAt: string | null;
+          consecutiveFailures: number;
+        } | null;
+        error?: string;
+      }>,
+    recordRuntimeEvent: (eventData: {
+      vaultId: string;
+      deviceId: string;
+      trigger: string;
+      retryCount: number;
+      offlineStartedAt?: string | null;
+      recoveredAt?: string | null;
+      nextRetryAt?: string | null;
+      requestId: string;
+    }) =>
+      ipcRenderer.invoke('sync:recordRuntimeEvent', eventData) as Promise<{
+        success: boolean;
+        accepted: boolean;
+        deduplicated: boolean;
+        error?: string;
+      }>,
+    // Snapshot operations
+    listSnapshots: (vaultId: string, page?: number, pageSize?: number) =>
+      ipcRenderer.invoke('sync:listSnapshots', vaultId, page, pageSize) as Promise<{
+        success: boolean;
+        items: Array<{
+          id: string;
+          vaultId: string;
+          status: string;
+          baseSeq: number;
+          sizeBytes: number | null;
+          createdAt: string;
+          finishedAt: string | null;
+          restoredCommitSeq: number | null;
+          failureReason: string | null;
+          finalCommitSeq: number | null;
+          updatedAt: string;
+        }>;
+        page: number;
+        pageSize: number;
+        total: number;
+        hasMore: boolean;
+        error?: string;
+      }>,
+    createSnapshot: (vaultId: string, description?: string) =>
+      ipcRenderer.invoke('sync:createSnapshot', vaultId, description) as Promise<{
+        success: boolean;
+        snapshot?: {
+          id: string;
+          vaultId: string;
+          status: string;
+          baseSeq: number;
+          sizeBytes: number | null;
+          createdAt: string;
+          finishedAt: string | null;
+          restoredCommitSeq: number | null;
+          failureReason: string | null;
+          finalCommitSeq: number | null;
+          updatedAt: string;
+        };
+        error?: string;
+      }>,
+    getSnapshot: (snapshotId: string) =>
+      ipcRenderer.invoke('sync:getSnapshot', snapshotId) as Promise<{
+        success: boolean;
+        snapshot?: {
+          id: string;
+          vaultId: string;
+          status: string;
+          baseSeq: number;
+          sizeBytes: number | null;
+          createdAt: string;
+          finishedAt: string | null;
+          restoredCommitSeq: number | null;
+          failureReason: string | null;
+          finalCommitSeq: number | null;
+          updatedAt: string;
+        };
+        error?: string;
+      }>,
+    restoreSnapshot: (snapshotId: string, vaultId: string, deviceId?: string) =>
+      ipcRenderer.invoke('sync:restoreSnapshot', snapshotId, vaultId, deviceId) as Promise<{
+        success: boolean;
+        result?: {
+          snapshotId: string;
+          status: string;
+          restoredCommitSeq: number;
+          restoredFiles: number;
+          resultSummary: string | null;
+          failureReason: string | null;
+          finalCommitSeq: number | null;
+        };
+        existingTask?: {
+          snapshotId: string;
+          status: string;
+          restoredCommitSeq: number;
+          restoredFiles: number;
+          resultSummary: string | null;
+          failureReason: string | null;
+          finalCommitSeq: number | null;
+        };
         error?: string;
       }>,
   },
@@ -497,30 +634,54 @@ declare global {
           vaultId?: string | null;
           vaultName?: string | null;
         }>;
-        trigger: () => Promise<{ success: boolean; error?: string }>;
-        getConflicts: () => Promise<{
+        trigger: (trigger?: string) => Promise<{ success: boolean; error?: string }>;
+        getConflicts: (vaultId?: string) => Promise<{
           success: boolean;
           conflicts: Array<{
-            id: number;
+            id: string;
             filePath: string;
-            localVersion: string;
-            remoteVersion: string;
-            localHash: string;
-            remoteHash: string;
+            expectedBaseRevision: string;
+            actualHeadRevision: string;
+            remoteBlobHash: string;
+            winningCommitSeq: number;
+            losingDeviceId: string | null;
+            resolvedAt: string | null;
             createdAt: string;
-            resolved: boolean;
-            resolutionPath: string | null;
+            conflictCopyPath: string | null;
           }>;
           error?: string;
         }>;
         resolveConflict: (
-          id: number,
+          conflictId: string,
           resolutionPath: string
         ) => Promise<{ success: boolean; error?: string }>;
         rollback: (
+          vaultPath: string,
           filePath: string,
           targetVersion: string
         ) => Promise<{ success: boolean; error?: string }>;
+        listHistory: (
+          vaultId: string,
+          filePath: string,
+          page?: number,
+          pageSize?: number
+        ) => Promise<{
+          success: boolean;
+          items: Array<{
+            revision: string;
+            blobHash: string | null;
+            commitSeq: number;
+            createdAt: string;
+            deviceId: string;
+            isDeleted: boolean;
+          }>;
+          page: number;
+          pageSize: number;
+          hasMore: boolean;
+          error?: string;
+        }>;
+        openConflictCopy: (conflictId: string, filePath: string) => Promise<{ success: boolean; error?: string }>;
+        recordConflictCopyPath: (conflictId: string, conflictCopyPath: string) => Promise<{ success: boolean }>;
         configure: (
           serverUrl: string,
           deviceId: string
@@ -544,6 +705,34 @@ declare global {
           vaultId: string,
           deviceName: string
         ) => Promise<{ success: boolean; deviceId?: string; error?: string }>;
+        getDiagnostics: (vaultId?: string) => Promise<{
+          success: boolean;
+          diagnostics: {
+            lastTriggerSource: string | null;
+            offlineReason: string | null;
+            nextRetryAt: string | null;
+            lastFailedRequestId: string | null;
+            lastFailedRequestDeviceId: string | null;
+            lastSuccessfulSyncAt: string | null;
+            consecutiveFailures: number;
+          } | null;
+          error?: string;
+        }>;
+        recordRuntimeEvent: (eventData: {
+          vaultId: string;
+          deviceId: string;
+          trigger: string;
+          retryCount: number;
+          offlineStartedAt?: string | null;
+          recoveredAt?: string | null;
+          nextRetryAt?: string | null;
+          requestId: string;
+        }) => Promise<{
+          success: boolean;
+          accepted: boolean;
+          deduplicated: boolean;
+          error?: string;
+        }>;
       },
     };
   }

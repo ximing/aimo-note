@@ -50,6 +50,25 @@ CREATE TABLE IF NOT EXISTS sync_conflicts (
   resolution_path TEXT
 );
 
+CREATE TABLE IF NOT EXISTS sync_local_changes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  file_path TEXT NOT NULL,
+  operation TEXT NOT NULL CHECK(operation IN ('upsert', 'delete')),
+  blob_hash TEXT,
+  base_revision TEXT,
+  new_revision TEXT NOT NULL,
+  size_bytes INTEGER,
+  metadata_json TEXT,
+  created_at TEXT NOT NULL,
+  synced INTEGER DEFAULT 0,
+  device_id TEXT NOT NULL,
+  FOREIGN KEY (device_id) REFERENCES sync_devices(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_local_changes_synced ON sync_local_changes(synced);
+CREATE INDEX IF NOT EXISTS idx_local_changes_file_path ON sync_local_changes(file_path);
+CREATE INDEX IF NOT EXISTS idx_local_changes_created ON sync_local_changes(created_at);
+
 CREATE INDEX IF NOT EXISTS idx_change_log_synced ON sync_change_log(synced);
 CREATE INDEX IF NOT EXISTS idx_change_log_created ON sync_change_log(created_at);
 CREATE INDEX IF NOT EXISTS idx_file_versions_path ON sync_file_versions(file_path);

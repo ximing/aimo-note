@@ -547,8 +547,11 @@ users/{userId}/vaults/{vaultId}/
 | `/api/v1/sync/ack` | POST | 推进设备 cursor | 是 |
 | `/api/v1/sync/conflicts` | GET | 查询冲突摘要 | 是 |
 | `/api/v1/sync/history/blob` | GET | 获取历史 revision 对应 blob 引用 | 是 |
+| `/api/v1/sync/diagnostics` | GET | 查询同步诊断摘要 | 是 |
+| `/api/v1/sync/diagnostics/events` | POST | 上报同步 runtime event | 是 |
 | `/api/v1/snapshots` | GET | 快照列表 | 是 |
 | `/api/v1/snapshots` | POST | 创建快照 | 是 |
+| `/api/v1/snapshots/:id` | GET | 查询快照或 restore 任务状态 | 是 |
 | `/api/v1/snapshots/:id/restore` | POST | 触发恢复 | 是 |
 
 ---
@@ -1078,6 +1081,9 @@ interface Request {
 - 记录 blob 元数据
 - 引用计数增加 / 减少
 - orphan blob 清理
+- tombstone 的单次清理执行能力
+- BlobService 只负责执行单次清理判定与对象 / 元数据更新；自动清理的触发、串行化、失败重试与任务状态由 `SchedulerService` 或等价调度层负责
+- `blob-upload-url` 到 `commit` 之间允许存在短暂 orphan window；未被 commit 引用且超过安全窗口的对象由后续 orphan cleanup 回收，预签名 URL 过期时间可作为自然收敛边界之一
 
 ### `SyncCommitService`
 
@@ -1114,6 +1120,12 @@ interface Request {
 - 触发恢复任务
 - 恢复完成后生成新的 `restore commit`，使其他设备仍通过普通 `pull` 收敛
 - 不允许绕过 `sync_commits` / `sync_file_heads` 直接原地改写远端状态
+- restore 必须基于 `snapshot manifest` 与当前远端 head 计算差异，而不是直接把数据库状态改回去
+- 对 snapshot 中存在且与当前 head 不一致的路径生成 `upsert`；对当前 head 中存在但 snapshot 中不存在的路径生成 `delete`；两边一致的路径不生成变更
+- restore 的幂等边界是“同一次 restore 请求 / 同一个 restore task”，而不是“某个 snapshot 只能恢复一次”
+- 相同 `snapshotId + requestId` 的重试不得重复创建 restore task；同一 restore task 若已成功生成 `restore commit`，后续重跑不得再生成第二个语义等价的 commit
+- 用户在更晚时间显式再次 restore 同一 snapshot，可视为新的 restore 操作；若当时当前 head 与 snapshot 已不同，允许生成新的 restore task 与新的 `restore commit`
+- 若 restore diff 为空（当前 head 已与 snapshot 状态一致），服务端仍应返回成功结果，但可不生成新的 commit；该语义必须在 DTO 与状态查询接口中稳定表达
 
 ### `AuditService`
 
@@ -1258,6 +1270,9 @@ interface Request {
 - 写回本地文件
 - 产生新的 pending change
 - 下一次 commit 传播到所有设备
+- 本阶段“历史能力”的验收目标是：客户端可查询服务端历史 revision 元数据、获取对应 blob 引用，并在本地无缓存时通过 `blob-download-url` 完成 rollback
+- 本阶段不要求实现完整的当前设备离线历史镜像或独立的本地 history cache 层；相关能力可在后续 phase 作为性能 / 离线增强单独引入
+- 因此 `packages/core` 中与 history 相关的抽象在本阶段可以是薄封装、IPC 代理或后续缓存扩展点；是否存在独立本地缓存实现，不作为本阶段验收前提
 
 ---
 
@@ -1274,12 +1289,28 @@ interface Request {
 - 删除操作形成的 tombstone 不能立即清理，必须保留一个明确的安全窗口
 - tombstone 清理至少要同时满足：超过保留窗口；且所有未吊销设备的 cursor 都已经越过对应删除提交，或存在等价的安全判定
 - 清理 tombstone 时不得删除仍被历史 revision、快照或当前 head 引用的 blob
+- tombstone cleanup 的自动执行必须通过后台调度服务统一触发，而不是由 `BlobService` 自行定时或由零散 controller 直接调用
+- 后台自动清理、补偿重试以及未来可能的管理端手动触发，必须复用同一条 canonical cleanup 路径，以保证 vault 级互斥、幂等语义、审计上下文与错误观测一致
 
 ### Snapshot Restore
 
 - snapshot restore 必须是异步任务，并可追踪任务状态
 - restore 完成后必须把恢复结果转化为新的同步事件流，让其他设备继续通过普通 `pull` 收敛
 - 若未来引入基于 snapshot 的加速重建，也只能作为 bootstrap 优化，不能替代 `pull + blob-download-url` 的基础可恢复能力
+- snapshot restore 的语义是让当前 vault 的远端可见文件集合收敛到该 snapshot 捕获的完整状态，而不是只把 snapshot 中已有文件重新写一遍
+- restore 的作用域仅限当前 vault 下参与同步的用户内容；`.aimo-note/**` 等内部元数据目录不进入 snapshot，也不参与 restore diff
+- 因此 restore 可能删除“在 snapshot 创建之后新增、且不在该 snapshot 中出现”的文件；客户端在触发前必须明确提示这是一次 vault 级状态回退，而不是非破坏性导入
+- snapshot restore 的幂等边界是“同一次 restore 请求 / 同一个 restore task”，而不是“同一个 snapshot 永久唯一”
+- 对同一次触发请求，若客户端因超时、断线或重试再次提交相同 `requestId`，服务端必须返回同一个 restore task 或其最终结果，不得重复创建任务
+- 同一个 restore task 在后台执行过程中若因 worker 重启、调度重试或重复投递再次执行，必须复用既有执行结果；一旦已经成功生成 `restore commit`，后续重跑不得再次生成第二个语义等价的 commit
+- 若 restore 计算出的差异为空（即当前 head 已与 snapshot 状态一致），服务端仍应返回成功的 restore 结果，但可不生成新的 commit
+
+### Diagnostics Runtime Events
+
+- runtime event 的写入幂等应优先基于稳定幂等键（如 `vaultId + deviceId + requestId + eventType` 或等价 contract），而不是仅靠“最近 24 小时内是否存在相似事件”的模糊查重
+- 若诊断摘要需要返回“最近 24 小时失败次数 / 重试次数 / 恢复次数 / 事件列表”等窗口化统计，查询必须显式带时间下界：仅统计 `occurredAt >= now - 24h` 的事件
+- “最近 24 小时统计”与“当前设备 / 当前 vault 的最新状态”是两类不同语义：前者是时间窗口聚合，后者应由最新有效事件或稳定摘要字段决定，不能用 24 小时去重结果替代当前态判定
+- 对离线补报、重复重试或乱序到达的 runtime event，服务端必须保证：同一幂等事件不会被重复计入窗口统计，不同时间发生的合法新事件不会因缺少时间边界而被旧事件错误吞掉
 
 ---
 
@@ -1371,6 +1402,9 @@ interface Config {
 - `HistoryBlobResponse`
 - `SnapshotRecord`
 - `SnapshotRestoreResult`
+- `SyncDiagnostics`
+- `SyncRuntimeEvent`
+- `SyncRuntimeEventAck`
 
 ---
 
@@ -1433,8 +1467,16 @@ interface Config {
 ### 安全验收
 
 - 用户 A 不能访问用户 B 的 vault / device / commit / blob 元数据
-- 构造其他用户的 `vaultId` / `deviceId` 请求会被拒绝
+- 构造其他用户的 `vaultId` / `deviceId` / `snapshotId` 请求会被拒绝
 - 预签名 URL 不允许越权写入其他用户前缀
+
+### 运行与恢复验收
+
+- snapshot restore 会把 vault 收敛到 snapshot 的完整状态；当前 head 中存在但 snapshot 中不存在的路径会通过 `delete` 表达，而不是被隐式保留
+- 同一次 restore 请求重试不会重复创建 task；同一 restore task 重跑不会重复生成第二个 `restore commit`
+- `diagnostics` 的最近 24 小时统计只统计 `occurredAt >= now - 24h` 的事件，不会被窗口外旧事件污染
+- runtime event 的去重依赖稳定幂等键，而不是仅靠 24 小时模糊查重
+- tombstone 的自动清理通过统一调度路径触发，避免绕过互斥、审计与失败观测
 
 ### 架构验收
 

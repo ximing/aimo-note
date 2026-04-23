@@ -42,6 +42,22 @@
 - 真正删除前仍需复查当前 head、历史 revision、snapshot 与其他保留引用是否仍指向该 blob
 - 若 `refCount` 与实际引用关系不一致，应记录诊断 / 审计并跳过删除，而不是盲删
 
+### Cleanup Canonical Path Rule
+
+tombstone / orphan cleanup 必须固定一条 canonical 路径，避免不同触发入口出现语义漂移：
+
+- 后台自动清理、失败补偿重试、未来可能的手动触发都必须复用同一条 cleanup 路径
+- `BlobService` 只负责单次清理执行（判定 + 对象/元数据更新），不承载定时调度策略
+- `SchedulerService` 负责统一调度、vault 级互斥、重试编排与观测，避免零散入口绕过审计上下文
+
+### Orphan Window Rule
+
+`blob-upload-url -> commit` 之间允许存在短暂 orphan window：
+
+- 上传成功但尚未被 commit 引用的 blob 可短时存在，不视为异常
+- 超过安全窗口后仍未被 commit 引用的对象，必须由 orphan cleanup 回收
+- presigned upload URL expiry 是自然收敛边界之一，但不是唯一清理判定条件
+
 ### History Retention Rule
 
 为避免 Phase 4 的清理能力反向破坏 Phase 3 已交付的历史 / rollback 功能，本阶段额外固定以下边界：
@@ -55,8 +71,9 @@
 snapshot restore 不是“直接把数据库状态改回去”，而应该：
 
 - 创建可追踪的 restore 任务
-- 完成后生成新的 `restore commit`
-- 让其他设备继续通过普通 `pull` 收敛，而不是绕过同步主链路
+- restore diff 非空时生成新的 `restore commit`，让其他设备继续通过普通 `pull` 收敛
+- 若 restore diff 为空（当前 head 已与 snapshot 一致），仍返回成功，但可不生成新的 commit
+- `GET /snapshots/:id` 与相关 DTO 需稳定表达“成功但无新 commit”的 no-op restore 语义
 - 必须提供可轮询的任务状态查询接口，避免客户端只能依赖列表页猜测 restore 是否完成
 
 ### Diagnostics Write Path
@@ -73,6 +90,10 @@ snapshot restore 不是“直接把数据库状态改回去”，而应该：
 - 服务端聚合跨设备最近同步摘要与历史事件，并继续作为跨设备同步事实与冲突摘要的唯一真相源
 - 客户端继续持有当前设备的实时 `OFFLINE` / 下次重试等瞬时状态，以及同步关闭或离线期间尚未上报的本地记录
 - `trigger`、`retryCount`、`offlineStartedAt`、`recoveredAt`、`nextRetryAt`、`requestId`、`deviceId` 等字段名必须直接复用 Phase 2 已冻结的 contract，不能在 Phase 4 改名或局部重解释
+- runtime event 写入幂等应优先基于稳定幂等键（如 `vaultId + deviceId + requestId + eventType` 或等价 contract），不能仅依赖“最近 24 小时相似事件”做模糊查重
+- 诊断摘要里的“最近 24 小时统计”必须显式只统计 `occurredAt >= now - 24h` 的事件，窗口外历史事件不得污染统计结果
+- “最近 24 小时统计”与“当前设备/当前 vault 最新状态”是两类语义：前者是时间窗口聚合，后者由最新有效事件或稳定摘要字段判定，不能互相替代
+- 对离线补报、重复重试、乱序到达事件，需保证同一幂等事件不会重复计入统计，且合法新事件不会被窗口外旧事件吞掉
 - 当服务端摘要与当前设备本地运行态冲突时，跨设备事实（最近 commit / pull / restore / conflict 摘要）以服务端为准；当前设备尚未上报的瞬时状态以本地为补充，UI 必须能区分“服务端已确认”与“本地暂存”
 - 诊断面板读取时同时消费服务端摘要与本地 IPC 运行态，并以服务端聚合摘要作为跨设备唯一真相源、本地运行态作为当前设备补充视角
 
@@ -91,6 +112,7 @@ snapshot restore 不是“直接把数据库状态改回去”，而应该：
 后台任务是本阶段最容易引入破坏性行为的部分，因此计划必须显式要求：
 
 - cleanup / snapshot / restore 任务都必须具备幂等语义，重复触发不能造成重复删除、重复 restore commit 或状态错乱
+- tombstone / orphan cleanup 的自动触发、补偿重试与未来手动触发必须走统一调度入口，复用同一 canonical cleanup 路径
 - 同一 vault 的高风险任务至少需要基本互斥，避免并发 cleanup 与 restore 相互踩踏
 - 任务失败必须可观测：要写 logger / audit，并保留最近错误与下一次重试信息
 - 后台任务部分失败时不得把系统留在“已删除数据但未更新元数据”的中间态；必要时应显式补偿或保持未完成状态等待重试
@@ -187,12 +209,14 @@ apps/render/src/pages/settings/*
 Phase 4 只有在以下条件全部满足时才可视为完成：
 
 - 本地旧版本缓存可按策略清理，不误删当前 head 所需内容
-- 服务端 orphan blob 只会清理未被引用且超过安全窗口的对象
+- 服务端 orphan blob 只会清理未被引用且超过安全窗口的对象，`blob-upload-url -> commit` 的短暂 orphan window 由后续 cleanup 安全回收
 - 删除 tombstone 存在明确保留窗口，且设备 cursor / 引用保护条件未满足时不会越权清理
+- tombstone / orphan cleanup 的自动触发、补偿重试与未来手动触发都复用同一 canonical cleanup 路径，`BlobService` 与 `SchedulerService` 职责边界清晰
 - 用户可在桌面端创建快照、查看快照、恢复快照，并轮询 restore 任务状态
 - restore 不会静默清空当前设备 pending queue；存在未提交本地变更时会由桌面端先提示并确认，服务端仅负责任务化执行
+- restore diff 为空时仍返回成功，但可不生成新 commit，且 DTO / 状态查询语义稳定
 - 服务端有审计日志与关键同步指标
-- 用户或开发者可在 renderer 诊断面板看到最近同步诊断信息，且三层诊断模型的字段 contract 与真相源边界已固定
+- 用户或开发者可在 renderer 诊断面板看到最近同步诊断信息，且三层诊断模型的字段 contract、24h 统计边界（`occurredAt >= now - 24h`）与真相源边界已固定
 - 新设备或本地缓存丢失后，在 GC / snapshot / cleanup 机制叠加下仍可仅依赖 `pull + blob-download-url` 完成重建
 
 ---
@@ -212,8 +236,10 @@ Phase 4 只有在以下条件全部满足时才可视为完成：
 - [ ] 增加 `SyncRuntimeEvent` / `SyncRuntimeEventAck`
 - [ ] `SnapshotRecord` / restore DTO 明确任务状态枚举、失败原因、最终 `commitSeq`、更新时间等轮询必需字段
 - [ ] snapshot / restore 最小状态枚举固定为 `pending` / `running` / `succeeded` / `failed`，并明确终态语义与重复 restore 时的返回 contract
+- [ ] restore 结果 DTO 与状态查询字段需稳定表达“diff 为空但成功”的 no-op 语义（例如 `commitSeq` 为空且结果摘要可判定）
 - [ ] `SyncDiagnostics` 需覆盖最近触发源、离线原因、下次重试信息，以及最近失败请求的 `requestId` / `deviceId`
-- [ ] `SyncRuntimeEvent` / `SyncRuntimeEventAck` 需明确幂等键、去重与离线补报语义，避免同一轮离线恢复重试被重复计入“当前状态”
+- [ ] `SyncDiagnostics` 若返回最近 24 小时统计，必须显式以 `occurredAt >= now - 24h` 为时间下界，避免窗口外旧事件污染
+- [ ] `SyncRuntimeEvent` / `SyncRuntimeEventAck` 需明确稳定幂等键（如 `vaultId + deviceId + requestId + eventType` 或等价 contract）、去重与离线补报语义，不能仅靠 24h 模糊查重
 
 ### Task 31: 本地 GC
 
@@ -240,7 +266,8 @@ Phase 4 只有在以下条件全部满足时才可视为完成：
 - [ ] snapshot 元数据至少固定 `baseSeq`、`sizeBytes`、`restoredCommitSeq`、`finishedAt`，避免列表、恢复追踪与排障时 contract 漂移
 - [ ] 支持列表、单项状态查询与恢复触发
 - [ ] `GET /snapshots/:id` 返回稳定状态枚举、结果摘要、失败原因、最终 commitSeq（如适用）与更新时间
-- [ ] restore 完成后写入可被其他设备 `pull` 到的 `restore commit`
+- [ ] restore diff 非空时写入可被其他设备 `pull` 到的 `restore commit`
+- [ ] restore diff 为空时返回成功但可不生成 commit，并在状态查询中稳定表达 no-op 结果
 - [ ] restore 生成的 `restore commit` 必须继续遵守主同步链路的文件边界；其他设备 `pull` 后不得看到 `.aimo-note/**` 内容被重新带回
 - [ ] 记录 restore 任务状态、结果摘要与最终 commitSeq（如适用）
 - [ ] 服务端 restore 入口不猜测当前设备本地 pending 状态；相关预检与用户确认由桌面端在调用前完成
@@ -255,9 +282,11 @@ Phase 4 只有在以下条件全部满足时才可视为完成：
 - `apps/server/src/services/scheduler.service.ts`
 
 - [ ] 增加 orphan blob 判定逻辑
+- [ ] 明确 `blob-upload-url -> commit` 的短暂 orphan window：仅回收超过安全窗口且仍未被 commit 引用的对象，presigned URL expiry 可作为自然边界之一
 - [ ] `ref_count = 0` 只作为候选过滤条件；删除前必须再次校验 `sync_file_heads`、历史 revision、snapshot 等真实引用，不能盲信计数
 - [ ] 仅清理 `ref_count = 0` 且超过保留窗口的 blob
 - [ ] 增加 tombstone retention cleanup，且安全条件至少同时包含保留窗口、所有未吊销设备 cursor 判定与引用保护
+- [ ] tombstone / orphan cleanup 的自动触发、补偿重试与未来手动触发必须复用同一条 canonical cleanup 路径
 - [ ] 任一未吊销设备的 `lastPulledSeq` 未越过目标 tombstone 时，清理任务必须跳过该记录
 - [ ] 本阶段不引入服务端历史 revision 裁剪；任何仍可由 `history` API 返回的 revision 都必须继续能换取 blob 引用并完成 rollback
 - [ ] 清理动作写审计日志
@@ -292,7 +321,9 @@ Phase 4 只有在以下条件全部满足时才可视为完成：
 - [ ] 提供 `getSyncDiagnostics(vaultId)`
 - [ ] 提供 `recordSyncRuntimeEvent()`，把 trigger / offline / recovered / retry 等客户端运行态写入服务端诊断模型
 - [ ] `recordSyncRuntimeEvent()` 必须直接复用 Phase 2 已冻结的 `trigger`、`retryCount`、`offlineStartedAt`、`recoveredAt`、`nextRetryAt`、`requestId`、`deviceId` 字段 contract
-- [ ] `recordSyncRuntimeEvent()` 需定义稳定幂等键、去重规则与离线补报语义；同一轮离线恢复、自动重试或重复上报不会写出互相矛盾的当前态
+- [ ] `recordSyncRuntimeEvent()` 需定义稳定幂等键（如 `vaultId + deviceId + requestId + eventType` 或等价 contract）、去重规则与离线补报语义；同一轮离线恢复、自动重试或重复上报不会写出互相矛盾的当前态
+- [ ] runtime event 去重不能仅靠“最近 24 小时相似事件”，必须以幂等键 + 明确补报语义为主
+- [ ] `getSyncDiagnostics(vaultId)` 若返回最近 24 小时统计，必须显式以 `occurredAt >= now - 24h` 作为时间下界，防止窗口外旧事件污染
 - [ ] `diagnostics` / `diagnostics/events` 必须校验当前用户对目标 vault / device 的归属
 - [ ] 诊断接口返回结构需稳定覆盖最近 commit、最近 pull、最近失败、最近冲突、最近设备状态
 - [ ] 当服务端诊断摘要与本地运行态同时存在时，明确并实现字段裁决规则：跨设备事实以服务端为准，当前设备未上报的瞬时状态以本地补充，前端可区分两类来源
@@ -330,6 +361,8 @@ Phase 4 只有在以下条件全部满足时才可视为完成：
 - [ ] 为诊断面板预留同步重试调度信息的采集点
 - [ ] 失败不阻塞主服务启动
 - [ ] cleanup / snapshot / restore 任务具备基本幂等语义，重复触发不会造成重复删除或重复 restore commit
+- [ ] orphan / tombstone cleanup 的自动触发、补偿重试与未来手动触发都通过统一调度入口，复用同一 canonical cleanup 路径
+- [ ] `BlobService` 只提供单次清理执行能力；调度、互斥、失败重试与观测由 `SchedulerService` 统一负责
 - [ ] 同一 vault 的高风险任务具备最小互斥或串行化约束，避免并发 cleanup 与 restore 相互踩踏
 - [ ] cleanup / restore 任一步骤部分失败时，要么完成显式补偿，要么保留可重试未完成状态；不得留下“对象已删但元数据未更新”等半成状态
 - [ ] 任务失败可观测，并保留最近错误、重试信息或未完成状态，避免静默失败
@@ -357,7 +390,11 @@ Phase 4 只有在以下条件全部满足时才可视为完成：
 - [ ] 对 cleanup / restore 注入部分失败后，不会留下“对象已删但元数据未更新”或“restore commit 已写入但任务状态未收敛”的半成状态；系统要么完成补偿，要么保留可重试失败态
 - [ ] 同一 vault 的高风险任务不会无约束并发执行，避免 cleanup 与 restore 相互踩踏
 - [ ] 诊断 API 能返回最近同步摘要、关键请求上下文，以及最近一次 runtime event 上报内容
-- [ ] 离线积压 runtime event 在恢复上报、重复重试或乱序到达时，不会把诊断摘要污染成多条互相矛盾的当前状态
+- [ ] diagnostics 的最近 24 小时统计只统计 `occurredAt >= now - 24h` 的事件，窗口外旧事件不会污染统计
+- [ ] runtime event 去重依赖稳定幂等键与补报语义，而不是仅靠 24h 模糊查重；离线补报、重复重试、乱序到达不会写出矛盾当前态
+- [ ] `blob-upload-url -> commit` 的短暂 orphan window 可被容忍，超过安全窗口后 orphan cleanup 会回收未引用对象
+- [ ] tombstone / orphan cleanup 的自动执行、补偿重试与手动触发复用同一 canonical cleanup 路径，不绕过统一调度互斥与观测
+- [ ] restore diff 为空时，接口仍返回成功且不产生额外 restore commit，状态查询可稳定识别该 no-op 结果
 - [ ] 新增入口写入的审计 / request context 能稳定关联 `requestId`、`deviceId`
 
 ### 客户端 + 前端

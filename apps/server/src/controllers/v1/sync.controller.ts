@@ -1,10 +1,14 @@
-import { Controller, Post, Get, Body, QueryParams, Req, Res } from 'routing-controllers';
+import { Controller, Post, Get, Body, QueryParams, Param, Req, Res } from 'routing-controllers';
 import { OpenAPI } from 'routing-controllers-openapi';
 import type { Response } from 'express';
 import { BlobService } from '../../services/blob.service.js';
 import { SyncCommitService } from '../../services/sync-commit.service.js';
 import { SyncPullService } from '../../services/sync-pull.service.js';
 import { CursorService } from '../../services/cursor.service.js';
+import { ConflictService } from '../../services/conflict.service.js';
+import { HistoryService } from '../../services/history.service.js';
+import { DiagnosticsService } from '../../services/diagnostics.service.js';
+import { AuditService } from '../../services/audit.service.js';
 import { ResponseUtil } from '../../utils/response.js';
 import { ErrorCodes } from '../../constants/error-codes.js';
 import type { AuthenticatedRequest } from '../../types/express.js';
@@ -77,13 +81,14 @@ export interface SyncCommitResponse {
 
 export interface SyncConflictDetail {
   filePath: string;
-  baseRevision: string;
-  headRevision: string;
+  expectedBaseRevision: string;
+  actualHeadRevision: string;
+  remoteBlobHash: string | null;
   winningCommitSeq: number;
 }
 
 export interface SyncConflictResponse {
-  conflicts: SyncConflictDetail[];
+  items: SyncConflictDetail[];
 }
 
 export interface SyncPullQuery {
@@ -136,6 +141,49 @@ export interface SyncAckResponse {
   updatedAt: string;
 }
 
+// Conflict query params
+export interface SyncConflictsQuery {
+  vaultId: string;
+}
+
+// Conflict resolve params
+export interface SyncConflictResolveBody {
+  vaultId: string;
+  resolutionPath?: string;
+}
+
+// History query params
+export interface SyncHistoryQuery {
+  vaultId: string;
+  filePath: string;
+  page?: number;
+  pageSize?: number;
+}
+
+// History blob query params
+export interface SyncHistoryBlobQuery {
+  vaultId: string;
+  revision: string;
+}
+
+// Diagnostics query params
+export interface SyncDiagnosticsQuery {
+  vaultId: string;
+  deviceId?: string;
+}
+
+// Diagnostics runtime event body
+export interface SyncRuntimeEventBody {
+  vaultId: string;
+  deviceId: string;
+  trigger: string;
+  retryCount: number;
+  offlineStartedAt?: string | null;
+  recoveredAt?: string | null;
+  nextRetryAt?: string | null;
+  requestId: string;
+}
+
 @Service()
 @Controller('/api/v1/sync')
 export class SyncController {
@@ -143,7 +191,11 @@ export class SyncController {
     private readonly blobService: BlobService,
     private readonly syncCommitService: SyncCommitService,
     private readonly syncPullService: SyncPullService,
-    private readonly cursorService: CursorService
+    private readonly cursorService: CursorService,
+    private readonly conflictService: ConflictService,
+    private readonly historyService: HistoryService,
+    private readonly diagnosticsService: DiagnosticsService,
+    private readonly auditService: AuditService
   ) {}
 
   /**
@@ -177,6 +229,16 @@ export class SyncController {
         res,
         ErrorCodes.VALIDATION_ERROR,
         'X-Device-Id header is required for sync endpoints',
+        400
+      );
+    }
+
+    // Validate X-Request-Id header is present
+    if (!req.requestId) {
+      return ResponseUtil.error(
+        res,
+        ErrorCodes.VALIDATION_ERROR,
+        'X-Request-Id header is required for sync endpoints',
         400
       );
     }
@@ -632,6 +694,16 @@ export class SyncController {
       );
     }
 
+    // Validate X-Request-Id header is present
+    if (!req.requestId) {
+      return ResponseUtil.error(
+        res,
+        ErrorCodes.VALIDATION_ERROR,
+        'X-Request-Id header is required for pull endpoint',
+        400
+      );
+    }
+
     try {
       const result = await this.syncPullService.pull(req.user.id, {
         vaultId,
@@ -640,6 +712,15 @@ export class SyncController {
         requestId: req.requestId,
         deviceId: req.deviceId ?? undefined,
       });
+
+      // Audit logging for pull operation
+      await this.auditService.logSyncPull(
+        req.user.id,
+        vaultId,
+        req.deviceId ?? '',
+        req.requestId ?? '',
+        { detail: { sinceSeq, limit, commitCount: result.commits.length } }
+      );
 
       return ResponseUtil.success(res, {
         vaultId,
@@ -715,6 +796,16 @@ export class SyncController {
       );
     }
 
+    // Validate X-Request-Id header is present
+    if (!req.requestId) {
+      return ResponseUtil.error(
+        res,
+        ErrorCodes.VALIDATION_ERROR,
+        'X-Request-Id header is required for sync endpoints',
+        400
+      );
+    }
+
     const { vaultId, deviceId, ackedSeq } = body;
 
     // Validate vaultId
@@ -765,11 +856,357 @@ export class SyncController {
         requestId: req.requestId,
       });
 
+      // Audit logging for ack operation
+      await this.auditService.logSyncAck(
+        req.user.id,
+        vaultId,
+        deviceId,
+        req.requestId ?? '',
+        { detail: { ackedSeq, lastPulledSeq: result.lastPulledSeq } }
+      );
+
       return ResponseUtil.success(res, {
         vaultId: result.vaultId,
         deviceId: result.deviceId,
         lastPulledSeq: result.lastPulledSeq,
         updatedAt: result.updatedAt.toISOString(),
+      });
+    } catch (error: any) {
+      if (error.code === ErrorCodes.ACCESS_DENIED) {
+        return ResponseUtil.error(res, error.code, error.message, 403);
+      }
+      if (error.code === ErrorCodes.VALIDATION_ERROR) {
+        return ResponseUtil.error(res, error.code, error.message, 400);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * GET /api/v1/sync/conflicts
+   * Get unresolved conflicts for a vault
+   */
+  @Get('/conflicts')
+  @OpenAPI({
+    summary: 'Get unresolved conflicts',
+    description: 'Gets unresolved sync conflicts for a vault',
+    responses: {
+      200: { description: 'Conflict summaries' },
+      400: { description: 'Validation error' },
+      401: { description: 'Not authenticated' },
+      403: { description: 'Access denied' },
+    },
+  })
+  async getConflicts(@QueryParams() query: SyncConflictsQuery, @Req() req: AuthenticatedRequest, @Res() res: Response) {
+    if (!req.user) {
+      return ResponseUtil.error(res, ErrorCodes.AUTH_TOKEN_MISSING, 'Not authenticated', 401);
+    }
+
+    // Validate X-Device-Id header is present
+    if (!req.deviceId) {
+      return ResponseUtil.error(res, ErrorCodes.VALIDATION_ERROR, 'X-Device-Id header is required', 400);
+    }
+
+    const { vaultId } = query;
+
+    if (!vaultId || typeof vaultId !== 'string') {
+      return ResponseUtil.error(res, ErrorCodes.VALIDATION_ERROR, 'vaultId is required', 400);
+    }
+
+    try {
+      const conflicts = await this.conflictService.getConflicts(req.user.id, vaultId);
+
+      return ResponseUtil.success(res, {
+        items: conflicts.map((c) => ({
+          id: c.id,
+          filePath: c.filePath,
+          expectedBaseRevision: c.losingRevision,
+          actualHeadRevision: c.winningRevision,
+          remoteBlobHash: c.winningBlobHash ?? '',
+          winningCommitSeq: c.winningCommitSeq,
+          losingDeviceId: c.losingDeviceId,
+          resolvedAt: c.resolvedAt?.toISOString() ?? null,
+          createdAt: c.createdAt.toISOString(),
+        })),
+      });
+    } catch (error: any) {
+      if (error.code === ErrorCodes.ACCESS_DENIED) {
+        return ResponseUtil.error(res, error.code, error.message, 403);
+      }
+      if (error.code === ErrorCodes.VALIDATION_ERROR) {
+        return ResponseUtil.error(res, error.code, error.message, 400);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * POST /api/v1/sync/conflicts/:id/resolve
+   * Mark a conflict as resolved
+   */
+  @Post('/conflicts/:id/resolve')
+  @OpenAPI({
+    summary: 'Resolve a conflict',
+    description: 'Marks a sync conflict as resolved',
+    responses: {
+      200: { description: 'Conflict resolved' },
+      400: { description: 'Validation error' },
+      401: { description: 'Not authenticated' },
+      403: { description: 'Access denied' },
+      404: { description: 'Conflict not found' },
+    },
+  })
+  async resolveConflict(@Param('id') conflictId: string, @Body() body: SyncConflictResolveBody, @Req() req: AuthenticatedRequest, @Res() res: Response) {
+    if (!req.user) {
+      return ResponseUtil.error(res, ErrorCodes.AUTH_TOKEN_MISSING, 'Not authenticated', 401);
+    }
+
+    // Validate X-Device-Id header is present
+    if (!req.deviceId) {
+      return ResponseUtil.error(res, ErrorCodes.VALIDATION_ERROR, 'X-Device-Id header is required', 400);
+    }
+
+    const { vaultId, resolutionPath } = body;
+
+    if (!vaultId || typeof vaultId !== 'string') {
+      return ResponseUtil.error(res, ErrorCodes.VALIDATION_ERROR, 'vaultId is required', 400);
+    }
+
+    try {
+      await this.conflictService.resolveConflict(req.user.id, vaultId, conflictId, resolutionPath);
+      return ResponseUtil.success(res, { resolved: true });
+    } catch (error: any) {
+      if (error.code === ErrorCodes.ACCESS_DENIED) {
+        return ResponseUtil.error(res, error.code, error.message, 403);
+      }
+      if (error.code === ErrorCodes.RESOURCE_NOT_FOUND) {
+        return ResponseUtil.error(res, error.code, error.message, 404);
+      }
+      if (error.code === ErrorCodes.VALIDATION_ERROR) {
+        return ResponseUtil.error(res, error.code, error.message, 400);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * GET /api/v1/sync/history
+   * Get revision history for a file
+   */
+  @Get('/history')
+  @OpenAPI({
+    summary: 'Get file revision history',
+    description: 'Gets paginated revision history for a file',
+    responses: {
+      200: { description: 'History entries' },
+      400: { description: 'Validation error' },
+      401: { description: 'Not authenticated' },
+      403: { description: 'Access denied' },
+    },
+  })
+  async getHistory(@QueryParams() query: SyncHistoryQuery, @Req() req: AuthenticatedRequest, @Res() res: Response) {
+    if (!req.user) {
+      return ResponseUtil.error(res, ErrorCodes.AUTH_TOKEN_MISSING, 'Not authenticated', 401);
+    }
+
+    // Validate X-Device-Id header is present
+    if (!req.deviceId) {
+      return ResponseUtil.error(res, ErrorCodes.VALIDATION_ERROR, 'X-Device-Id header is required', 400);
+    }
+
+    const { vaultId, filePath, page, pageSize } = query;
+
+    if (!vaultId || typeof vaultId !== 'string') {
+      return ResponseUtil.error(res, ErrorCodes.VALIDATION_ERROR, 'vaultId is required', 400);
+    }
+
+    if (!filePath || typeof filePath !== 'string') {
+      return ResponseUtil.error(res, ErrorCodes.VALIDATION_ERROR, 'filePath is required', 400);
+    }
+
+    try {
+      const result = await this.historyService.getHistory(req.user.id, {
+        vaultId,
+        filePath,
+        page: page ? Number(page) : 1,
+        pageSize: pageSize ? Number(pageSize) : 50,
+      });
+
+      return ResponseUtil.success(res, result);
+    } catch (error: any) {
+      if (error.code === ErrorCodes.ACCESS_DENIED) {
+        return ResponseUtil.error(res, error.code, error.message, 403);
+      }
+      if (error.code === ErrorCodes.VALIDATION_ERROR) {
+        return ResponseUtil.error(res, error.code, error.message, 400);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * GET /api/v1/sync/history/blob
+   * Get blob reference for a specific revision
+   */
+  @Get('/history/blob')
+  @OpenAPI({
+    summary: 'Get revision blob reference',
+    description: 'Gets blob reference for a specific revision',
+    responses: {
+      200: { description: 'Blob reference' },
+      400: { description: 'Validation error' },
+      401: { description: 'Not authenticated' },
+      403: { description: 'Access denied' },
+      404: { description: 'Revision not found' },
+    },
+  })
+  async getHistoryBlob(@QueryParams() query: SyncHistoryBlobQuery, @Req() req: AuthenticatedRequest, @Res() res: Response) {
+    if (!req.user) {
+      return ResponseUtil.error(res, ErrorCodes.AUTH_TOKEN_MISSING, 'Not authenticated', 401);
+    }
+
+    // Validate X-Device-Id header is present
+    if (!req.deviceId) {
+      return ResponseUtil.error(res, ErrorCodes.VALIDATION_ERROR, 'X-Device-Id header is required', 400);
+    }
+
+    const { vaultId, revision } = query;
+
+    if (!vaultId || typeof vaultId !== 'string') {
+      return ResponseUtil.error(res, ErrorCodes.VALIDATION_ERROR, 'vaultId is required', 400);
+    }
+
+    if (!revision || typeof revision !== 'string') {
+      return ResponseUtil.error(res, ErrorCodes.VALIDATION_ERROR, 'revision is required', 400);
+    }
+
+    try {
+      const blobInfo = await this.historyService.getHistoryBlob(req.user.id, vaultId, revision);
+
+      return ResponseUtil.success(res, blobInfo);
+    } catch (error: any) {
+      if (error.code === ErrorCodes.ACCESS_DENIED) {
+        return ResponseUtil.error(res, error.code, error.message, 403);
+      }
+      if (error.code === ErrorCodes.RESOURCE_NOT_FOUND) {
+        return ResponseUtil.error(res, error.code, error.message, 404);
+      }
+      if (error.code === ErrorCodes.VALIDATION_ERROR) {
+        return ResponseUtil.error(res, error.code, error.message, 400);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * GET /api/v1/sync/diagnostics
+   * Get sync diagnostics for a vault
+   */
+  @Get('/diagnostics')
+  @OpenAPI({
+    summary: 'Get sync diagnostics',
+    description: 'Gets sync diagnostics for a vault including trigger source, offline state, and retry info',
+    responses: {
+      200: { description: 'Sync diagnostics' },
+      400: { description: 'Validation error' },
+      401: { description: 'Not authenticated' },
+      403: { description: 'Access denied' },
+    },
+  })
+  async getDiagnostics(@QueryParams() query: SyncDiagnosticsQuery, @Req() req: AuthenticatedRequest, @Res() res: Response) {
+    if (!req.user) {
+      return ResponseUtil.error(res, ErrorCodes.AUTH_TOKEN_MISSING, 'Not authenticated', 401);
+    }
+
+    const { vaultId, deviceId } = query;
+
+    if (!vaultId || typeof vaultId !== 'string') {
+      return ResponseUtil.error(res, ErrorCodes.VALIDATION_ERROR, 'vaultId is required', 400);
+    }
+
+    // Use the authenticated deviceId from header if not provided
+    const effectiveDeviceId = deviceId || req.deviceId;
+
+    if (!effectiveDeviceId) {
+      return ResponseUtil.error(res, ErrorCodes.VALIDATION_ERROR, 'deviceId is required', 400);
+    }
+
+    try {
+      const diagnostics = await this.diagnosticsService.getSyncDiagnostics(req.user.id, {
+        vaultId,
+        deviceId: effectiveDeviceId,
+      });
+
+      return ResponseUtil.success(res, diagnostics);
+    } catch (error: any) {
+      if (error.code === ErrorCodes.ACCESS_DENIED) {
+        return ResponseUtil.error(res, error.code, error.message, 403);
+      }
+      if (error.code === ErrorCodes.VALIDATION_ERROR) {
+        return ResponseUtil.error(res, error.code, error.message, 400);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * POST /api/v1/sync/diagnostics/events
+   * Record a sync runtime event
+   */
+  @Post('/diagnostics/events')
+  @OpenAPI({
+    summary: 'Record sync runtime event',
+    description: 'Records a sync runtime event for diagnostics and offline replay',
+    responses: {
+      200: { description: 'Event recorded' },
+      400: { description: 'Validation error' },
+      401: { description: 'Not authenticated' },
+      403: { description: 'Access denied' },
+    },
+  })
+  async recordRuntimeEvent(@Body() body: SyncRuntimeEventBody, @Req() req: AuthenticatedRequest, @Res() res: Response) {
+    if (!req.user) {
+      return ResponseUtil.error(res, ErrorCodes.AUTH_TOKEN_MISSING, 'Not authenticated', 401);
+    }
+
+    const { vaultId, deviceId, trigger, retryCount, offlineStartedAt, recoveredAt, nextRetryAt, requestId } = body;
+
+    if (!vaultId || typeof vaultId !== 'string') {
+      return ResponseUtil.error(res, ErrorCodes.VALIDATION_ERROR, 'vaultId is required', 400);
+    }
+
+    if (!deviceId || typeof deviceId !== 'string') {
+      return ResponseUtil.error(res, ErrorCodes.VALIDATION_ERROR, 'deviceId is required', 400);
+    }
+
+    if (!trigger || typeof trigger !== 'string') {
+      return ResponseUtil.error(res, ErrorCodes.VALIDATION_ERROR, 'trigger is required', 400);
+    }
+
+    if (typeof retryCount !== 'number') {
+      return ResponseUtil.error(res, ErrorCodes.VALIDATION_ERROR, 'retryCount must be a number', 400);
+    }
+
+    if (!requestId || typeof requestId !== 'string') {
+      return ResponseUtil.error(res, ErrorCodes.VALIDATION_ERROR, 'requestId is required', 400);
+    }
+
+    try {
+      const result = await this.diagnosticsService.recordSyncRuntimeEvent(req.user.id, {
+        vaultId,
+        deviceId,
+        trigger: trigger as any,
+        retryCount,
+        offlineStartedAt,
+        recoveredAt,
+        nextRetryAt,
+        requestId,
+      });
+
+      return ResponseUtil.success(res, {
+        accepted: result.accepted,
+        deduplicated: result.deduplicated,
+        processedAt: new Date().toISOString(),
       });
     } catch (error: any) {
       if (error.code === ErrorCodes.ACCESS_DENIED) {

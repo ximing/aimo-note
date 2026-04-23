@@ -6,7 +6,7 @@
  * will be completed in a follow-up task.
  */
 
-import type { SyncStatus } from '@aimo-note/dto';
+import type { SyncStatus, SnapshotRecord, SnapshotRestoreResult as SnapshotRestoreResultDTO } from '@aimo-note/dto';
 
 export interface SyncState {
   status: SyncStatus;
@@ -24,6 +24,32 @@ export interface VaultInfo {
   description?: string;
 }
 
+export interface ConflictInfo {
+  id: string;
+  filePath: string;
+  expectedBaseRevision: string;
+  actualHeadRevision: string;
+  remoteBlobHash: string;
+  winningCommitSeq: number;
+  losingDeviceId: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+  conflictCopyPath: string | null;
+}
+
+export interface HistoryEntry {
+  revision: string;
+  blobHash: string | null;
+  commitSeq: number;
+  createdAt: string;
+  deviceId: string;
+  isDeleted: boolean;
+}
+
+// Snapshot types - re-exported from dto for compatibility
+export type SnapshotInfo = SnapshotRecord;
+export type SnapshotRestoreInfo = SnapshotRestoreResultDTO;
+
 // Placeholder sync interface - will be connected to actual electron API
 interface SyncAPI {
   getStatus: () => Promise<{
@@ -36,24 +62,24 @@ interface SyncAPI {
     vaultId?: string | null;
     vaultName?: string | null;
   }>;
-  trigger: () => Promise<{ success: boolean; error?: string }>;
-  getConflicts: () => Promise<{
+  trigger: (trigger?: string) => Promise<{ success: boolean; error?: string }>;
+  getConflicts: (vaultId?: string) => Promise<{
     success: boolean;
-    conflicts: Array<{
-      id: number;
-      filePath: string;
-      localVersion: string;
-      remoteVersion: string;
-      localHash: string;
-      remoteHash: string;
-      createdAt: string;
-      resolved: boolean;
-      resolutionPath: string | null;
-    }>;
+    conflicts: ConflictInfo[];
     error?: string;
   }>;
-  resolveConflict: (id: number, resolutionPath: string) => Promise<{ success: boolean; error?: string }>;
-  rollback: (filePath: string, targetVersion: string) => Promise<{ success: boolean; error?: string }>;
+  resolveConflict: (conflictId: string, resolutionPath: string) => Promise<{ success: boolean; error?: string }>;
+  rollback: (vaultPath: string, filePath: string, targetVersion: string) => Promise<{ success: boolean; error?: string }>;
+  listHistory: (vaultId: string, filePath: string, page?: number, pageSize?: number) => Promise<{
+    success: boolean;
+    items: HistoryEntry[];
+    page: number;
+    pageSize: number;
+    hasMore: boolean;
+    error?: string;
+  }>;
+  openConflictCopy: (conflictId: string, filePath: string) => Promise<{ success: boolean; error?: string }>;
+  recordConflictCopyPath: (conflictId: string, conflictCopyPath: string) => Promise<{ success: boolean }>;
   configure: (serverUrl: string, deviceId: string) => Promise<{ success: boolean; error?: string }>;
   listVaults: () => Promise<{
     success: boolean;
@@ -70,6 +96,59 @@ interface SyncAPI {
   registerDevice: (vaultId: string, deviceName: string) => Promise<{
     success: boolean;
     deviceId?: string;
+    error?: string;
+  }>;
+  getDiagnostics: (vaultId?: string) => Promise<{
+    success: boolean;
+    diagnostics: {
+      lastTriggerSource: string | null;
+      offlineReason: string | null;
+      nextRetryAt: string | null;
+      lastFailedRequestId: string | null;
+      lastFailedRequestDeviceId: string | null;
+      lastSuccessfulSyncAt: string | null;
+      consecutiveFailures: number;
+    } | null;
+    error?: string;
+  }>;
+  recordRuntimeEvent: (eventData: {
+    vaultId: string;
+    deviceId: string;
+    trigger: string;
+    retryCount: number;
+    offlineStartedAt?: string | null;
+    recoveredAt?: string | null;
+    nextRetryAt?: string | null;
+    requestId: string;
+  }) => Promise<{
+    success: boolean;
+    accepted: boolean;
+    deduplicated: boolean;
+    error?: string;
+  }>;
+  listSnapshots: (vaultId: string, page?: number, pageSize?: number) => Promise<{
+    success: boolean;
+    items: SnapshotInfo[];
+    page: number;
+    pageSize: number;
+    total: number;
+    hasMore: boolean;
+    error?: string;
+  }>;
+  createSnapshot: (vaultId: string, description?: string) => Promise<{
+    success: boolean;
+    snapshot?: SnapshotInfo;
+    error?: string;
+  }>;
+  getSnapshot: (snapshotId: string) => Promise<{
+    success: boolean;
+    snapshot?: SnapshotInfo;
+    error?: string;
+  }>;
+  restoreSnapshot: (snapshotId: string, vaultId: string, deviceId?: string) => Promise<{
+    success: boolean;
+    result?: SnapshotRestoreInfo;
+    existingTask?: SnapshotRestoreInfo;
     error?: string;
   }>;
 }
@@ -117,57 +196,48 @@ export const sync = {
   /**
    * Trigger a sync
    */
-  async trigger(): Promise<{ success: boolean; error?: string }> {
+  async trigger(trigger?: string): Promise<{ success: boolean; error?: string }> {
     const api = getSyncAPI();
     if (!api) {
       return { success: false, error: 'Sync not configured' };
     }
-    return api.trigger();
+    return api.trigger(trigger);
   },
 
   /**
    * Get sync conflicts
    */
-  async getConflicts(): Promise<{
+  async getConflicts(vaultId?: string): Promise<{
     success: boolean;
-    conflicts: Array<{
-      id: number;
-      filePath: string;
-      localVersion: string;
-      remoteVersion: string;
-      localHash: string;
-      remoteHash: string;
-      createdAt: string;
-      resolved: boolean;
-      resolutionPath: string | null;
-    }>;
+    conflicts: ConflictInfo[];
     error?: string;
   }> {
     const api = getSyncAPI();
     if (!api) {
       return { success: true, conflicts: [] };
     }
-    return api.getConflicts();
+    return api.getConflicts(vaultId);
   },
 
   /**
    * Resolve a conflict
    */
   async resolveConflict(
-    id: number,
+    conflictId: string,
     resolutionPath: string
   ): Promise<{ success: boolean; error?: string }> {
     const api = getSyncAPI();
     if (!api) {
       return { success: false, error: 'Sync not configured' };
     }
-    return api.resolveConflict(id, resolutionPath);
+    return api.resolveConflict(conflictId, resolutionPath);
   },
 
   /**
    * Rollback a file to a specific version
    */
   async rollback(
+    vaultPath: string,
     filePath: string,
     targetVersion: string
   ): Promise<{ success: boolean; error?: string }> {
@@ -175,7 +245,41 @@ export const sync = {
     if (!api) {
       return { success: false, error: 'Sync not configured' };
     }
-    return api.rollback(filePath, targetVersion);
+    return api.rollback(vaultPath, filePath, targetVersion);
+  },
+
+  /**
+   * List file revision history
+   */
+  async listHistory(
+    vaultId: string,
+    filePath: string,
+    page?: number,
+    pageSize?: number
+  ): Promise<{
+    success: boolean;
+    items: HistoryEntry[];
+    page: number;
+    pageSize: number;
+    hasMore: boolean;
+    error?: string;
+  }> {
+    const api = getSyncAPI();
+    if (!api) {
+      return { success: false, error: 'Sync not configured', items: [], page: 1, pageSize: 50, hasMore: false };
+    }
+    return api.listHistory(vaultId, filePath, page, pageSize);
+  },
+
+  /**
+   * Open a conflict copy file
+   */
+  async openConflictCopy(conflictId: string, filePath: string): Promise<{ success: boolean; error?: string }> {
+    const api = getSyncAPI();
+    if (!api) {
+      return { success: false, error: 'Sync not configured' };
+    }
+    return api.openConflictCopy(conflictId, filePath);
   },
 
   /**
@@ -260,5 +364,122 @@ export const sync = {
       return { success: false, error: 'Server not configured' };
     }
     return api.registerDevice(vaultId, deviceName);
+  },
+
+  /**
+   * Get sync diagnostics from server
+   */
+  async getDiagnostics(vaultId?: string): Promise<{
+    success: boolean;
+    diagnostics: {
+      lastTriggerSource: string | null;
+      offlineReason: string | null;
+      nextRetryAt: string | null;
+      lastFailedRequestId: string | null;
+      lastFailedRequestDeviceId: string | null;
+      lastSuccessfulSyncAt: string | null;
+      consecutiveFailures: number;
+    } | null;
+    error?: string;
+  }> {
+    const api = getSyncAPI();
+    if (!api) {
+      return { success: true, diagnostics: null };
+    }
+    return api.getDiagnostics(vaultId);
+  },
+
+  /**
+   * Record a sync runtime event
+   */
+  async recordRuntimeEvent(eventData: {
+    vaultId: string;
+    deviceId: string;
+    trigger: string;
+    retryCount: number;
+    offlineStartedAt?: string | null;
+    recoveredAt?: string | null;
+    nextRetryAt?: string | null;
+    requestId: string;
+  }): Promise<{
+    success: boolean;
+    accepted: boolean;
+    deduplicated: boolean;
+    error?: string;
+  }> {
+    const api = getSyncAPI();
+    if (!api) {
+      return { success: false, error: 'Sync not configured', accepted: false, deduplicated: false };
+    }
+    return api.recordRuntimeEvent(eventData);
+  },
+
+  // =============================================================================
+  // Snapshot Operations
+  // =============================================================================
+
+  /**
+   * List snapshots for a vault
+   */
+  async listSnapshots(vaultId: string, page?: number, pageSize?: number): Promise<{
+    success: boolean;
+    items: SnapshotInfo[];
+    page: number;
+    pageSize: number;
+    total: number;
+    hasMore: boolean;
+    error?: string;
+  }> {
+    const api = getSyncAPI();
+    if (!api) {
+      return { success: true, items: [], page: 1, pageSize: 20, total: 0, hasMore: false };
+    }
+    return api.listSnapshots(vaultId, page, pageSize);
+  },
+
+  /**
+   * Create a new snapshot
+   */
+  async createSnapshot(vaultId: string, description?: string): Promise<{
+    success: boolean;
+    snapshot?: SnapshotInfo;
+    error?: string;
+  }> {
+    const api = getSyncAPI();
+    if (!api) {
+      return { success: false, error: 'Sync not configured' };
+    }
+    return api.createSnapshot(vaultId, description);
+  },
+
+  /**
+   * Get snapshot status by ID
+   */
+  async getSnapshot(snapshotId: string): Promise<{
+    success: boolean;
+    snapshot?: SnapshotInfo;
+    error?: string;
+  }> {
+    const api = getSyncAPI();
+    if (!api) {
+      return { success: false, error: 'Sync not configured' };
+    }
+    return api.getSnapshot(snapshotId);
+  },
+
+  /**
+   * Restore a snapshot
+   */
+  async restoreSnapshot(snapshotId: string, vaultId: string, deviceId?: string): Promise<{
+    success: boolean;
+    result?: SnapshotRestoreInfo;
+    existingTask?: SnapshotRestoreInfo;
+    error?: string;
+  }> {
+    const api = getSyncAPI();
+    if (!api) {
+      return { success: false, error: 'Sync not configured' };
+    }
+    return api.restoreSnapshot(snapshotId, vaultId, deviceId);
   },
 };
