@@ -64,10 +64,11 @@ CREATE INDEX IF NOT EXISTS idx_local_changes_created ON sync_local_changes(creat
 CREATE TABLE IF NOT EXISTS sync_conflicts (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   file_path TEXT NOT NULL,
-  local_version TEXT NOT NULL,
-  remote_version TEXT NOT NULL,
+  expected_base_revision TEXT NOT NULL,
+  actual_head_revision TEXT NOT NULL,
+  remote_blob_hash TEXT,
+  winning_commit_seq INTEGER NOT NULL,
   local_hash TEXT NOT NULL,
-  remote_hash TEXT NOT NULL,
   created_at TEXT NOT NULL,
   resolved INTEGER DEFAULT 0,
   resolution_path TEXT

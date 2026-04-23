@@ -262,12 +262,16 @@ export class SyncCommitService {
   }
 
   /**
-   * Validate that all file paths don't start with .aimo-note/
+   * Validate that all file paths don't contain .aimo-note as a path segment
+   * (handles cases like '.aimo-note/', 'foo/.aimo-note/bar', etc.)
    */
   private validateFilePaths(
     changes: Array<{ filePath: string; op: 'upsert' | 'delete' }>
   ): void {
-    const invalidPaths = changes.filter((c) => c.filePath.startsWith('.aimo-note/'));
+    const invalidPaths = changes.filter((c) => {
+      const pathParts = c.filePath.split('/');
+      return pathParts.some(part => part === '.aimo-note');
+    });
 
     if (invalidPaths.length > 0) {
       throw new InvalidFilePathError(invalidPaths[0].filePath);
@@ -400,6 +404,8 @@ export class SyncCommitService {
         losingDeviceId,
         winningRevision: conflict.actualHeadRevision,
         losingRevision: conflict.expectedBaseRevision,
+        actualHeadRevision: conflict.actualHeadRevision,
+        remoteBlobHash: conflict.remoteBlobHash,
         winningCommitSeq: conflict.winningCommitSeq,
         resolvedAt: null,
         createdAt: new Date(),

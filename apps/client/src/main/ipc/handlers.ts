@@ -1274,8 +1274,38 @@ const pullData = await pullResponse.json() as {
         return { success: false, error: 'Download URL not available' };
       }
 
-      // Step 3: Download the blob content
-      const contentResponse = await fetch(downloadUrlData.data.downloadUrl);
+      // Step 3: Download the blob content with retry on 401/403
+      let contentResponse = await fetch(downloadUrlData.data.downloadUrl);
+      let downloadUrl = downloadUrlData.data.downloadUrl;
+
+      // If we get 401/403, the URL may have expired - refresh and retry once
+      if (contentResponse.status === 401 || contentResponse.status === 403) {
+        // Refresh the download URL
+        const refreshResponse = await fetch(
+          `${adapterConfig.baseUrl}/api/v1/sync/blob-download-url`,
+          {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ vaultId: remoteVaultId, blobHash }),
+          }
+        );
+
+        if (!refreshResponse.ok) {
+          return { success: false, error: `Failed to refresh download URL: HTTP ${refreshResponse.status}` };
+        }
+
+        const refreshData = await refreshResponse.json() as {
+          data?: { downloadUrl: string };
+        };
+
+        if (!refreshData?.data?.downloadUrl) {
+          return { success: false, error: 'Refreshed download URL not available' };
+        }
+
+        downloadUrl = refreshData.data.downloadUrl;
+        contentResponse = await fetch(downloadUrl);
+      }
+
       if (!contentResponse.ok) {
         return { success: false, error: `Failed to download content: HTTP ${contentResponse.status}` };
       }
@@ -1298,6 +1328,7 @@ const pullData = await pullResponse.json() as {
         data: {
           filePath,
           restoredVersion: targetVersion,
+          newVersion: targetVersion, // After rollback, new version equals the restored version
           content,
           trigger: 'rollback' as const,
         },
@@ -1496,6 +1527,51 @@ const pullData = await pullResponse.json() as {
       };
     } catch (error) {
       return { success: false, error: String(error), items: [] };
+    }
+  });
+
+  ipcMain.handle('sync:getHistoryBlob', async (_event, vaultId: string, revision: string) => {
+    const adapterConfig = buildServerAdapter();
+    if (!adapterConfig) {
+      return { success: false, error: 'Sync not configured' };
+    }
+
+    try {
+      const token = getAuthToken();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'X-Device-Id': adapterConfig.deviceId,
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(
+        `${adapterConfig.baseUrl}/api/v1/sync/history/blob?vaultId=${encodeURIComponent(vaultId)}&revision=${encodeURIComponent(revision)}`,
+        { method: 'GET', headers }
+      );
+
+      if (!response.ok) {
+        return { success: false, error: `HTTP ${response.status}` };
+      }
+
+      const data = await response.json() as {
+        data?: {
+          revision: string;
+          blobHash: string;
+          sizeBytes: number;
+          mimeType: string | null;
+          isDeleted: boolean;
+        };
+      };
+
+      if (!data?.data) {
+        return { success: false, error: 'History blob not found' };
+      }
+
+      return { success: true, data: data.data };
+    } catch (error) {
+      return { success: false, error: String(error) };
     }
   });
 

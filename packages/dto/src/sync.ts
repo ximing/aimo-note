@@ -45,6 +45,29 @@ export interface SyncFileVersion {
   isDeleted: boolean;
 }
 
+/**
+ * Alias for SyncFileVersion - represents a historical revision of a file.
+ * Phase 1 Plan Task 1 export requirement.
+ */
+export type SyncRevisionRecord = SyncFileVersion;
+
+/**
+ * Represents a local change that is pending sync to the server.
+ * Phase 1 Plan Task 1 export requirement.
+ */
+export interface SyncLocalChange {
+  id: number;
+  filePath: string;
+  operation: SyncOperation;
+  blobHash: string | null;
+  baseRevision: string | null;
+  newRevision: string;
+  sizeBytes: number | null;
+  metadataJson: string | null;
+  createdAt: string;
+  synced: boolean;
+}
+
 export interface SyncState {
   key: string;
   value: string;
@@ -92,6 +115,7 @@ export interface SyncConflictRecord {
 export interface RollbackRequest {
   filePath: string;
   targetVersion: string;
+  trigger?: SyncTrigger;
 }
 
 export interface RollbackResult {

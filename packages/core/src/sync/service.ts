@@ -1,5 +1,5 @@
 import type { Database } from 'better-sqlite3';
-import type { SyncDevice, S3Config, SyncConflictRecord, RollbackResult, GcConfig, GcResult, ManifestCompactionResult } from '@aimo-note/dto';
+import type { SyncDevice, S3Config, SyncConflictRecord, RollbackResult, GcConfig, GcResult, ManifestCompactionResult, SyncStatus, SyncTrigger, SyncFileVersion } from '@aimo-note/dto';
 import { DeviceManager } from './device';
 import { ChangeLogger } from './change_logger';
 import { VersionManager } from './version_manager';
@@ -214,6 +214,53 @@ export class SyncService {
   async compactManifest(maxAgeDays = 30): Promise<ManifestCompactionResult | null> {
     if (!this.compactor) return null;
     return this.compactor.compact({ maxAgeDays });
+  }
+
+  // Phase 1 stub methods (network behavior not implemented yet)
+
+  /**
+   * Get pending local changes that haven't been synced yet.
+   */
+  async getPendingChanges(): Promise<SyncFileVersion[]> {
+    throw new Error('Not implemented: network sync not yet available');
+  }
+
+  /**
+   * Get current sync status.
+   */
+  async getSyncStatus(): Promise<SyncStatus> {
+    if (!this.s3Config) {
+      return 'DISABLED';
+    }
+    return 'IDLE';
+  }
+
+  /**
+   * Request a sync operation with the given trigger.
+   */
+  async requestSync(trigger: SyncTrigger): Promise<void> {
+    throw new Error('Not implemented: network sync not yet available');
+  }
+
+  /**
+   * Pull changes from server for a vault.
+   */
+  async pull(vaultId: string): Promise<void> {
+    throw new Error('Not implemented: network sync not yet available');
+  }
+
+  /**
+   * Commit local changes to server for a vault.
+   */
+  async commit(vaultId: string): Promise<void> {
+    throw new Error('Not implemented: network sync not yet available');
+  }
+
+  /**
+   * Acknowledge received changes for a vault.
+   */
+  async ack(vaultId: string): Promise<void> {
+    throw new Error('Not implemented: network sync not yet available');
   }
 
   // Start watching for file changes
